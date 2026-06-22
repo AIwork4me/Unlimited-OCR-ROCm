@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <div align="center">
-  <sub>感谢 AMD 提供算力支持 · <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 平台可快速验证</sub>
+  <h4>Powered by AMD · Try it on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></h4>
 </div>
 
 <div align="center">
