@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <div align="center">
-  <h4>Powered by AMD · Try it on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></h4>
+  <h4>Special thanks to AMD for compute support · Try it on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></h4>
 </div>
 
 <div align="center">
