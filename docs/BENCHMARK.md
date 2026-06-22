@@ -7,7 +7,7 @@
 | Item | Detail |
 |------|--------|
 | GPU | AMD Radeon Graphics |
-| VRAM Total | 51.5 GB |
+| VRAM Total | 48 GB |
 | ROCm / HIP | 7.2.53211 |
 | PyTorch | 2.12.1+rocm7.2 |
 | Model | baidu/Unlimited-OCR |

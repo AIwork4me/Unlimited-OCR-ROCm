@@ -23,7 +23,7 @@
 | 项目 | 详情 |
 |------|------|
 | **GPU** | AMD Radeon Graphics |
-| **显存** | 51.5 GB |
+| **显存** | 48 GB |
 | **ROCm / HIP** | 7.2.53211 |
 | **PyTorch** | 2.12.1+rocm7.2 |
 | **模型** | baidu/Unlimited-OCR |
