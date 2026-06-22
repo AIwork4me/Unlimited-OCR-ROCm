@@ -1,7 +1,7 @@
 {
   "hardware": {
     "gpu": "AMD Radeon Graphics",
-    "vram_gb": 51.5,
+    "vram_gb": 48.0,
     "hip": "7.2.53211",
     "load_time_s": 19.30181121826172,
     "idle_vram_gb": 6.77033984
