@@ -1,6 +1,10 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <div align="center">
+  <sub>感谢 AMD 提供算力支持 · <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 平台可快速验证</sub>
+</div>
+
+<div align="center">
   <a href="https://github.com/AIwork4me/Unlimited-OCR-ROCm">
     <img alt="GitHub" src="https://img.shields.io/badge/GitHub-Code-181717?logo=github&logoColor=white" />
   </a>
