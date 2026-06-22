@@ -1,0 +1,9 @@
+# Development dependencies
+# Install: pip install -r requirements-dev.txt
+
+pytest>=8.0
+pytest-timeout
+pytest-cov
+ruff>=0.5.0
+mypy>=1.0
+pre-commit>=3.0

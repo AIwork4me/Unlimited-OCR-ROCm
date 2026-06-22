@@ -1,0 +1,5 @@
+# HuggingFace model cache
+hf_cache/
+.cache/
+
+# See parent .gitignore for more

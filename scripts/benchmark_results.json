@@ -1,0 +1,263 @@
+{
+  "hardware": {
+    "gpu": "AMD Radeon Graphics",
+    "vram_gb": 51.5,
+    "hip": "7.2.53211",
+    "load_time_s": 19.30181121826172,
+    "idle_vram_gb": 6.77033984
+  },
+  "results": [
+    {
+      "name": "mode_gundam",
+      "time_s": 14.6,
+      "tokens_est": 656,
+      "tok_per_s": 45,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.8,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.87,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "mode_base",
+      "time_s": 12.3,
+      "tokens_est": 656,
+      "tok_per_s": 53,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.3,
+      "vram_delta_gb": 0.49,
+      "chars": 1970,
+      "params": {
+        "mode": "base",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "dpi_100",
+      "time_s": 12.4,
+      "tokens_est": 656,
+      "tok_per_s": 53,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.79,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 100,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "dpi_150",
+      "time_s": 12.4,
+      "tokens_est": 656,
+      "tok_per_s": 53,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.79,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 150,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "dpi_200",
+      "time_s": 12.4,
+      "tokens_est": 656,
+      "tok_per_s": 53,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.79,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "dpi_300",
+      "time_s": 19.6,
+      "tokens_est": 656,
+      "tok_per_s": 33,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 9.2,
+      "vram_delta_gb": 2.36,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 300,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "maxlen_4096",
+      "time_s": 11.9,
+      "tokens_est": 656,
+      "tok_per_s": 55,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 4096,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "maxlen_8192",
+      "time_s": 11.9,
+      "tokens_est": 656,
+      "tok_per_s": 55,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "maxlen_16384",
+      "time_s": 12.5,
+      "tokens_est": 656,
+      "tok_per_s": 53,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 16384,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "ngram_64",
+      "time_s": 11.8,
+      "tokens_est": 656,
+      "tok_per_s": 56,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 64
+      }
+    },
+    {
+      "name": "ngram_128",
+      "time_s": 11.8,
+      "tokens_est": 656,
+      "tok_per_s": 56,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 128
+      }
+    },
+    {
+      "name": "ngram_256",
+      "time_s": 11.9,
+      "tokens_est": 656,
+      "tok_per_s": 55,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 256
+      }
+    },
+    {
+      "name": "ngram_512",
+      "time_s": 11.9,
+      "tokens_est": 656,
+      "tok_per_s": 55,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 200,
+        "max_length": 8192,
+        "ngram_window": 512
+      }
+    },
+    {
+      "name": "best_combo",
+      "time_s": 11.8,
+      "tokens_est": 656,
+      "tok_per_s": 56,
+      "vram_idle_gb": 6.8,
+      "vram_before_gb": 6.9,
+      "vram_after_gb": 6.9,
+      "vram_peak_gb": 7.6,
+      "vram_delta_gb": 0.78,
+      "chars": 1970,
+      "params": {
+        "mode": "gundam",
+        "dpi": 150,
+        "max_length": 8192,
+        "ngram_window": 64
+      }
+    }
+  ]
+}

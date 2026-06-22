@@ -1,0 +1,48 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+wheel/
+
+# Test and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local runtime outputs
+outputs/
+log/
+*.log
+benchmark_results/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Docker
+hf_cache/
+
+# Secrets
+.env
+*.secret
+*.whl
+assets/long-horizon-ocr.gif

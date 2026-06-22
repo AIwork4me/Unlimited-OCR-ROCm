@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  unlimited-ocr:
+    build:
+      context: .
+      args:
+        ROCM_VERSION: ${ROCM_VERSION:-6.2}
+    image: unlimited-ocr-rocm:${ROCM_VERSION:-6.2}
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
+    group_add:
+      - video
+      - render
+    environment:
+      - HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}
+    volumes:
+      - ./inputs:/workspace/inputs:ro
+      - ./outputs:/workspace/outputs
+      - hf_cache:/root/.cache/huggingface
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+
+volumes:
+  hf_cache:
