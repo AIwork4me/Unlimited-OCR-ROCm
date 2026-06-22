@@ -1,9 +1,3 @@
-<p align="center">
-  <img src="assets/baidu.png" width="40%" alt="Baidu Inc." />
-</p>
-
-<hr>
-
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <div align="center">
@@ -36,7 +30,7 @@
 <br>
 
 <p align="center">
-  <strong>Run <a href="https://github.com/baidu/Unlimited-OCR">Baidu Unlimited-OCR</a> on AMD GPUs. One command. 56 tok/s. Zero accuracy loss.</strong>
+  <strong>Run <a href="https://github.com/baidu/Unlimited-OCR">Baidu Unlimited-OCR</a> on AMD GPUs. One command. 56 tok/s. Zero accuracy loss. Only 16GB VRAM required.</strong>
 </p>
 
 <p align="center">
@@ -58,7 +52,7 @@
 | You are… | You want… | This project gives you… |
 |-----------|-----------|------------------------|
 | **AMD GPU owner** (Instinct / Radeon) | To run the best OCR model without buying NVIDIA hardware | One-command deployment, auto ROCm detection |
-| **AI startup / researcher** | Batch process thousands of PDFs at minimal cost | 56 tok/s per GPU, ~12s per page, 7.3 GB VRAM |
+| **AI startup / researcher** | Batch process thousands of PDFs at minimal cost | **56 tok/s** per GPU, **7.3 GB** VRAM peak |
 | **Document pipeline engineer** | Production-grade OCR with structured output (Markdown + bounding boxes) | OpenAI-compatible API, Docker, SGLang serving |
 | **ML tinkerer** | Understand WHY the model behaves as it does | Full root cause analysis in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
@@ -68,9 +62,6 @@
 |------|---------|-------------------|-------------|------|
 | **Unlimited-OCR-ROCm** | ✅ Native ROCm | ✅ Markdown + bboxes | ✅ 32K context, R-SWA | Free (MIT) |
 | Original Unlimited-OCR | ❌ NVIDIA only | ✅ | ✅ | Free (MIT) |
-| PaddleOCR | ✅ | ⚠️ Text only | ❌ Page-by-page | Free |
-| Tesseract | ✅ | ❌ Plain text | ❌ | Free |
-| Cloud OCR API | N/A | Varies | ❌ | ~$0.0015/page |
 
 ---
 
@@ -216,19 +207,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ## Acknowledgement
 
 Built on [Baidu Unlimited-OCR](https://github.com/baidu/Unlimited-OCR), [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR), [SGLang](https://github.com/sgl-project/sglang), and [AMD ROCm](https://rocm.docs.amd.com).
-
----
-
-## Citation
-
-```bibtex
-@article{unlimitedocr,
-  title   = {Unlimited OCR Works},
-  author  = {Baidu Inc.},
-  journal = {arXiv preprint},
-  year    = {2026}
-}
-```
 
 ---
 

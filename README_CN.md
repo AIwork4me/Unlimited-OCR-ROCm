@@ -1,9 +1,3 @@
-<p align="center">
-  <img src="assets/baidu.png" width="40%" alt="Baidu Inc." />
-</p>
-
-<hr>
-
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <div align="center">
@@ -36,7 +30,7 @@
 <br>
 
 <p align="center">
-  <strong>在 AMD GPU 上运行 <a href="https://github.com/baidu/Unlimited-OCR">百度 Unlimited-OCR</a>。一行命令。56 tok/s。零精度损失。</strong>
+  <strong>在 AMD GPU 上运行 <a href="https://github.com/baidu/Unlimited-OCR">百度 Unlimited-OCR</a>。一行命令。56 tok/s。零精度损失。仅需 16GB 显存。</strong>
 </p>
 
 <p align="center">
@@ -58,7 +52,7 @@
 | 如果你是… | 你想要… | 本项目能给你… |
 |-----------|---------|-------------|
 | **AMD GPU 用户** (Instinct / Radeon) | 不用买 NVIDIA 硬件就跑最好的 OCR 模型 | 一行命令部署，自动 ROCm 检测 |
-| **AI 创业/研究人员** | 以最低成本批量处理数千 PDF | 每 GPU 56 tok/s，~12s/页，7.3 GB 显存 |
+| **AI 创业/研究人员** | 以最低成本批量处理数千 PDF | 每 GPU **56 tok/s**，**7.3 GB** 显存峰值 |
 | **文档管线工程师** | 生产级 OCR，结构化输出 (Markdown + 边界框) | OpenAI 兼容 API，Docker，SGLang 服务 |
 | **ML 技术钻研者** | 理解模型为什么这样运行 | 完整根因分析见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
@@ -68,9 +62,6 @@
 |------|---------|-----------|--------|------|
 | **Unlimited-OCR-ROCm** | ✅ 原生 ROCm | ✅ Markdown + 边界框 | ✅ 32K 上下文，R-SWA | 免费 (MIT) |
 | 原版 Unlimited-OCR | ❌ NVIDIA only | ✅ | ✅ | 免费 (MIT) |
-| PaddleOCR | ✅ | ⚠️ 纯文本 | ❌ 逐页处理 | 免费 |
-| Tesseract | ✅ | ❌ 纯文本 | ❌ | 免费 |
-| 云端 OCR API | 无关 | 各异 | ❌ | ~¥0.01/页 |
 
 ---
 
@@ -216,19 +207,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ## 致谢
 
 基于 [百度 Unlimited-OCR](https://github.com/baidu/Unlimited-OCR)、[DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)、[SGLang](https://github.com/sgl-project/sglang) 和 [AMD ROCm](https://rocm.docs.amd.com)。
-
----
-
-## 引用
-
-```bibtex
-@article{unlimitedocr,
-  title   = {Unlimited OCR Works},
-  author  = {Baidu Inc.},
-  journal = {arXiv preprint},
-  year    = {2026}
-}
-```
 
 ---
 
