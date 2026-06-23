@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>State-of-the-Art OCR on AMD GPUs — One Command. 56 tok/s. Zero Setup Required.</strong>
+  <strong>State-of-the-Art OCR on AMD GPUs — Try it yourself on AMD Radeon Cloud</strong>
 </p>
 
 <p align="center">
