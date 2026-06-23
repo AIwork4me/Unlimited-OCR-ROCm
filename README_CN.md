@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>AMD GPU 上的顶级 OCR — 一条命令，56 tok/s，零配置。</strong>
+  <strong>AMD GPU 上的顶级 OCR — 在 AMD Radeon Cloud 上亲自体验</strong>
 </p>
 
 <p align="center">
