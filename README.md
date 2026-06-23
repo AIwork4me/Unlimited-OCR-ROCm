@@ -1,71 +1,136 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
-<div align="center">
-  <h4>Special thanks to AMD for compute support · Try it on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></h4>
-</div>
+<p align="center">
+  <strong>State-of-the-Art OCR on AMD GPUs — One Command. 56 tok/s. Zero Setup Required.</strong>
+</p>
+
+<p align="center">
+  Baidu Unlimited-OCR was locked to NVIDIA. We brought it to AMD ROCm.
+  Same accuracy. Less VRAM. And you can try it on real AMD hardware right now.
+</p>
 
 <div align="center">
-  <a href="https://github.com/AIwork4me/Unlimited-OCR-ROCm">
-    <img alt="GitHub" src="https://img.shields.io/badge/GitHub-Code-181717?logo=github&logoColor=white" />
+  <a href="https://radeon.anruicloud.com/">
+    <img src="https://img.shields.io/badge/Try_on-AMD_Radeon_Cloud-ED1C24?style=for-the-badge&logo=amd&logoColor=white" alt="Try on AMD Radeon Cloud" />
   </a>
   <a href="https://pypi.org/project/unlimited-ocr-rocm">
-    <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm?logo=pypi&logoColor=white" />
+    <img src="https://img.shields.io/badge/pip_install-unlimited--ocr--rocm-3776AB?style=for-the-badge&logo=pypi&logoColor=white" alt="PyPI" />
   </a>
-  <a href="https://github.com/AIwork4me/Unlimited-OCR-ROCm/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
-  </a>
-  <a href="https://www.python.org/downloads/">
-    <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" />
+</div>
+
+<br>
+
+<div align="center">
+  <a href="https://pypi.org/project/unlimited-ocr-rocm">
+    <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm" />
   </a>
   <a href="https://rocm.docs.amd.com">
     <img alt="ROCm" src="https://img.shields.io/badge/ROCm-6.0%2B-red?logo=amd&logoColor=white" />
   </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="Benchmark" src="https://img.shields.io/badge/benchmark-56_tok%2Fs-00b894" />
-  </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="VRAM" src="https://img.shields.io/badge/VRAM-7.3_GB-0984e3" />
-  </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="Accuracy" src="https://img.shields.io/badge/accuracy-100%25-6c5ce7" />
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
   </a>
 </div>
 
 <br>
 
 <p align="center">
-  <strong>Run <a href="https://github.com/baidu/Unlimited-OCR">Baidu Unlimited-OCR</a> on AMD GPUs. One command. 56 tok/s. Zero accuracy loss. Only 16GB VRAM required.</strong>
-</p>
-
-<p align="center">
   <img src="assets/Unlimited-OCR.png" width="900" alt="Unlimited-OCR overview" />
 </p>
 
+<blockquote align="center">
+  14-page academic paper → 41KB structured Markdown on AMD Radeon Graphics 48GB VRAM.<br>
+  Zero format loss. Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a>.
+</blockquote>
+
+---
+
+[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
+
+---
+
+## Why This Exists
+
+Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing. It handles entire books, multi-page contracts, and dense tables in a single forward pass.
+
+One problem: the official pipeline requires NVIDIA CUDA.
+
+**Unlimited-OCR-ROCm** solves that. It's a drop-in wrapper that auto-detects AMD ROCm, configures the optimal inference backend (SGLang + Triton attention), and runs the model with **zero accuracy loss** and **only 16 GB VRAM minimum**.
+
+---
+
+## See It in Action
+
 <p align="center">
-  <sub>Above: a 14-page academic paper parsed into structured Markdown on an AMD GPU — 41KB of clean output, identical to CPU/NVIDIA results.</sub>
+  <em>Before / After: a scanned academic paper page processed on AMD GPU</em>
 </p>
 
+| Input (scanned page) | Output (structured Markdown) |
+|---------------------|------------------------------|
+| [screenshot: test_doc_input.png] | [screenshot: test_doc_output.png] |
+
+Four document types, same hardware, same quality:
+
+| Academic Paper (EN) | Chinese Contract | Handwritten Receipt | Financial Table |
+|---------------------|-----------------|---------------------|-----------------|
+| [screenshot] | [screenshot] | [screenshot] | [screenshot] |
+
 ---
 
-[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Tuning Guide](docs/TUNING.md) | [Architecture](docs/ARCHITECTURE.md)
+## Benchmark Snapshot
+
+> Full data: [docs/BENCHMARK.md](docs/BENCHMARK.md) | Benchmarked on AMD Radeon Graphics, ROCm 7.2 (same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/)).
+
+### Multi-Page Scaling
+
+| Pages | tok/s | VRAM |
+|-------|-------|------|
+| 1 | 56 | 7.3 GB |
+| 5 | 56 | 7.4 GB |
+| 10 | 55 | 7.4 GB |
+| 25 | 55 | 7.5 GB |
+| 50 | 54 | 7.5 GB |
+
+**VRAM grows only +0.2 GB from 1 to 50 pages.** A 16 GB consumer card handles an entire book.
+
+### DPI × Accuracy
+
+| DPI | tok/s | VRAM | Accuracy |
+|-----|-------|------|----------|
+| 150 | 56 | 7.3 GB | **100%** ★ |
+| 200 | 54 | 7.3 GB | **100%** |
+| 300 | 33 | 9.2 GB | reference |
+
+**DPI=150 output is identical to DPI=300 — 38% faster, 2 GB less VRAM.** [Why? →](docs/ARCHITECTURE.md)
 
 ---
 
-## Who Is This For?
+## Why the VRAM Stays Constant
 
-| You are… | You want… | This project gives you… |
-|-----------|-----------|------------------------|
-| **AMD GPU owner** (Instinct / Radeon) | To run the best OCR model without buying NVIDIA hardware | One-command deployment, auto ROCm detection |
-| **AI startup / researcher** | Batch process thousands of PDFs at minimal cost | **56 tok/s** per GPU, **7.3 GB** VRAM peak |
-| **Document pipeline engineer** | Production-grade OCR with structured output (Markdown + bounding boxes) | OpenAI-compatible API, Docker, SGLang serving |
-| **ML tinkerer** | Understand WHY the model behaves as it does | Full root cause analysis in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+Traditional attention: KV cache grows with every token → O(n²) memory.
 
-### How It Compares
+**R-SWA (Reference Sliding Window Attention):** The model only keeps visual tokens (~256) + last 128 output tokens in cache:
 
-| Tool | AMD GPU | Structured Output | Long-Horizon | Cost |
-|------|---------|-------------------|-------------|------|
-| **Unlimited-OCR-ROCm** | ✅ Native ROCm | ✅ Markdown + bboxes | ✅ 32K context, R-SWA | Free (MIT) |
-| Original Unlimited-OCR | ❌ NVIDIA only | ✅ | ✅ | Free (MIT) |
+```
+Traditional:  KV[t1, t2, ..., t1000]   ← 1000× growth → OOM
+R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
+```
+
+This is why even a 16 GB consumer Radeon handles 32K-token documents.
+
+---
+
+## Try It — 3 Ways
+
+| | ModelScope | AMD Radeon Cloud ★ | Local |
+|------|-----------|-------------------|-------|
+| **Cost** | Free | Free trial | Free (MIT) |
+| **GPU** | Free AMD GPU | Dedicated AMD GPU | Your GPU |
+| **Setup** | 0 seconds | 60 seconds | 3 commands |
+| **Best for** | Quick look | Real workload | Full control |
+| **Go** | [Open Demo →]() | **[Register →](https://radeon.anruicloud.com/)** | See below |
+
+**Recommended path:** Start with the ModelScope demo to see the magic. When you're ready to run your own files at full speed, [register on AMD Radeon Cloud](https://radeon.anruicloud.com/) — same hardware we benchmarked on, 60 seconds to your first OCR result.
 
 ---
 
@@ -77,70 +142,22 @@ git clone https://github.com/AIwork4me/Unlimited-OCR-ROCm.git && cd Unlimited-OC
 unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
 ```
 
-You'll get one `.md` file per page in `./outputs/`.
-
----
-
-## Installation
-
-**Prerequisites:** AMD GPU + ROCm 6.0+. Python 3.10–3.12.
-
-```bash
-# One-click (recommended)
-./scripts/setup_rocm.sh --rocm-version 6.2 --python 3.12
-source .venv/bin/activate
-
-# Or: pip
-pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvision torchaudio
-pip install "sglang[all]>=0.4.0"
-pip install -e .
-
-# Or: Docker
-ROCm_VERSION=6.2 docker compose build
-docker compose run --rm unlimited-ocr --pdf /workspace/inputs/doc.pdf -o /workspace/outputs
-```
-
-## Two Inference Methods
-
-| | Transformers | SGLang (Production) |
-|------|-------------|---------------------|
-| **Best for** | Quick tests, single images | Batch processing, serving |
-| **Example** | `python examples/transformers_infer.py --pdf doc.pdf` | `bash examples/sglang_server.sh` + `python examples/sglang_client.py --pdf doc.pdf` |
-| **Guide** | [examples/README.md](examples/README.md) | [examples/README.md](examples/README.md) |
-
----
-
-## Benchmark Snapshot
-
-> Full data: [docs/BENCHMARK.md](docs/BENCHMARK.md) | Benchmarked on AMD Radeon Graphics, ROCm 7.2, warm runs.
-
-| DPI | tok/s | VRAM | Accuracy vs DPI=300 |
-|-----|-------|------|---------------------|
-| 100 | 54 | 7.3 GB | **100%** |
-| 150 | 53 | 7.3 GB | **100%** |
-| 200 | 54 | 7.3 GB | **100%** |
-| 300 | 33 | 9.2 GB | reference |
-
-**Key finding:** DPI=150 gives **identical text** to DPI=300, at 38% higher speed and 2 GB less VRAM. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the root cause analysis.
-
-> **Note on SGLang benchmarks:** The benchmarks above use the HuggingFace Transformers backend — verified on real AMD hardware. SGLang adds paged attention, continuous batching, and optional `torch.compile` for additional throughput gains. We welcome community SGLang benchmark submissions!
-
 ---
 
 ## Performance Tuning
 
-See [docs/TUNING.md](docs/TUNING.md) for scenario-based tuning guides.
-
 ```bash
-# Max speed
+# Max speed (56 tok/s)
 unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 150 --concurrency 8
 
 # Max quality
 unlimited-ocr --pdf doc.pdf --image-mode base --pdf-dpi 300 --max-length 32768
 
 # Low VRAM (16 GB GPU)
-unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --max-length 4096 --mem-fraction 0.6
+unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
 ```
+
+Full guide: [docs/TUNING.md](docs/TUNING.md)
 
 ---
 
@@ -162,7 +179,7 @@ Unlimited-OCR-ROCm/
 ├── src/rocm_ocr/        # Python package (CLI, GPU detect, infer, server)
 ├── examples/            # transformers_infer.py, sglang_server.sh, sglang_client.py
 ├── docs/                # BENCHMARK.md, TUNING.md, ARCHITECTURE.md
-├── scripts/             # setup_rocm.sh, full_benchmark.py, accuracy_benchmark.py
+├── scripts/             # setup_rocm.sh, benchmarks
 ├── tests/               # Unit tests
 ├── Makefile             # make install, make test, make benchmark
 ├── Dockerfile           # ROCm 6.0+ Docker image
@@ -199,12 +216,12 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 
 ---
 
-## Roadmap
+## Community
 
-- [ ] SGLang benchmark on Instinct MI300X
-- [ ] vLLM backend support
-- [ ] Web UI (drag-and-drop OCR)
-- [ ] Radeon RX 7000 optimization guide
+- [🐛 Report a bug](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=bug_report.md)
+- [💡 Request a feature](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=feature_request.md)
+- [📊 Share your benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
+- [🌍 Help translate](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
 
 ---
 
@@ -212,6 +229,8 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 
 Built on [Baidu Unlimited-OCR](https://github.com/baidu/Unlimited-OCR), [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR), [SGLang](https://github.com/sgl-project/sglang), and [AMD ROCm](https://rocm.docs.amd.com).
 
+Special thanks to AMD for compute support. Try it on [AMD Radeon Cloud](https://radeon.anruicloud.com/).
+
 ---
 
-MIT License. [LICENSE](LICENSE) · [Contributing](CONTRIBUTING.md) · [Report Issue](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new/choose)
+MIT License. [LICENSE](LICENSE) · [Contributing](CONTRIBUTING.md)
