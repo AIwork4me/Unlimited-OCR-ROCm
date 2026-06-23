@@ -35,11 +35,9 @@
   格式零损失。
 </blockquote>
 
----
 
 [English README](README.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [调优指南](docs/TUNING.md)
 
----
 
 ## 为什么选择 Unlimited-OCR-ROCm
 
@@ -53,7 +51,6 @@
 - **56 tok/s 吞吐** — 于 AMD Radeon PRO W7900 实测
 - **结构化输出** — 完整保留 Markdown 格式、表格、公式和边界框
 
----
 
 <!--
 ## 效果展示
@@ -63,7 +60,6 @@
 详见 [docs/BENCHMARK.md](docs/BENCHMARK.md) 获取详细测试数据表格。
 -->
 
----
 
 ## Benchmark 速览
 
@@ -79,7 +75,6 @@
 
 **DPI=150 输出与 DPI=300 完全一致 — 快 38%，省 2 GB 显存。** [为什么？→](docs/ARCHITECTURE.md)
 
----
 
 ## 为什么显存不变
 
@@ -104,7 +99,6 @@ R-SWA:  KV[视觉~256] + KV[最近128]    ← 恒定
 
 显存从 1 页到 50 页仅增长 0.2 GB。**16 GB** 消费级显卡可处理整本书。
 
----
 
 ## 三种体验方式
 
@@ -118,7 +112,6 @@ R-SWA:  KV[视觉~256] + KV[最近128]    ← 恒定
 
 **推荐路径：** 先在 ModelScope 感受效果，准备好跑自己的文件时，[注册 AMD Radeon Cloud](https://radeon.anruicloud.com/) — 同款实测硬件，60 秒产出第一条 OCR 结果。
 
----
 
 ## 快速开始（3 条命令）
 
@@ -128,7 +121,6 @@ git clone https://github.com/AIwork4me/Unlimited-OCR-ROCm.git && cd Unlimited-OC
 unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
 ```
 
----
 
 ## 性能调优
 
@@ -145,7 +137,6 @@ unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
 
 完整指南：[docs/TUNING.md](docs/TUNING.md)
 
----
 
 ## 使用速查
 
@@ -156,7 +147,6 @@ unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
               [--page-size 16] [--torch-compile] [--quiet] [--version]
 ```
 
----
 
 ## 项目结构
 
@@ -172,7 +162,6 @@ Unlimited-OCR-ROCm/
 └── pyproject.toml       # PEP 621 包元数据
 ```
 
----
 
 ## 故障排除
 
@@ -200,7 +189,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ```
 </details>
 
----
 
 ## 社区
 
@@ -209,7 +197,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 - [📊 分享你的 Benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
 - [🌍 帮忙翻译](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
 
----
 
 ## 致谢
 
@@ -217,6 +204,5 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 
 特别感谢 AMD 提供的计算支持。在 [AMD Radeon Cloud](https://radeon.anruicloud.com/) 上体验。
 
----
 
 MIT License. [LICENSE](LICENSE) · [贡献指南](CONTRIBUTING.md)

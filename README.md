@@ -35,11 +35,9 @@
   Zero format loss.
 </blockquote>
 
----
 
 [中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
 
----
 
 ## Why Unlimited-OCR-ROCm
 
@@ -53,7 +51,6 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 - **56 tok/s** throughput on AMD Radeon PRO W7900
 - **Structured output** — Markdown with tables, formulas, and bounding boxes preserved
 
----
 
 <!--
 ## See It in Action
@@ -63,7 +60,6 @@ Before/after screenshots coming soon — run `make benchmark` on AMD GPU to gene
 See [docs/BENCHMARK.md](docs/BENCHMARK.md) for detailed benchmark tables.
 -->
 
----
 
 ## Benchmark Snapshot
 
@@ -79,7 +75,6 @@ See [docs/BENCHMARK.md](docs/BENCHMARK.md) for detailed benchmark tables.
 
 **DPI=150 output is identical to DPI=300 — 38% faster, 2 GB less VRAM.** [Why? →](docs/ARCHITECTURE.md)
 
----
 
 ## Why the VRAM Stays Constant
 
@@ -104,7 +99,6 @@ R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
 
 VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles an entire book.
 
----
 
 ## Try It — 3 Ways
 
@@ -118,7 +112,6 @@ VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles 
 
 **Recommended path:** Start with the ModelScope demo to see the magic. When you're ready to run your own files at full speed, [register on AMD Radeon Cloud](https://radeon.anruicloud.com/) — same hardware we benchmarked on, 60 seconds to your first OCR result.
 
----
 
 ## Quick Start (3 Commands)
 
@@ -128,7 +121,6 @@ git clone https://github.com/AIwork4me/Unlimited-OCR-ROCm.git && cd Unlimited-OC
 unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
 ```
 
----
 
 ## Performance Tuning
 
@@ -145,7 +137,6 @@ unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
 
 Full guide: [docs/TUNING.md](docs/TUNING.md)
 
----
 
 ## Usage Cheatsheet
 
@@ -156,7 +147,6 @@ unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
               [--page-size 16] [--torch-compile] [--quiet] [--version]
 ```
 
----
 
 ## Project Structure
 
@@ -172,7 +162,6 @@ Unlimited-OCR-ROCm/
 └── pyproject.toml       # PEP 621 package metadata
 ```
 
----
 
 ## Troubleshooting
 
@@ -200,7 +189,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ```
 </details>
 
----
 
 ## Community
 
@@ -213,7 +201,6 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 
 [![Star History Chart](https://api.star-history.com/svg?repos=AIwork4me/Unlimited-OCR-ROCm&type=Date)](https://star-history.com/#AIwork4me/Unlimited-OCR-ROCm&Date)
 
----
 
 ## Acknowledgement
 
@@ -221,6 +208,5 @@ Built on [Baidu Unlimited-OCR](https://github.com/baidu/Unlimited-OCR), [DeepSee
 
 Special thanks to AMD for compute support. Try it on [AMD Radeon Cloud](https://radeon.anruicloud.com/).
 
----
 
 MIT License. [LICENSE](LICENSE) · [Contributing](CONTRIBUTING.md)
