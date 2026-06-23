@@ -3,8 +3,6 @@
 import os
 import tempfile
 
-import pytest
-
 
 def _create_minimal_pdf(path: str, num_pages: int = 1):
     """Create a minimal PDF with *num_pages* pages using PyMuPDF."""

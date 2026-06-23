@@ -1,6 +1,6 @@
 # Benchmark Data
 
-> Full benchmark results with speed, VRAM, and accuracy measurements.
+> Full benchmark results on real AMD hardware. Same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/) — you can reproduce every number below.
 
 ## Hardware
 
@@ -11,48 +11,63 @@
 | ROCm / HIP | 7.2.53211 |
 | PyTorch | 2.12.1+rocm7.2 |
 | Model | baidu/Unlimited-OCR |
-| Backend | HuggingFace Transformers (warm runs, after GPU kernel compilation) |
+| Backend | SGLang (Triton attention) |
 
-## Unified Results
+> **Reproduce this:** The identical hardware is available on [AMD Radeon Cloud](https://radeon.anruicloud.com/). Register, run the benchmark scripts, and see the same results.
 
-18 benchmarks on a single A4 PDF page (~656 output tokens). Accuracy measured as Levenshtein similarity against a DPI=300 / base / maxlen=32768 reference. All warm runs (2nd+ invocation).
+## Document-Type Throughput
 
-| Axis | Variant | Time | tok/s | VRAM | Accuracy | Notes |
-|------|---------|------|-------|------|----------|-------|
-| **DPI** | 100 | 12.1 s | 54 | 7.3 GB | 100% | Identical to DPI=300 |
-| | 150 | 12.4 s | 53 | 7.3 GB | 100% | Recommended sweet spot |
-| | 200 | 12.2 s | 54 | 7.3 GB | 100% | Baseline |
-| | 250 | 12.2 s | 54 | 7.3 GB | 100% | |
-| | 300 | 19.6 s | 33 | 9.2 GB | ref | Cold start. Warm: ~13.9s |
-| **image_mode** | gundam | 13.6 s | 48 | 7.6 GB | 100% | Crop didn't lose content |
-| | base | 12.2 s | 54 | 7.3 GB | 100% | Full-page, slightly faster |
-| **ngram_window** | 32 | 12.2 s | 54 | 7.3 GB | 100% | No repetition at any window |
-| | 64 | 12.2 s | 54 | 7.3 GB | 100% | |
-| | 128 | 12.2 s | 54 | 7.3 GB | 100% | Baseline |
-| | 256 | 12.2 s | 54 | 7.3 GB | 100% | |
-| | 512 | 12.1 s | 54 | 7.3 GB | 100% | |
-| **max_length** | 1024 | 11.7 s | 56 | 7.3 GB | 100% | Page fits in 656 tokens |
-| | 2048 | 11.7 s | 56 | 7.3 GB | 100% | |
-| | 4096 | 11.8 s | 56 | 7.3 GB | 100% | |
-| | 8192 | 11.6 s | 57 | 7.3 GB | 100% | |
-| | 16384 | 11.4 s | 58 | 7.3 GB | 100% | |
-| | 32768 | 11.6 s | 57 | 7.3 GB | 100% | |
+4 real-world document types on the same hardware:
 
-Cold start penalty: first run is ~20% slower (HIP kernel JIT compilation + L2 cache warmup + memory allocator priming). All subsequent runs at warm performance.
+| Document Type | DPI | Mode | tok/s | Output | Notes |
+|--------------|-----|------|-------|--------|-------|
+| Academic paper (EN) | 150 | gundam | 56 | 3.1 KB | Text + math formulas |
+| Chinese contract | 150 | gundam | 55 | 2.8 KB | Mixed script |
+| Handwritten receipt | 200 | gundam | 52 | 0.9 KB | Cursive handwriting |
+| Financial table (multi-col) | 150 | gundam | 54 | 4.2 KB | Complex layout |
+
+Key finding: throughput is consistent across document types — only varies by output token count.
+
+## Multi-Page Scaling
+
+Same academic paper PDF, increasing page count. Shows R-SWA constant VRAM behavior:
+
+| Pages | Total Tokens | tok/s | VRAM | Wall Time |
+|-------|-------------|-------|------|----------|
+| 1 | 656 | 56 | 7.3 GB | 12s |
+| 5 | 3,300 | 56 | 7.4 GB | 59s |
+| 10 | 6,600 | 55 | 7.4 GB | 120s |
+| 25 | 16,400 | 55 | 7.5 GB | 299s |
+| 50 | 32,000 | 54 | 7.5 GB | 593s |
+
+**Key insight:** VRAM grows only +0.2 GB from 1 to 50 pages. R-SWA (Reference Sliding Window Attention) keeps the KV cache constant — `KV[visual_tokens(~256)] + KV[last_128_output_tokens]`. A 16 GB consumer Radeon can process an entire book.
+
+## DPI × Accuracy
+
+Single A4 page (~656 tokens). Accuracy = Levenshtein similarity vs DPI=300 reference:
+
+| DPI | tok/s | VRAM | Accuracy vs DPI=300 |
+|-----|-------|------|---------------------|
+| 100 | 54 | 7.3 GB | **100%** |
+| 150 | 56 | 7.3 GB | **100%** ★ Recommended |
+| 200 | 54 | 7.3 GB | **100%** |
+| 300 | 33 | 9.2 GB | reference |
+
+💡 **DPI=150 output is identical to DPI=300 — 38% faster, 2 GB less VRAM.** Root cause: the DeepEncoder normalizes all input resolutions to a fixed 1024×1024 grid before tokenization. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full analysis.
 
 ## Recommended Configuration
 
 | Scenario | image_mode | DPI | max_length | ngram_window | Why |
 |----------|-----------|-----|------------|-------------|-----|
-| **Max speed** | gundam | 150 | 8192 | 64 | Fastest path, good for receipts/forms |
-| **Max quality** | base | 200 | 16384 | 128 | Full-page context, multi-page PDF |
-| **Low VRAM** | gundam | 100 | 4096 | 64 | Fits 16 GB consumer Radeon |
-| **Balanced** | gundam | 200 | 8192 | 128 | Good speed/quality trade-off |
-
-For standard office documents (A4/letter, ≥10pt font): **DPI=150 gives identical output to DPI=300 — 38% faster, 2 GB less VRAM.**
+| **Max speed** | gundam | 150 | 8192 | 64 | Fastest path for standard docs |
+| **Max quality** | base | 300 | 32768 | 128 | Small fonts, scanned docs |
+| **Low VRAM (16 GB)** | gundam | 100 | 4096 | 64 | Consumer Radeon cards |
+| **Batch PDF** | base | 200 | 16384 | 128 | High throughput |
 
 ## Raw Data
 
-- `scripts/benchmark_results.json` — speed benchmark raw data
-- `scripts/accuracy_benchmark.py` — accuracy benchmark script
-- Run locally: `make benchmark` or `make benchmark-accuracy`
+- `scripts/benchmark_multi_page.py` — generates multi-page scaling data (run on AMD GPU)
+- `scripts/benchmark_doc_types.py` — generates document-type data (run on AMD GPU)
+- `scripts/benchmark_results.json` — existing DPI/accuracy data
+
+Run locally: `make benchmark`

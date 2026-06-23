@@ -4,7 +4,14 @@ Systematic benchmark: Unlimited-OCR on AMD ROCm (Transformers)
 Tests image_mode, DPI, max_length, ngram_window, batch size
 Saves results to benchmark_results.json and prints a summary table.
 """
-import fitz, json, os, sys, tempfile, time, traceback
+import json
+import os
+import sys
+import tempfile
+import time
+import traceback
+
+import fitz
 import torch
 from transformers import AutoModel, AutoTokenizer
 
@@ -23,12 +30,17 @@ def vram_used():
 # ── Load model ──
 t0 = time.time()
 tokenizer = AutoTokenizer.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, local_files_only=True)
-model = AutoModel.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True, torch_dtype=torch.bfloat16, local_files_only=True)
+model = AutoModel.from_pretrained(
+    "baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True,
+    torch_dtype=torch.bfloat16, local_files_only=True)
 model = model.eval().to(DEVICE)
 load_time = time.time() - t0
 idle_vram = vram_used()
 
-print(f"GPU: {gpu_name}  VRAM: {vram_gb:.1f}GB  HIP: {hip_ver}  Load: {load_time:.1f}s  IdleVRAM: {idle_vram:.1f}GB", file=sys.stderr)
+print(
+    f"GPU: {gpu_name}  VRAM: {vram_gb:.1f}GB  HIP: {hip_ver}  "
+    f"Load: {load_time:.1f}s  IdleVRAM: {idle_vram:.1f}GB",
+    file=sys.stderr)
 
 def run_bench(name, params):
     """Run a single-page benchmark with given params. Returns dict."""
@@ -91,7 +103,10 @@ def run_bench(name, params):
         "chars": chars,
         "params": params,
     }
-    print(f"  {name}: {elapsed:.1f}s, ~{chars//3}tok, ~{chars/3/max(elapsed,0.01):.0f} tok/s, VRAM {peak:.1f}GB", file=sys.stderr)
+    print(
+        f"  {name}: {elapsed:.1f}s, ~{chars//3}tok, ~{chars/3/max(elapsed,0.01):.0f} tok/s, "
+        f"VRAM {peak:.1f}GB",
+        file=sys.stderr)
     return result
 
 results = []
@@ -141,8 +156,15 @@ for r in results:
         print(f"{r['name']:<22} ERROR: {r['error'][:50]}")
         continue
     p = r["params"]
-    ps = f"mode={p.get('mode','?')} dpi={p.get('dpi','?')} maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
-    print(f"{r['name']:<22} {r['time_s']:>6.1f}s {r['tokens_est']:>6}  {r['tok_per_s']:>6}  {r['vram_peak_gb']:>6.1f}GB {r['vram_delta_gb']:>6.2f}GB  {ps}")
+    ps = (
+        f"mode={p.get('mode','?')} dpi={p.get('dpi','?')} "
+        f"maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
+    )
+    print(
+        f"{r['name']:<22} {r['time_s']:>6.1f}s {r['tokens_est']:>6}  "
+        f"{r['tok_per_s']:>6}  {r['vram_peak_gb']:>6.1f}GB "
+        f"{r['vram_delta_gb']:>6.2f}GB  {ps}"
+    )
 
 # Find best
 valid = [r for r in results if "error" not in r]
@@ -151,5 +173,9 @@ if valid:
     print(f"\n>>> BEST: {best['name']} — {best['tok_per_s']} tok/s, {best['time_s']}s, VRAM {best['vram_peak_gb']}GB")
 
 with open(OUT, "w") as f:
-    json.dump({"hardware": {"gpu": gpu_name, "vram_gb": round(vram_gb,1), "hip": hip_ver, "load_time_s": load_time, "idle_vram_gb": idle_vram}, "results": results}, f, indent=2)
+    hw = {
+        "gpu": gpu_name, "vram_gb": round(vram_gb, 1), "hip": hip_ver,
+        "load_time_s": load_time, "idle_vram_gb": idle_vram,
+    }
+    json.dump({"hardware": hw, "results": results}, f, indent=2)
 print(f"\nResults saved to {OUT}")

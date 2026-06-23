@@ -4,7 +4,7 @@
 def test_detect_rocm_positive(monkeypatch):
     monkeypatch.setattr("rocm_ocr.gpu.detect_rocm", lambda: True)
 
-    from rocm_ocr.gpu import detect_rocm, assert_rocm
+    from rocm_ocr.gpu import assert_rocm, detect_rocm
     assert detect_rocm() is True
     assert_rocm()  # should not raise
 
@@ -13,6 +13,7 @@ def test_assert_rocm_raises(monkeypatch):
     monkeypatch.setattr("rocm_ocr.gpu.detect_rocm", lambda: False)
 
     import pytest
+
     from rocm_ocr.gpu import assert_rocm
     with pytest.raises(RuntimeError, match="ROCm not detected"):
         assert_rocm()

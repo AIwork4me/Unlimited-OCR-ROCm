@@ -7,10 +7,16 @@ Compares each parameter variant against DPI=300/base reference using:
   - Truncation detection
   - Repetition detection (3-line repeats)
 """
-import fitz, json, os, sys, tempfile, time
+import json
+import os
+import sys
+import tempfile
+import time
+from difflib import SequenceMatcher
+
+import fitz
 import torch
 from transformers import AutoModel, AutoTokenizer
-from difflib import SequenceMatcher
 
 PDF = "/workspace/unlimited-ocr/Unlimited-OCR.pdf"
 DEVICE = torch.device("cuda")
@@ -30,7 +36,7 @@ def is_truncated(text: str, max_len: int) -> bool:
     return len(text) > max_len * 2  # rough: if char count close to token limit
 
 def detect_repetition(text: str) -> bool:
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
+    lines = [line_.strip() for line_ in text.split("\n") if line_.strip()]
     for i in range(len(lines) - 3):
         if len(lines[i]) > 20 and lines[i] == lines[i + 1] == lines[i + 2] == lines[i + 3]:
             return True
@@ -39,7 +45,9 @@ def detect_repetition(text: str) -> bool:
 # ── Load model ──
 t0 = time.time()
 tokenizer = AutoTokenizer.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, local_files_only=True)
-model = AutoModel.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True, torch_dtype=torch.bfloat16, local_files_only=True)
+model = AutoModel.from_pretrained(
+    "baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True,
+    torch_dtype=torch.bfloat16, local_files_only=True)
 model = model.eval().to(DEVICE)
 idle_vram = vram_used()
 print(f"GPU: {gpu_name}  HIP: {hip_ver}  Load: {time.time()-t0:.1f}s  IdleVRAM: {idle_vram:.1f}GB", file=sys.stderr)
@@ -96,7 +104,9 @@ def run_ocr(params, name):
         "truncated": truncated, "repetition": repeated,
         "text": text,
     }
-    print(f"  {name}: {elapsed:.1f}s, {tokens} tok, VRAM {peak:.1f}GB, trunc={truncated}, rep={repeated}", file=sys.stderr)
+    print(
+        f"  {name}: {elapsed:.1f}s, {tokens} tok, VRAM {peak:.1f}GB, trunc={truncated}, rep={repeated}",
+        file=sys.stderr)
     return result
 
 # ============================================================
@@ -153,8 +163,15 @@ print("=" * 130)
 for r in results:
     p = r["params"]
     tok_s = r["tokens"] / max(r["time_s"], 0.01)
-    ps = f"dpi={p.get('dpi','?')} mode={p.get('mode','?')} maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
-    print(f"{r['name']:<18} {r['time_s']:>5.1f}s {tok_s:>5.0f} {r['vram_peak_gb']:>5.1f}GB {r['lev_vs_ref']:>5.3f} {r['tok_delta_pct']:>6.1f}% {'YES' if r['truncated'] else '':>5} {'YES' if r['repetition'] else '':>4}  {ps}")
+    ps = (
+        f"dpi={p.get('dpi','?')} mode={p.get('mode','?')} "
+        f"maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
+    )
+    print(
+        f"{r['name']:<18} {r['time_s']:>5.1f}s {tok_s:>5.0f} {r['vram_peak_gb']:>5.1f}GB "
+        f"{r['lev_vs_ref']:>5.3f} {r['tok_delta_pct']:>6.1f}% "
+        f"{'YES' if r['truncated'] else '':>5} {'YES' if r['repetition'] else '':>4}  {ps}"
+    )
 
 print(f"\nReference: {ref['tokens']} tokens, {ref['time_s']}s, VRAM {ref['vram_peak_gb']}GB")
 

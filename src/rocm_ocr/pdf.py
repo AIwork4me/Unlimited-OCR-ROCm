@@ -1,26 +1,18 @@
 """PDF utilities: convert pages to images for OCR."""
 
+from __future__ import annotations
+
 import os
 import tempfile
-from typing import List
 
 
-def pdf_to_images(pdf_path: str, dpi: int = 300) -> List[str]:
-    """
-    Convert every page of *pdf_path* to a PNG image.
-
-    Args:
-        pdf_path: Path to the PDF file.
-        dpi: Output resolution (default 300).
-
-    Returns:
-        Ordered list of paths to the generated PNG images.
-    """
+def pdf_to_images(pdf_path: str, dpi: int = 300) -> list[str]:
+    """Convert every page of *pdf_path* to a PNG image."""
     import fitz
 
     doc = fitz.open(pdf_path)
     tmp_dir = tempfile.mkdtemp(prefix="unlimited_ocr_pdf_")
-    image_paths: List[str] = []
+    image_paths: list[str] = []
     mat = fitz.Matrix(dpi / 72, dpi / 72)
 
     for i, page in enumerate(doc):
