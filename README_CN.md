@@ -14,14 +14,6 @@
     <img src="https://img.shields.io/badge/在_AMD_Radeon_Cloud_体验-ED1C24?style=for-the-badge&logo=amd&logoColor=white" alt="在 AMD Radeon Cloud 体验" />
   </a>
   <a href="https://pypi.org/project/unlimited-ocr-rocm">
-    <img src="https://img.shields.io/badge/pip_install-unlimited--ocr--rocm-3776AB?style=for-the-badge&logo=pypi&logoColor=white" alt="PyPI" />
-  </a>
-</div>
-
-<br>
-
-<div align="center">
-  <a href="https://pypi.org/project/unlimited-ocr-rocm">
     <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm" />
   </a>
   <a href="https://rocm.docs.amd.com">
