@@ -77,18 +77,6 @@ See [docs/BENCHMARK.md](docs/BENCHMARK.md) for detailed benchmark tables.
 
 > Full data: [docs/BENCHMARK.md](docs/BENCHMARK.md) | Benchmarked on AMD Radeon PRO W7900, ROCm 7.2 (same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/)).
 
-### Multi-Page Scaling
-
-| Pages | tok/s | VRAM |
-|-------|-------|------|
-| 1 | 56 | 7.3 GB |
-| 5 | 56 | 7.4 GB |
-| 10 | 55 | 7.4 GB |
-| 25 | 55 | 7.5 GB |
-| 50 | 54 | 7.5 GB |
-
-**VRAM grows only +0.2 GB from 1 to 50 pages.** A 16 GB consumer card handles an entire book.
-
 ### DPI × Accuracy
 
 | DPI | tok/s | VRAM | Accuracy |
@@ -112,7 +100,17 @@ Traditional:  KV[t1, t2, ..., t1000]   ← 1000× growth → OOM
 R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
 ```
 
-This is why even a 16 GB consumer Radeon handles 32K-token documents.
+**We verified this by OCRing the same academic paper at increasing page counts:**
+
+| Pages | tok/s | VRAM |
+|-------|-------|------|
+| 1 | 56 | 7.3 GB |
+| 5 | 56 | 7.4 GB |
+| 10 | 55 | 7.4 GB |
+| 25 | 55 | 7.5 GB |
+| 50 | 54 | 7.5 GB |
+
+VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles an entire book.
 
 ---
 
