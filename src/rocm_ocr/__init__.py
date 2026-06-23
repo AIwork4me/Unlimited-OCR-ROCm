@@ -1,12 +1,10 @@
-"""
-Unlimited-OCR-ROCm: Run Baidu Unlimited-OCR on AMD ROCm GPUs.
+"""Unlimited-OCR-ROCm: Run Baidu Unlimited-OCR on AMD ROCm GPUs."""
 
-Auto-detects AMD ROCm environment and configures the optimal
-inference backend. Supports single image, multi-page, and PDF
-document OCR via SGLang's OpenAI-compatible API.
-"""
+from __future__ import annotations
 
-__version__ = "1.0.0"
-__author__ = "aiwork4me"
+__version__: str = "1.0.0"
+__author__: str = "aiwork4me"
 
-from rocm_ocr.gpu import detect_rocm, assert_rocm, gpu_info
+from rocm_ocr.gpu import assert_rocm as assert_rocm
+from rocm_ocr.gpu import detect_rocm as detect_rocm
+from rocm_ocr.gpu import gpu_info as gpu_info
