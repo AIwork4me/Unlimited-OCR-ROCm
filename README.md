@@ -49,13 +49,17 @@
 
 ---
 
-## Why This Exists
+## Why Unlimited-OCR-ROCm
 
-Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing. It handles entire books, multi-page contracts, and dense tables in a single forward pass.
+Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing — entire books, multi-page contracts, dense tables in a single forward pass.
 
-One problem: the official pipeline requires NVIDIA CUDA.
+**Unlimited-OCR-ROCm** brings this to AMD GPUs with zero compromises:
 
-**Unlimited-OCR-ROCm** solves that. It's a drop-in wrapper that auto-detects AMD ROCm, configures the optimal inference backend (SGLang + Triton attention), and runs the model with **zero accuracy loss** and **only 16 GB VRAM minimum**.
+- **One command to run** — auto-detects ROCm, configures SGLang + Triton attention, nothing to tune
+- **Zero accuracy loss** — byte-for-byte identical output to the original
+- **Minimal VRAM** — runs on 16 GB consumer Radeon cards, thanks to R-SWA constant KV cache
+- **56 tok/s** throughput — processes a 50-page paper in under 10 minutes
+- **Structured output** — Markdown with tables, formulas, and bounding boxes preserved
 
 ---
 

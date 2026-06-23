@@ -49,13 +49,17 @@
 
 ---
 
-## 为什么存在
+## 为什么选择 Unlimited-OCR-ROCm
 
-百度的 [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) 是当前长文档解析的新标杆，可在单次前向传播中处理整本书、多页合同和密集表格。
+百度的 [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) 是当前长文档解析的新标杆，单次前向传播即可处理整本书、多页合同和密集表格。
 
-问题：官方管线仅支持 NVIDIA CUDA。
+**Unlimited-OCR-ROCm** 将其带到 AMD GPU 上，零妥协：
 
-**Unlimited-OCR-ROCm** 解决了这个问题。它是一个即插即用的封装，自动检测 AMD ROCm 环境，配置最优推理后端（SGLang + Triton 注意力），以**零精度损失**和**最低 16 GB 显存**运行模型。
+- **一条命令运行** — 自动检测 ROCm，配置 SGLang + Triton 注意力，无需调参
+- **零精度损失** — 与原始模型逐字逐标点完全一致
+- **极低显存** — 低至 16 GB 消费级 Radeon 即可运行，得益于 R-SWA 恒定 KV 缓存
+- **56 tok/s 吞吐** — 50 页论文不到 10 分钟处理完成
+- **结构化输出** — 完整保留 Markdown 格式、表格、公式和边界框
 
 ---
 
