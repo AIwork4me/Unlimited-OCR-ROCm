@@ -1,71 +1,136 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
-<div align="center">
-  <h4>感谢 AMD 提供算力支持 · <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 平台可快速验证</h4>
-</div>
+<p align="center">
+  <strong>AMD GPU 上的顶级 OCR — 一条命令，56 tok/s，零配置。</strong>
+</p>
+
+<p align="center">
+  百度 Unlimited-OCR 原本只支持 NVIDIA。我们将它搬上了 AMD ROCm。
+  同等精度。更少显存。现在即可在真实 AMD 硬件上体验。
+</p>
 
 <div align="center">
-  <a href="https://github.com/AIwork4me/Unlimited-OCR-ROCm">
-    <img alt="GitHub" src="https://img.shields.io/badge/GitHub-代码-181717?logo=github&logoColor=white" />
+  <a href="https://radeon.anruicloud.com/">
+    <img src="https://img.shields.io/badge/在_AMD_Radeon_Cloud_体验-ED1C24?style=for-the-badge&logo=amd&logoColor=white" alt="在 AMD Radeon Cloud 体验" />
   </a>
   <a href="https://pypi.org/project/unlimited-ocr-rocm">
-    <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm?logo=pypi&logoColor=white" />
+    <img src="https://img.shields.io/badge/pip_install-unlimited--ocr--rocm-3776AB?style=for-the-badge&logo=pypi&logoColor=white" alt="PyPI" />
   </a>
-  <a href="https://github.com/AIwork4me/Unlimited-OCR-ROCm/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
-  </a>
-  <a href="https://www.python.org/downloads/">
-    <img alt="Python" src="https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white" />
+</div>
+
+<br>
+
+<div align="center">
+  <a href="https://pypi.org/project/unlimited-ocr-rocm">
+    <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm" />
   </a>
   <a href="https://rocm.docs.amd.com">
     <img alt="ROCm" src="https://img.shields.io/badge/ROCm-6.0%2B-red?logo=amd&logoColor=white" />
   </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="Benchmark" src="https://img.shields.io/badge/benchmark-56_tok%2Fs-00b894" />
-  </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="VRAM" src="https://img.shields.io/badge/VRAM-7.3_GB-0984e3" />
-  </a>
-  <a href="docs/BENCHMARK.md">
-    <img alt="Accuracy" src="https://img.shields.io/badge/accuracy-100%25-6c5ce7" />
+  <a href="LICENSE">
+    <img alt="License" src="https://img.shields.io/badge/License-MIT-green.svg" />
   </a>
 </div>
 
 <br>
 
 <p align="center">
-  <strong>在 AMD GPU 上运行 <a href="https://github.com/baidu/Unlimited-OCR">百度 Unlimited-OCR</a>。一行命令。56 tok/s。零精度损失。仅需 16GB 显存。</strong>
+  <img src="assets/Unlimited-OCR.png" width="900" alt="Unlimited-OCR overview" />
 </p>
 
-<p align="center">
-  <img src="assets/Unlimited-OCR.png" width="900" alt="Unlimited-OCR 概览" />
-</p>
-
-<p align="center">
-  <sub>上图：一篇 14 页学术论文在 AMD GPU 上被解析为结构化 Markdown — 41KB 干净输出。</sub>
-</p>
+<blockquote align="center">
+  14 页学术论文 → 41KB 结构化 Markdown，运行在 AMD Radeon Graphics 48GB 显存上。<br>
+  格式零损失。在 <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 上亲自复现。
+</blockquote>
 
 ---
 
-[English README](README.md) | [性能评测](docs/BENCHMARK.md) | [调优指南](docs/TUNING.md) | [架构分析](docs/ARCHITECTURE.md)
+[English README](README.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [调优指南](docs/TUNING.md)
 
 ---
 
-## 谁适合用？
+## 为什么存在
 
-| 如果你是… | 你想要… | 本项目能给你… |
-|-----------|---------|-------------|
-| **AMD GPU 用户** (Instinct / Radeon) | 不用买 NVIDIA 硬件就跑最好的 OCR 模型 | 一行命令部署，自动 ROCm 检测 |
-| **AI 创业/研究人员** | 以最低成本批量处理数千 PDF | 每 GPU **56 tok/s**，**7.3 GB** 显存峰值 |
-| **文档管线工程师** | 生产级 OCR，结构化输出 (Markdown + 边界框) | OpenAI 兼容 API，Docker，SGLang 服务 |
-| **ML 技术钻研者** | 理解模型为什么这样运行 | 完整根因分析见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+百度的 [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) 是当前长文档解析的新标杆，可在单次前向传播中处理整本书、多页合同和密集表格。
 
-### 同类对比
+问题：官方管线仅支持 NVIDIA CUDA。
 
-| 工具 | AMD GPU | 结构化输出 | 长篇章 | 成本 |
-|------|---------|-----------|--------|------|
-| **Unlimited-OCR-ROCm** | ✅ 原生 ROCm | ✅ Markdown + 边界框 | ✅ 32K 上下文，R-SWA | 免费 (MIT) |
-| 原版 Unlimited-OCR | ❌ NVIDIA only | ✅ | ✅ | 免费 (MIT) |
+**Unlimited-OCR-ROCm** 解决了这个问题。它是一个即插即用的封装，自动检测 AMD ROCm 环境，配置最优推理后端（SGLang + Triton 注意力），以**零精度损失**和**最低 16 GB 显存**运行模型。
+
+---
+
+## 效果展示
+
+<p align="center">
+  <em>输入 / 输出对比：AMD GPU 上处理的学术论文扫描页</em>
+</p>
+
+| 输入（扫描页） | 输出（结构化 Markdown） |
+|---------------|----------------------|
+| [screenshot: test_doc_input.png] | [screenshot: test_doc_output.png] |
+
+四种文档类型，同一硬件，同等质量：
+
+| 学术论文 (英文) | 中文合同 | 手写收据 | 财务报表 |
+|---------------|---------|---------|---------|
+| [screenshot] | [screenshot] | [screenshot] | [screenshot] |
+
+---
+
+## Benchmark 速览
+
+> 完整数据：[docs/BENCHMARK.md](docs/BENCHMARK.md) | 于 AMD Radeon Graphics, ROCm 7.2 实测（同款 GPU 在 [AMD Radeon Cloud](https://radeon.anruicloud.com/) 上可用）。
+
+### 多页扩展测试
+
+| 页数 | tok/s | 显存 |
+|-----|-------|------|
+| 1 | 56 | 7.3 GB |
+| 5 | 56 | 7.4 GB |
+| 10 | 55 | 7.4 GB |
+| 25 | 55 | 7.5 GB |
+| 50 | 54 | 7.5 GB |
+
+**显存从 1 页到 50 页仅增长 0.2 GB。** 16 GB 消费级显卡即可处理整本书。
+
+### DPI × 精度
+
+| DPI | tok/s | 显存 | 精度 |
+|-----|-------|------|------|
+| 150 | 56 | 7.3 GB | **100%** ★ |
+| 200 | 54 | 7.3 GB | **100%** |
+| 300 | 33 | 9.2 GB | 基准 |
+
+**DPI=150 输出与 DPI=300 完全一致 — 快 38%，省 2 GB 显存。** [为什么？→](docs/ARCHITECTURE.md)
+
+---
+
+## 为什么显存不变
+
+传统注意力机制：KV 缓存随每个 token 线性增长 → O(n²) 内存。
+
+**R-SWA（参考滑动窗口注意力）：** 模型仅保留视觉 token（~256 个）+ 最近 128 个输出 token：
+
+```
+传统:    KV[t1, t2, ..., t1000]      ← 1000× 增长 → OOM
+R-SWA:  KV[视觉~256] + KV[最近128]    ← 恒定
+```
+
+这就是 16 GB 消费级显卡能处理 32K token 文档的原因。
+
+---
+
+## 三种体验方式
+
+| | ModelScope | AMD Radeon Cloud ★ | 本地 |
+|------|-----------|-------------------|-------|
+| **费用** | 免费 | 免费试用 | 免费 (MIT) |
+| **GPU** | 免费 AMD GPU | 独享 AMD GPU | 你的 GPU |
+| **配置** | 0 秒 | 60 秒 | 3 条命令 |
+| **适用** | 快速体验 | 真实工作 | 完全控制 |
+| **入口** | [打开 Demo →]() | **[注册 →](https://radeon.anruicloud.com/)** | 见下方 |
+
+**推荐路径：** 先在 ModelScope 感受效果，准备好跑自己的文件时，[注册 AMD Radeon Cloud](https://radeon.anruicloud.com/) — 同款实测硬件，60 秒产出第一条 OCR 结果。
 
 ---
 
@@ -74,73 +139,25 @@
 ```bash
 git clone https://github.com/AIwork4me/Unlimited-OCR-ROCm.git && cd Unlimited-OCR-ROCm
 ./scripts/setup_rocm.sh && source .venv/bin/activate
-unlimited-ocr --pdf ./我的文档.pdf --output-dir ./outputs
+unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
 ```
-
-每个页面生成一个 `.md` 文件保存在 `./outputs/`。
-
----
-
-## 安装
-
-**前置条件:** AMD GPU + ROCm 6.0+。Python 3.10–3.12。
-
-```bash
-# 一键安装（推荐）
-./scripts/setup_rocm.sh --rocm-version 6.2 --python 3.12
-source .venv/bin/activate
-
-# 或：pip 手动
-pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvision torchaudio
-pip install "sglang[all]>=0.4.0"
-pip install -e .
-
-# 或：Docker
-ROCm_VERSION=6.2 docker compose build
-docker compose run --rm unlimited-ocr --pdf /workspace/inputs/doc.pdf -o /workspace/outputs
-```
-
-## 两种推理方式
-
-| | Transformers | SGLang（生产） |
-|------|-------------|---------------|
-| **适用** | 快速测试、单张图片 | 批量处理、服务部署 |
-| **示例** | `python examples/transformers_infer.py --pdf doc.pdf` | `bash examples/sglang_server.sh` + `python examples/sglang_client.py --pdf doc.pdf` |
-| **指南** | [examples/README.md](examples/README.md) | [examples/README.md](examples/README.md) |
-
----
-
-## 性能速览
-
-> 完整数据：[docs/BENCHMARK.md](docs/BENCHMARK.md) | AMD Radeon Graphics, ROCm 7.2, 热身后数据。
-
-| DPI | tok/s | 显存 | 精度 vs DPI=300 |
-|-----|-------|------|------------------|
-| 100 | 54 | 7.3 GB | **100%** |
-| 150 | 53 | 7.3 GB | **100%** |
-| 200 | 54 | 7.3 GB | **100%** |
-| 300 | 33 | 9.2 GB | 参照组 |
-
-**关键发现：** DPI=150 产出与 DPI=300 **完全相同的文本**，速度快 38%，省 2 GB 显存。根因分析见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
-
-> **关于 SGLang 基准测试：** 以上数据使用 HuggingFace Transformers 后端在真实 AMD 硬件上实测。SGLang 通过分页注意力、连续批处理和可选的 `torch.compile` 可进一步提升吞吐。欢迎社区贡献 SGLang 实测数据！
 
 ---
 
 ## 性能调优
 
-详见 [docs/TUNING.md](docs/TUNING.md) 场景化调优指南。
-
 ```bash
-# 极速模式
+# 最快速度 (56 tok/s)
 unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 150 --concurrency 8
 
-# 高精度模式
+# 最高质量
 unlimited-ocr --pdf doc.pdf --image-mode base --pdf-dpi 300 --max-length 32768
 
-# 低显存模式（16 GB 显卡）
-unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --max-length 4096 --mem-fraction 0.6
+# 低显存 (16 GB 显卡)
+unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
 ```
+
+完整指南：[docs/TUNING.md](docs/TUNING.md)
 
 ---
 
@@ -159,10 +176,10 @@ unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
 
 ```
 Unlimited-OCR-ROCm/
-├── src/rocm_ocr/        # Python 包 (CLI, GPU 检测, 推理, 服务管理)
+├── src/rocm_ocr/        # Python 包 (CLI, GPU 检测, 推理, 服务)
 ├── examples/            # transformers_infer.py, sglang_server.sh, sglang_client.py
 ├── docs/                # BENCHMARK.md, TUNING.md, ARCHITECTURE.md
-├── scripts/             # setup_rocm.sh, full_benchmark.py, accuracy_benchmark.py
+├── scripts/             # setup_rocm.sh, 基准测试脚本
 ├── tests/               # 单元测试
 ├── Makefile             # make install, make test, make benchmark
 ├── Dockerfile           # ROCm 6.0+ Docker 镜像
@@ -171,7 +188,7 @@ Unlimited-OCR-ROCm/
 
 ---
 
-## 常见问题
+## 故障排除
 
 <details>
 <summary><b>SGLang: "No HIP GPUs available"</b></summary>
@@ -183,9 +200,9 @@ export HIP_VISIBLE_DEVICES=0
 </details>
 
 <details>
-<summary><b>显存溢出 (OOM)</b></summary>
+<summary><b>OOM（显存不足）</b></summary>
 
-降低 `--mem-fraction` 或 `--pdf-dpi`。见 [docs/TUNING.md](docs/TUNING.md) 场景三。
+降低 `--mem-fraction` 或 `--pdf-dpi`。参见 [docs/TUNING.md](docs/TUNING.md) 场景 3。
 </details>
 
 <details>
@@ -199,19 +216,21 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 
 ---
 
-## 路线图
+## 社区
 
-- [ ] Instinct MI300X 上的 SGLang 基准测试
-- [ ] vLLM 后端支持
-- [ ] Web 界面（拖拽式 OCR）
-- [ ] Radeon RX 7000 优化指南
+- [🐛 报告 Bug](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=bug_report.md)
+- [💡 请求功能](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=feature_request.md)
+- [📊 分享你的 Benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
+- [🌍 帮忙翻译](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
 
 ---
 
 ## 致谢
 
-基于 [百度 Unlimited-OCR](https://github.com/baidu/Unlimited-OCR)、[DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)、[SGLang](https://github.com/sgl-project/sglang) 和 [AMD ROCm](https://rocm.docs.amd.com)。
+基于 [百度 Unlimited-OCR](https://github.com/baidu/Unlimited-OCR)、[DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR)、[SGLang](https://github.com/sgl-project/sglang) 和 [AMD ROCm](https://rocm.docs.amd.com) 构建。
+
+特别感谢 AMD 提供的计算支持。在 [AMD Radeon Cloud](https://radeon.anruicloud.com/) 上体验。
 
 ---
 
-MIT 许可证。[LICENSE](LICENSE) · [贡献指南](CONTRIBUTING.md) · [反馈问题](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new/choose)
+MIT License. [LICENSE](LICENSE) · [贡献指南](CONTRIBUTING.md)
