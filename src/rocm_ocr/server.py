@@ -1,27 +1,23 @@
-"""
-SGLang server lifecycle for AMD ROCm.
+"""SGLang server lifecycle for AMD ROCm."""
 
-Starts, health-checks, and stops a SGLang server
-configured for ROCm with the Triton attention backend.
-"""
+from __future__ import annotations
 
 import os
 import subprocess
 import sys
 import time
-from typing import Optional
 
 import requests
 
-DEFAULT_HOST = "0.0.0.0"
-DEFAULT_PORT = 10000
-DEFAULT_CONTEXT_LENGTH = 32768
-DEFAULT_ATTENTION_BACKEND = "triton"
-DEFAULT_PAGE_SIZE = 16
-DEFAULT_SCHEDULE_CONSERVATIVENESS = 0.5
-DEFAULT_CHUNKED_PREFILL = 4096
-SERVER_START_TIMEOUT = 300
-HEALTH_CHECK_INTERVAL = 3
+DEFAULT_HOST: str = "0.0.0.0"
+DEFAULT_PORT: int = 10000
+DEFAULT_CONTEXT_LENGTH: int = 32768
+DEFAULT_ATTENTION_BACKEND: str = "triton"
+DEFAULT_PAGE_SIZE: int = 16
+DEFAULT_SCHEDULE_CONSERVATIVENESS: float = 0.5
+DEFAULT_CHUNKED_PREFILL: int = 4096
+SERVER_START_TIMEOUT: int = 300
+HEALTH_CHECK_INTERVAL: int = 3
 
 
 def server_ready(url: str) -> bool:
@@ -47,16 +43,8 @@ def start_server(
     skip_warmup: bool = False,
     gpu_ids: str = "0",
     server_log: str = "./log/sglang_server.log",
-) -> Optional[subprocess.Popen]:
-    """
-    Launch an SGLang server for Unlimited-OCR on AMD ROCm.
-
-    Tuning tips:
-      - ``page_size``: 16–32 for throughput, 1 for lowest latency.
-      - ``schedule_conservativeness``: 0.3 (aggressive) to 1.0 (conservative).
-      - ``chunked_prefill_size``: 4096 for balanced TTFT/throughput.
-      - ``enable_torch_compile``: +5–15 % throughput after warmup.
-    """
+) -> subprocess.Popen[bytes] | None:
+    """Launch an SGLang server for Unlimited-OCR on AMD ROCm."""
     server_url = f"http://{host}:{port}"
 
     if server_ready(server_url):
@@ -99,7 +87,7 @@ def start_server(
     process._log_file = log_file  # type: ignore[attr-defined]
     print(f"[INFO] Server PID: {process.pid}")
 
-    elapsed = 0.0
+    elapsed: float = 0.0
     while elapsed < SERVER_START_TIMEOUT:
         if process.poll() is not None:
             log_file.flush()
@@ -117,7 +105,7 @@ def start_server(
     raise TimeoutError(f"Timed out waiting for SGLang server. Check {server_log}")
 
 
-def stop_server(process: Optional[subprocess.Popen]) -> None:
+def stop_server(process: subprocess.Popen[bytes] | None) -> None:
     """Gracefully terminate the SGLang server process."""
     if process is None:
         return
