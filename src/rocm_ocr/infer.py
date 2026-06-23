@@ -45,7 +45,7 @@ def _build_content(prompt: str, image_path: str) -> list[dict[str, object]]:
     return [{"type": "text", "text": prompt}, encode_image(image_path)]
 
 
-def _collect_stream(response, output_file: str | None) -> dict[str, object]:
+def _collect_stream(response, output_file: str | None) -> dict[str, Any]:
     chunks: list[str] = []
     token_count: int = 0
     first_token_time: float | None = None
@@ -91,7 +91,7 @@ def infer_one(
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
     idx: int = 0,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Send one image to the SGLang server and collect the OCR result."""
     server_url = f"http://{host}:{port}"
     payload: dict[str, object] = {
@@ -136,6 +136,8 @@ def infer_one(
             print(f"  [{idx}] {name}: FAILED ({e})")
             return {"tokens": 0, "decode_time": 0.0, "text": ""}
 
+    return {"tokens": 0, "decode_time": 0.0, "text": ""}
+
 
 def collect_image_paths(image_dir: str) -> list[str]:
     """Return all image file paths under *image_dir*, sorted by file size descending."""
@@ -156,10 +158,10 @@ def run_concurrent(
     ngram_window: int = DEFAULT_NGRAM_WINDOW,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Run OCR on a list of *(image_path, output_file)* jobs concurrently."""
     wall_start = time.time()
-    results: list[dict[str, object]] = []
+    results: list[dict[str, Any]] = []
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         futures: dict[Any, str] = {}
