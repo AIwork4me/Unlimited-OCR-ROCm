@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>AMD GPU 上的顶级 OCR — 在 AMD Radeon Cloud 上亲自体验</strong>
+  <strong>AMD GPU 上的顶级 OCR — 在 <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 上亲自体验</strong>
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
 
 <blockquote align="center">
   14 页学术论文 → 41KB 结构化 Markdown，运行在 AMD Radeon PRO W7900 48GB 显存上。<br>
-  格式零损失。在 <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 上亲自复现。
+  格式零损失。
 </blockquote>
 
 ---
