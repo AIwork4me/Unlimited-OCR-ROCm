@@ -59,21 +59,13 @@ One problem: the official pipeline requires NVIDIA CUDA.
 
 ---
 
+<!--
 ## See It in Action
 
-<p align="center">
-  <em>Before / After: a scanned academic paper page processed on AMD GPU</em>
-</p>
+Before/after screenshots coming soon — run `make benchmark` on AMD GPU to generate
 
-| Input (scanned page) | Output (structured Markdown) |
-|---------------------|------------------------------|
-| [screenshot: test_doc_input.png] | [screenshot: test_doc_output.png] |
-
-Four document types, same hardware, same quality:
-
-| Academic Paper (EN) | Chinese Contract | Handwritten Receipt | Financial Table |
-|---------------------|-----------------|---------------------|-----------------|
-| [screenshot] | [screenshot] | [screenshot] | [screenshot] |
+See [docs/BENCHMARK.md](docs/BENCHMARK.md) for detailed benchmark tables.
+-->
 
 ---
 

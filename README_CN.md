@@ -59,21 +59,13 @@
 
 ---
 
+<!--
 ## 效果展示
 
-<p align="center">
-  <em>输入 / 输出对比：AMD GPU 上处理的学术论文扫描页</em>
-</p>
+输入/输出截图即将推出 — 在 AMD GPU 上运行 `make benchmark` 生成
 
-| 输入（扫描页） | 输出（结构化 Markdown） |
-|---------------|----------------------|
-| [screenshot: test_doc_input.png] | [screenshot: test_doc_output.png] |
-
-四种文档类型，同一硬件，同等质量：
-
-| 学术论文 (英文) | 中文合同 | 手写收据 | 财务报表 |
-|---------------|---------|---------|---------|
-| [screenshot] | [screenshot] | [screenshot] | [screenshot] |
+详见 [docs/BENCHMARK.md](docs/BENCHMARK.md) 获取详细测试数据表格。
+-->
 
 ---
 

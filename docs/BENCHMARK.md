@@ -66,8 +66,8 @@ Single A4 page (~656 tokens). Accuracy = Levenshtein similarity vs DPI=300 refer
 
 ## Raw Data
 
-- `scripts/benchmark_multi_page.json` — multi-page scaling data
-- `scripts/benchmark_doc_types.json` — document-type data
-- `scripts/benchmark_results.json` — DPI/accuracy data
+- `scripts/benchmark_multi_page.py` — generates multi-page scaling data (run on AMD GPU)
+- `scripts/benchmark_doc_types.py` — generates document-type data (run on AMD GPU)
+- `scripts/benchmark_results.json` — existing DPI/accuracy data
 
 Run locally: `make benchmark`
