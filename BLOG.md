@@ -26,7 +26,7 @@ Every number in this post is from real AMD hardware:
 
 | Item | Detail |
 |------|--------|
-| GPU | AMD Radeon Graphics |
+| GPU | AMD Radeon PRO W7900 |
 | VRAM | 48 GB |
 | ROCm | 7.2.53211 |
 | Model | baidu/Unlimited-OCR |

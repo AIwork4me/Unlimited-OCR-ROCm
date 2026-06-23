@@ -23,7 +23,7 @@ def test_gpu_info(monkeypatch):
     monkeypatch.setattr("rocm_ocr.gpu.detect_rocm", lambda: True)
     monkeypatch.setattr("rocm_ocr.gpu.gpu_info", lambda: {
         "count": 1,
-        "name": "AMD Radeon Graphics",
+        "name": "AMD Radeon PRO W7900",
         "hip_version": "7.0.51831",
         "pytorch_version": "2.10.0+rocm7.0",
     })

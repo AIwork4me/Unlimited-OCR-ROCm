@@ -39,7 +39,7 @@
 </p>
 
 <blockquote align="center">
-  14 页学术论文 → 41KB 结构化 Markdown，运行在 AMD Radeon Graphics 48GB 显存上。<br>
+  14 页学术论文 → 41KB 结构化 Markdown，运行在 AMD Radeon PRO W7900 48GB 显存上。<br>
   格式零损失。在 <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a> 上亲自复现。
 </blockquote>
 
@@ -75,7 +75,7 @@
 
 ## Benchmark 速览
 
-> 完整数据：[docs/BENCHMARK.md](docs/BENCHMARK.md) | 于 AMD Radeon Graphics, ROCm 7.2 实测（同款 GPU 在 [AMD Radeon Cloud](https://radeon.anruicloud.com/) 上可用）。
+> 完整数据：[docs/BENCHMARK.md](docs/BENCHMARK.md) | 于 AMD Radeon PRO W7900, ROCm 7.2 实测（同款 GPU 在 [AMD Radeon Cloud](https://radeon.anruicloud.com/) 上可用）。
 
 ### 多页扩展测试
 

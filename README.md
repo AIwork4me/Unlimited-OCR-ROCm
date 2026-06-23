@@ -39,7 +39,7 @@
 </p>
 
 <blockquote align="center">
-  14-page academic paper → 41KB structured Markdown on AMD Radeon Graphics 48GB VRAM.<br>
+  14-page academic paper → 41KB structured Markdown on AMD Radeon PRO W7900 48GB VRAM.<br>
   Zero format loss. Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a>.
 </blockquote>
 
@@ -75,7 +75,7 @@ See [docs/BENCHMARK.md](docs/BENCHMARK.md) for detailed benchmark tables.
 
 ## Benchmark Snapshot
 
-> Full data: [docs/BENCHMARK.md](docs/BENCHMARK.md) | Benchmarked on AMD Radeon Graphics, ROCm 7.2 (same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/)).
+> Full data: [docs/BENCHMARK.md](docs/BENCHMARK.md) | Benchmarked on AMD Radeon PRO W7900, ROCm 7.2 (same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/)).
 
 ### Multi-Page Scaling
 
