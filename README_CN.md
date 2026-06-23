@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  百度 Unlimited-OCR 原本只支持 NVIDIA。我们将它搬上了 AMD ROCm。
-  同等精度。更少显存。现在即可在真实 AMD 硬件上体验。
+  我们将百度 Unlimited-OCR 搬上了 AMD ROCm。同等精度。更少显存。
+  现在即可在真实 AMD 硬件上体验。
 </p>
 
 <div align="center">

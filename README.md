@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  Baidu Unlimited-OCR was locked to NVIDIA. We brought it to AMD ROCm.
-  Same accuracy. Less VRAM. And you can try it on real AMD hardware right now.
+  We brought Baidu Unlimited-OCR to AMD ROCm. Same accuracy. Less VRAM.
+  And you can try it on real AMD hardware right now.
 </p>
 
 <div align="center">
