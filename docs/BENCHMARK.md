@@ -6,7 +6,7 @@
 
 | Item | Detail |
 |------|--------|
-| GPU | AMD Radeon Graphics |
+| GPU | AMD Radeon PRO W7900 |
 | VRAM Total | 48 GB |
 | ROCm / HIP | 7.2.53211 |
 | PyTorch | 2.12.1+rocm7.2 |

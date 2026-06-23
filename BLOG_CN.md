@@ -26,7 +26,7 @@
 
 | 项目 | 详情 |
 |------|--------|
-| GPU | AMD Radeon Graphics |
+| GPU | AMD Radeon PRO W7900 |
 | 显存 | 48 GB |
 | ROCm | 7.2.53211 |
 | 模型 | baidu/Unlimited-OCR |
