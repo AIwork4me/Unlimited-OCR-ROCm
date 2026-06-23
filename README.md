@@ -1,7 +1,7 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>State-of-the-Art OCR on AMD GPUs — Try it yourself on AMD Radeon Cloud</strong>
+  <strong>State-of-the-Art OCR on AMD GPUs — Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></strong>
 </p>
 
 <p align="center">
@@ -40,7 +40,7 @@
 
 <blockquote align="center">
   14-page academic paper → 41KB structured Markdown on AMD Radeon PRO W7900 48GB VRAM.<br>
-  Zero format loss. Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a>.
+  Zero format loss.
 </blockquote>
 
 ---
