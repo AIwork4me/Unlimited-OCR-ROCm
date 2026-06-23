@@ -1,24 +1,26 @@
 """Core OCR inference engine — concurrent requests via SGLang API on AMD ROCm."""
 
+from __future__ import annotations
+
 import base64
 import json
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Optional, Tuple
+from typing import Any
 
 import requests
 
-SERVED_MODEL_NAME = "Unlimited-OCR"
-DEFAULT_HOST = "0.0.0.0"
-DEFAULT_PORT = 10000
-DEFAULT_TEMPERATURE = 0
-DEFAULT_REQUEST_TIMEOUT = 1200
-MAX_RETRIES = 5
-NO_REPEAT_NGRAM_SIZE = 35
-DEFAULT_NGRAM_WINDOW = 128
+SERVED_MODEL_NAME: str = "Unlimited-OCR"
+DEFAULT_HOST: str = "0.0.0.0"
+DEFAULT_PORT: int = 10000
+DEFAULT_TEMPERATURE: int = 0
+DEFAULT_REQUEST_TIMEOUT: int = 1200
+MAX_RETRIES: int = 5
+NO_REPEAT_NGRAM_SIZE: int = 35
+DEFAULT_NGRAM_WINDOW: int = 128
 
-_NGRAM_PROCESSOR_STR: Optional[str] = None
+_NGRAM_PROCESSOR_STR: str | None = None
 
 
 def _get_ngram_processor_str() -> str:
@@ -31,7 +33,7 @@ def _get_ngram_processor_str() -> str:
     return _NGRAM_PROCESSOR_STR
 
 
-def encode_image(image_path: str) -> dict:
+def encode_image(image_path: str) -> dict[str, object]:
     ext = os.path.splitext(image_path)[1].lower()
     mime = "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext.lstrip('.')}"
     with open(image_path, "rb") as f:
@@ -39,14 +41,14 @@ def encode_image(image_path: str) -> dict:
     return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}}
 
 
-def _build_content(prompt: str, image_path: str) -> list:
+def _build_content(prompt: str, image_path: str) -> list[dict[str, object]]:
     return [{"type": "text", "text": prompt}, encode_image(image_path)]
 
 
-def _collect_stream(response, output_file: Optional[str]) -> dict:
-    chunks: List[str] = []
-    token_count = 0
-    first_token_time: Optional[float] = None
+def _collect_stream(response, output_file: str | None) -> dict[str, object]:
+    chunks: list[str] = []
+    token_count: int = 0
+    first_token_time: float | None = None
     f = open(output_file, "w", encoding="utf-8") if output_file else None
     try:
         for raw_line in response.iter_lines():
@@ -82,21 +84,17 @@ def _collect_stream(response, output_file: Optional[str]) -> dict:
 
 def infer_one(
     image_path: str,
-    output_file: Optional[str],
+    output_file: str | None,
     prompt: str = "document parsing.",
     image_mode: str = "gundam",
     ngram_window: int = DEFAULT_NGRAM_WINDOW,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
     idx: int = 0,
-) -> dict:
-    """
-    Send one image to the SGLang server and collect the OCR result.
-
-    Returns ``{"tokens": int, "decode_time": float, "text": str}``.
-    """
+) -> dict[str, object]:
+    """Send one image to the SGLang server and collect the OCR result."""
     server_url = f"http://{host}:{port}"
-    payload: dict = {
+    payload: dict[str, object] = {
         "model": SERVED_MODEL_NAME,
         "messages": [{"role": "user", "content": _build_content(prompt, image_path)}],
         "temperature": DEFAULT_TEMPERATURE,
@@ -139,10 +137,10 @@ def infer_one(
             return {"tokens": 0, "decode_time": 0.0, "text": ""}
 
 
-def collect_image_paths(image_dir: str) -> List[str]:
+def collect_image_paths(image_dir: str) -> list[str]:
     """Return all image file paths under *image_dir*, sorted by file size descending."""
     exts = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-    image_files: List[str] = []
+    image_files: list[str] = []
     for root, _, files in os.walk(image_dir):
         for name in files:
             if name.lower().endswith(exts):
@@ -151,24 +149,20 @@ def collect_image_paths(image_dir: str) -> List[str]:
 
 
 def run_concurrent(
-    jobs: List[Tuple[str, Optional[str]]],
+    jobs: list[tuple[str, str | None]],
     concurrency: int = 8,
     prompt: str = "document parsing.",
     image_mode: str = "gundam",
     ngram_window: int = DEFAULT_NGRAM_WINDOW,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-) -> List[dict]:
-    """
-    Run OCR on a list of *(image_path, output_file)* jobs concurrently.
-
-    Returns a list of per-image result dicts: ``{"tokens", "decode_time", "text"}``.
-    """
+) -> list[dict[str, object]]:
+    """Run OCR on a list of *(image_path, output_file)* jobs concurrently."""
     wall_start = time.time()
-    results: List[dict] = []
+    results: list[dict[str, object]] = []
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
-        futures = {}
+        futures: dict[Any, str] = {}
         for i, (image_path, output_file) in enumerate(jobs):
             future = executor.submit(
                 infer_one, image_path, output_file, prompt, image_mode,
