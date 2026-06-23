@@ -6,7 +6,7 @@
 
 <p align="center">
   We brought Baidu Unlimited-OCR to AMD ROCm. Same accuracy. Less VRAM.
-  And you can try it on real AMD hardware right now.
+  And you can <strong>try it on</strong> real AMD hardware right now.
 </p>
 
 <div align="center">
@@ -57,8 +57,8 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 
 - **One command to run** — auto-detects ROCm, configures SGLang + Triton attention, nothing to tune
 - **Zero accuracy loss** — byte-for-byte identical output to the original
-- **Minimal VRAM** — runs on 16 GB consumer Radeon cards, thanks to R-SWA constant KV cache
-- **56 tok/s** throughput — processes a 50-page paper in under 10 minutes
+- **Minimal VRAM** — runs on **16 GB** consumer Radeon cards, thanks to R-SWA constant KV cache
+- **56 tok/s** throughput on AMD Radeon PRO W7900
 - **Structured output** — Markdown with tables, formulas, and bounding boxes preserved
 
 ---

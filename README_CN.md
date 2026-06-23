@@ -6,7 +6,7 @@
 
 <p align="center">
   我们将百度 Unlimited-OCR 搬上了 AMD ROCm。同等精度。更少显存。
-  现在即可在真实 AMD 硬件上体验。
+  现在即可<strong>在真实 AMD 硬件上</strong>体验。
 </p>
 
 <div align="center">
@@ -57,8 +57,8 @@
 
 - **一条命令运行** — 自动检测 ROCm，配置 SGLang + Triton 注意力，无需调参
 - **零精度损失** — 与原始模型逐字逐标点完全一致
-- **极低显存** — 低至 16 GB 消费级 Radeon 即可运行，得益于 R-SWA 恒定 KV 缓存
-- **56 tok/s 吞吐** — 50 页论文不到 10 分钟处理完成
+- **极低显存** — 低至 **16 GB** 消费级 Radeon 即可运行，得益于 R-SWA 恒定 KV 缓存
+- **56 tok/s 吞吐** — 于 AMD Radeon PRO W7900 实测
 - **结构化输出** — 完整保留 Markdown 格式、表格、公式和边界框
 
 ---
