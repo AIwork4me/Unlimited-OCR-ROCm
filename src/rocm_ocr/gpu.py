@@ -1,17 +1,12 @@
-"""
-GPU detection for AMD ROCm.
+"""GPU detection for AMD ROCm."""
 
-Detects AMD GPUs via ``rocm-smi`` and sets up the
-HIP runtime environment for inference.
-"""
+from __future__ import annotations
 
+import os
 import shutil
 import subprocess
-import os
-from typing import Optional
 
-
-DEFAULT_ATTENTION_BACKEND = "triton"
+DEFAULT_ATTENTION_BACKEND: str = "triton"
 
 
 def detect_rocm() -> bool:
@@ -48,14 +43,14 @@ def assert_rocm() -> None:
         )
 
 
-def gpu_info() -> dict:
+def gpu_info() -> dict[str, object]:
     """Return basic info about the detected AMD GPU(s)."""
     assert_rocm()
     try:
         import torch
-        count = torch.cuda.device_count()
-        name = torch.cuda.get_device_name(0) if count > 0 else "unknown"
-        hip_ver = getattr(torch.version, "hip", "unknown")
+        count: int = torch.cuda.device_count()
+        name: str = torch.cuda.get_device_name(0) if count > 0 else "unknown"
+        hip_ver: str = getattr(torch.version, "hip", "unknown")
         return {
             "count": count,
             "name": name,
