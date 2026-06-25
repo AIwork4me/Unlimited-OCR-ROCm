@@ -142,21 +142,63 @@ Full guide: [docs/TUNING.md](docs/TUNING.md)
 
 ```
 unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
-              [--output-dir ./out] [--image-mode gundam|base] \
-              [--gpu 0] [--concurrency 8] [--pdf-dpi 200] \
-              [--page-size 16] [--torch-compile] [--quiet] [--version]
+              [--output-dir ./out] [--output-format markdown|json|html] \
+              [--image-mode gundam|base] [--gpu 0] [--concurrency 8] \
+              [--pdf-dpi 200] [--page-size 16] [--torch-compile] \
+              [--async] [--quiet] [--version] [--config .unlimited-ocr.yaml]
 ```
+
+### Async Engine (New in 1.2)
+
+For high-concurrency batch workloads, the `--async` flag uses aiohttp + asyncio
+for lower overhead and better throughput:
+
+```bash
+unlimited-ocr --pdf ./large_doc.pdf --async --concurrency 16
+```
+
+The sync engine (default) uses requests + ThreadPoolExecutor.
+The async engine uses aiohttp + asyncio.Semaphore.
+Choose sync for simplicity, async for scale.
+
+
+## Configuration File (YAML)
+
+Skip repetitive CLI flags with a config file:
+
+```yaml
+# .unlimited-ocr.yaml
+output_dir: ./outputs
+image_mode: base
+pdf_dpi: 150
+concurrency: 8
+quiet: false
+```
+
+Place it in your project root or any parent directory — it's auto-discovered.
+Or pass `--config ./my-config.yaml` explicitly.
 
 
 ## Project Structure
 
 ```
 Unlimited-OCR-ROCm/
-├── src/rocm_ocr/        # Python package (CLI, GPU detect, infer, server)
-├── examples/            # transformers_infer.py, sglang_server.sh, sglang_client.py
+├── src/rocm_ocr/        # Python package
+│   ├── cli.py           # CLI entry, arg parsing, config merging
+│   ├── config.py        # YAML config loader + auto-discovery
+│   ├── gpu.py           # AMD ROCm detection
+│   ├── image.py         # Image encoding, MIME, collection
+│   ├── infer.py         # Sync inference engine (requests + ThreadPool)
+│   ├── infer_async.py   # Async inference engine (aiohttp + asyncio)
+│   ├── logging.py       # Structured logging
+│   ├── pdf.py           # PDF → image conversion (auto cleanup)
+│   ├── retry.py         # Exponential backoff with jitter
+│   └── server.py        # SGLang server lifecycle
+├── examples/            # transformers_infer.py, sglang_server.sh, client
 ├── docs/                # BENCHMARK.md, TUNING.md, ARCHITECTURE.md
 ├── scripts/             # setup_rocm.sh, benchmarks
-├── tests/               # Unit tests
+├── tests/               # Unit tests (35+ tests, conftest.py fixtures)
+├── .pre-commit-config.yaml  # Automated lint + format on commit
 ├── Makefile             # make install, make test, make benchmark
 ├── Dockerfile           # ROCm 6.0+ Docker image
 └── pyproject.toml       # PEP 621 package metadata

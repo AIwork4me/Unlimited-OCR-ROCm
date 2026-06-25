@@ -1,0 +1,13 @@
+# Default owners for everything in the repo
+*       @AIwork4me
+
+# Documentation
+README.md        @AIwork4me
+README_CN.md     @AIwork4me
+docs/            @AIwork4me
+
+# CI/CD
+.github/workflows/   @AIwork4me
+
+# Core package
+src/rocm_ocr/    @AIwork4me

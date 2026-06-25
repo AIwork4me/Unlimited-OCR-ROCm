@@ -37,6 +37,7 @@ benchmark_results/
 Thumbs.db
 .vscode/
 .idea/
+.opencode/
 
 # Docker
 hf_cache/
