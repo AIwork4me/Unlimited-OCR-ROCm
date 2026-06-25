@@ -1,18 +1,15 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>State-of-the-Art OCR on AMD GPUs — Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></strong>
+  <strong>Run Baidu Unlimited-OCR on AMD ROCm — one command.</strong>
 </p>
 
 <p align="center">
-  We brought Baidu Unlimited-OCR to AMD ROCm. Same accuracy. Less VRAM.
-  And you can <strong>try it on</strong> real AMD hardware right now.
+  Zero accuracy loss vs. the NVIDIA reference. Constant VRAM — a 16 GB Radeon runs a whole book.
+  Structured Markdown out (tables, formulas, bounding boxes).
 </p>
 
 <div align="center">
-  <a href="https://radeon.anruicloud.com/">
-    <img src="https://img.shields.io/badge/Try_on-AMD_Radeon_Cloud-ED1C24?style=for-the-badge&logo=amd&logoColor=white" alt="Try on AMD Radeon Cloud" />
-  </a>
   <a href="https://pypi.org/project/unlimited-ocr-rocm">
     <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm" />
   </a>
@@ -100,17 +97,18 @@ R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
 VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles an entire book.
 
 
-## Try It — 3 Ways
+## Try It
 
-| | ModelScope | AMD Radeon Cloud ★ | Local |
-|------|-----------|-------------------|-------|
-| **Cost** | Free | Free trial | Free (MIT) |
-| **GPU** | Free AMD GPU | Dedicated AMD GPU | Your GPU |
-| **Setup** | 0 seconds | 60 seconds | 3 commands |
-| **Best for** | Quick look | Real workload | Full control |
-| **Go** | [Open Demo →]() | **[Register →](https://radeon.anruicloud.com/)** | See below |
+**Fastest: run it locally** — 3 commands on any AMD Radeon / ROCm 6.0+ GPU (see [Quick Start](#quick-start-3-commands)). A 16 GB consumer card is enough for an entire book.
 
-**Recommended path:** Start with the ModelScope demo to see the magic. When you're ready to run your own files at full speed, [register on AMD Radeon Cloud](https://radeon.anruicloud.com/) — same hardware we benchmarked on, 60 seconds to your first OCR result.
+| | Local | ModelScope demo | AMD Radeon Cloud |
+|------|-------|-----------------|-----------------|
+| **Cost** | Free (MIT) | Free | Free trial |
+| **GPU** | Your AMD GPU | Shared AMD GPU | Dedicated AMD GPU |
+| **Setup** | 3 commands | 0 (in-browser) | ~60 s |
+| **Best for** | Full control, real workloads | Quick look | No local GPU |
+
+No AMD hardware? [AMD Radeon Cloud](https://radeon.anruicloud.com/) runs the same GPU we benchmark on.
 
 
 ## Quick Start (3 Commands)
