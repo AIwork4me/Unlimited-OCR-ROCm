@@ -203,10 +203,10 @@ def parse_run_summary(result_dir: str, save_name: str) -> dict:
     summary_path = rdir / f"{save_name}_run_summary.json"
     metric_path = rdir / f"{save_name}_metric_result.json"
 
-    overall: float | None = None
+    report: dict = {}
     if summary_path.is_file():
         with open(summary_path, encoding="utf-8") as f:
-            overall = json.load(f).get("overall_notebook")
+            report = json.load(f)
 
     metric: dict = {}
     if metric_path.is_file():
@@ -222,6 +222,14 @@ def parse_run_summary(result_dir: str, save_name: str) -> dict:
             if node is None:
                 return None
         return node
+
+    # OmniDocBench v1.6 scorer saves *_run_summary.json with overall_notebook
+    # nested under notebook_metric_summary (see build_eval_run_report in
+    # opendatalab/OmniDocBench src/runtime/eval_report.py). Fall back to the
+    # top-level key for robustness against either schema.
+    overall = dig(report, "notebook_metric_summary", "overall_notebook")
+    if overall is None:
+        overall = report.get("overall_notebook")
 
     return {
         "overall": overall,

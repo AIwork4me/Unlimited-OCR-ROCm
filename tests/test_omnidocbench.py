@@ -173,7 +173,12 @@ def test_write_eval_config_omits_cdm_when_disabled(tmp_path: Path):
 
 def test_parse_run_summary_extracts_verified_paths(tmp_path: Path):
     save_name = "eval_predictions_quick_match"
-    run_summary = {"overall_notebook": 93.5}
+    # Real OmniDocBench v1.6 shape: overall_notebook is nested under
+    # notebook_metric_summary in the saved *_run_summary.json.
+    run_summary = {
+        "save_name": save_name,
+        "notebook_metric_summary": {"overall_notebook": 93.5},
+    }
     metric_result = {
         "text_block": {"all": {"Edit_dist": {"ALL_page_avg": 0.05}}},
         "display_formula": {"page": {"CDM": {"ALL": 0.88}}},
@@ -192,9 +197,23 @@ def test_parse_run_summary_extracts_verified_paths(tmp_path: Path):
     assert summary["reading_order_edit"] == 0.07
 
 
+def test_parse_run_summary_overall_none_when_notebook_summary_missing(tmp_path: Path):
+    save_name = "eval_predictions_quick_match"
+    # No notebook_metric_summary (and no top-level overall_notebook) -> None.
+    run_summary = {"save_name": save_name}
+    (tmp_path / f"{save_name}_run_summary.json").write_text(json.dumps(run_summary))
+    (tmp_path / f"{save_name}_metric_result.json").write_text(json.dumps({}))
+
+    summary = parse_run_summary(str(tmp_path), save_name)
+    assert summary["overall"] is None
+
+
 def test_parse_run_summary_defaults_missing_keys_to_none(tmp_path: Path):
     save_name = "eval_predictions_quick_match"
-    run_summary = {"overall_notebook": 90.0}
+    run_summary = {
+        "save_name": save_name,
+        "notebook_metric_summary": {"overall_notebook": 90.0},
+    }
     # Missing display_formula/table entirely, and a partial reading_order.
     metric_result = {"text_block": {"all": {"Edit_dist": {"ALL_page_avg": 0.04}}}}
     (tmp_path / f"{save_name}_run_summary.json").write_text(json.dumps(run_summary))
@@ -285,7 +304,9 @@ def test_main_runs_scorer_and_prints_summary(monkeypatch, tmp_path: Path, capsys
     monkeypatch.setattr("rocm_ocr.omnidocbench.run_scorer", lambda *, omnidocbench_repo, config_path: None)
 
     save_name = "preds_quick_match"
-    (result_dir / f"{save_name}_run_summary.json").write_text(json.dumps({"overall_notebook": 88.0}))
+    (result_dir / f"{save_name}_run_summary.json").write_text(
+        json.dumps({"notebook_metric_summary": {"overall_notebook": 88.0}})
+    )
     (result_dir / f"{save_name}_metric_result.json").write_text(json.dumps({}))
 
     odb.main(
