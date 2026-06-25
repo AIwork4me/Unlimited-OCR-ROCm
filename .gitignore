@@ -26,6 +26,9 @@ htmlcov/
 .ruff_cache/
 .ipynb_checkpoints/
 
+# Agent scratch (subagent-driven-development ledger, etc.)
+.superpowers/
+
 # Local runtime outputs
 outputs/
 log/
