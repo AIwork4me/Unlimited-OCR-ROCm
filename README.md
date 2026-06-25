@@ -236,6 +236,8 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 - [💡 Request a feature](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=feature_request.md)
 - [📊 Share your benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
 - [🌍 Help translate](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
+- [Roadmap](ROADMAP.md)
+- [Community benchmarks](docs/COMMUNITY_BENCHMARKS.md)
 
 ## Star History
 
