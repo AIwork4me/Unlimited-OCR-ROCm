@@ -33,7 +33,7 @@
 </blockquote>
 
 
-[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
+[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Accuracy parity (OmniDocBench)](docs/PARITY.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
 
 
 ## Why Unlimited-OCR-ROCm
