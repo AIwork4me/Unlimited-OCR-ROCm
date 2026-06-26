@@ -4,9 +4,9 @@
 
 ## Headline
 
-**Overall (v1.6):** _populate via make eval_
+**Overall (v1.6):** _pending CDM_ — the composite needs the formula score.
 
-All numeric cells below are placeholders. The maintainer runs `make eval` on AMD hardware to populate them (see [Honest scope](#honest-scope)).
+Text / table / reading-order sub-scores below are **measured on AMD ROCm (gfx1100, W7900-class), 2026-06**. Formula CDM and the composite Overall are pending the CDM toolchain (TeX Live).
 
 ## OmniDocBench modules
 
@@ -25,19 +25,24 @@ OmniDocBench evaluates four document-parsing modules. Each module is scored by o
 Overall = ((1 − Text EditDist) × 100 + Table TEDS + Formula CDM) / 3
 ```
 
-## AMD vs NVIDIA parity
+## Measured results — AMD ROCm (gfx1100 / W7900-class)
 
-The parity bar is matching the **NVIDIA reference run of Unlimited-OCR** (self-reported ~93.92 Overall), **not** the board SOTA. Same model weights, prompt, and seed; only the GPU backend differs.
+Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the speed preset), direct `model.infer` path, native prompt, on OmniDocBench **v1.6** (1,651 pages), scored with the official OmniDocBench scorer (CDM disabled — no TeX Live on the host).
 
-| Metric | NVIDIA reference | AMD ROCm (this project) | Δ |
-|--------|-----------------|--------------------------|---|
-| Overall (v1.6) | _populate via make eval_ | _populate via make eval_ | _populate via make eval_ |
-| Text Edit_dist ↓ | _populate via make eval_ | _populate via make eval_ | _populate via make eval_ |
-| Table TEDS ↑ | _populate via make eval_ | _populate via make eval_ | _populate via make eval_ |
-| Formula CDM ↑ | _populate via make eval_ | _populate via make eval_ | _populate via make eval_ |
-| Reading order Edit_dist ↓ | _populate via make eval_ | _populate via make eval_ | _populate via make eval_ |
+| Module | Metric | AMD ROCm result |
+|--------|--------|----------------:|
+| text_block | Edit_dist ↓ | **0.0938** (≈ 90.6% text accuracy) |
+| table | TEDS ↑ | **0.898** |
+| table | TEDS_structure_only ↑ | **0.931** |
+| reading_order | Edit_dist ↓ | **0.145** (≈ 85.5%) |
+| display_formula | CDM ↑ | _pending CDM toolchain_ |
+| **Overall** | composite | _pending CDM_ — `((1−0.0938)×100 + 0.898×100 + CDM×100)/3` |
 
-> **NVIDIA reference** = same model weights, prompt, and seed; only the GPU backend (CUDA vs ROCm) differs.
+The headline **Overall** needs the formula CDM score (TeX Live + ImageMagick + Ghostscript). Install those and re-score to populate it.
+
+### Parity framing (honest)
+
+A *controlled* AMD-vs-NVIDIA parity (same weights/prompt/seed, only the GPU backend differs) requires an NVIDIA run that was **not** conducted here (no NVIDIA GPU on this host). The anchor is the **OmniDocBench v1.6 leaderboard**, where Unlimited-OCR self-reports **~93.92 Overall**. Our AMD gundam-mode run is real and reproducible, but it is **not** a controlled Δ-vs-NVIDIA measurement — and gundam mode trades accuracy for speed (a `base`-mode run would score higher).
 
 ## Crowded-field positioning
 
@@ -51,7 +56,7 @@ Where Unlimited-OCR sits on the official OmniDocBench v1.6 leaderboard. This is 
 | Unlimited-OCR | ~93.92 | self-reported in Baidu's paper; ~5th on the board — not SOTA |
 | DeepSeek-OCR-2 | 90.25 | DeepSeek-OCR ≠ Unlimited-OCR (different companies) |
 | Marker | 78.44 | |
-| **Unlimited-OCR-ROCm (this project)** | _populate via make eval_ | parity target = Unlimited-OCR ~93.92 |
+| **Unlimited-OCR-ROCm (this project)** | _pending CDM_ | AMD gfx1100, gundam mode — text 0.094 / table TEDS 0.898 measured; Overall pending CDM |
 
 _Source: official OmniDocBench v1.6 leaderboard._
 
@@ -66,12 +71,16 @@ _Source: official OmniDocBench v1.6 leaderboard._
    huggingface-cli download opendatalab/OmniDocBench --repo-type dataset --local-dir ./OmniDocBench_data
    ```
    To score both versions, clone the `main` branch (**v1.6**, 1,651 pages) and the `v1_5` branch (**v1.5**, 1,355 pages). Note: v1.5↔v1.6 deltas are **not** strictly comparable — annotation set and matcher changed between versions.
-3. **Start the SGLang server** serving `baidu/Unlimited-OCR` on AMD ROCm.
-4. **Run the evaluation:**
+3. **Generate predictions.** SGLang serving is not currently working for this model on ROCm (model-config incompat in current sglang). Generate predictions via the direct path:
    ```bash
-   make eval
+   python scripts/run_omnidocbench_direct.py \
+       --omnidocbench-dir ./OmniDocBench_data --pred-dir ./eval_predictions_v16
    ```
-   This runs `scripts/eval_omnidocbench.py`.
+4. **Score** the predictions with the official OmniDocBench scorer (from the OmniDocBench repo):
+   ```bash
+   python pdf_validation.py --config configs/unlimited_rocm.yaml
+   ```
+   Enable CDM in the config once TeX Live / ImageMagick / Ghostscript are installed (for the formula CDM + composite Overall).
 5. **Populate this doc** with the resulting Overall and per-module numbers.
 
 ## Methodology
@@ -83,6 +92,6 @@ _Source: official OmniDocBench v1.6 leaderboard._
 
 ## Honest scope
 
-The numbers in this document are populated by the **maintainer** by running `make eval` on AMD hardware — that run is **deferred** (tracked separately). This file is the **reproducible structure**: the modules, metrics, Overall formula, parity target, reproduction recipe, and methodology are fixed and complete; the numeric cells are explicit placeholders until the run completes.
+The text / table / reading-order numbers above are **measured** (AMD ROCm gfx1100, 2026-06, full 1,651-page v1.6 run). Formula CDM and the composite Overall are **pending the CDM toolchain**. This file holds the reproducible structure plus real sub-scores; the reproduction recipe and methodology are fixed.
 
-Any "parity achieved" claim is **only valid once** the maintainer populates the table above and the AMD Overall matches the NVIDIA reference within the stated tolerance.
+A "parity achieved" claim is only valid once: (a) CDM is installed and the Overall is computed, and (b) ideally a controlled same-config NVIDIA run confirms the Δ is backend-attributable (the leaderboard ~93.92 is an approximate anchor, not a controlled comparison).
