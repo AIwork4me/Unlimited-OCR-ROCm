@@ -39,9 +39,11 @@ Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the s
 | display_formula | CDM ↑ | **0.0 — rendering failure** (see CDM status below) |
 | **Overall** | composite | _invalid_ — CDM=0 drags it to 60.14; not citable |
 
-### CDM status (formula image-F1)
+### CDM status (formula image-F1) — ROOT CAUSE FOUND & FIXED
 
-CDM returns **0.0** for every page. The CDM toolchain is installed and detected (pdflatex / ImageMagick / Ghostscript / CJK), and the model's formulas are extracted (formula Edit_dist = 0.104 works), but the prediction LaTeX renders to **0 characters** in OmniDocBench's CDM image pipeline. This is a metric/model-format rendering issue under investigation — **not** a real score. Until resolved, report the four sub-scores above (and formula Edit_dist), not the composite Overall.
+CDM previously returned **0.0** for every page. **Root cause:** OmniDocBench's PDF→PNG step (`latex2bbox_color.convert_pdf2img`) calls the **`magick`** binary (ImageMagick 7), but this host had only ImageMagick 6 (`convert`) installed — so PDF→PNG silently failed → no character bboxes → CDM=0. **Fix:** `sudo ln -s /usr/bin/convert /usr/local/bin/magick` (IM6 `convert` is argument-compatible with CDM's exact invocation). Verified: the CDM render pipeline now produces character bboxes (was 0). Re-scoring with CDM to populate the real formula CDM + composite Overall.
+
+> Reproduction note: the OmniDocBench docs specify "ImageMagick **7.x** with PDF read/write enabled". On Debian/Ubuntu (which ships IM6), either install IM7 or create the `magick→convert` symlink above.
 
 ### Parity framing (honest)
 
