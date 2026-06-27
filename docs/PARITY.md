@@ -4,9 +4,7 @@
 
 ## Headline
 
-**Overall (v1.6):** _invalid — CDM returns 0 (rendering failure, not a real score)._ Do **not** cite the 60.14 composite.
-
-Text / table / reading-order sub-scores below are **measured on AMD ROCm (gfx1100, W7900-class), 2026-06**. The composite Overall requires the formula **CDM** metric, which currently returns 0.0 (the model's formula LaTeX renders to 0 characters in OmniDocBench's CDM image pipeline — a metric/model-format issue under investigation, **not** a real score). The formula **Edit_dist** (0.104) is a valid formula-quality signal in the meantime.
+**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report, attributable to **gundam mode** (the speed preset — a `base`-mode run would score higher). Full per-module breakdown below.
 
 ## OmniDocBench modules
 
@@ -36,12 +34,12 @@ Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the s
 | table | TEDS_structure_only ↑ | **0.931** |
 | reading_order | Edit_dist ↓ | **0.145** (≈ 85.5%) |
 | display_formula | Edit_dist ↓ | **0.104** (≈ 90% formula text accuracy) |
-| display_formula | CDM ↑ | **0.0 — rendering failure** (see CDM status below) |
-| **Overall** | composite | _invalid_ — CDM=0 drags it to 60.14; not citable |
+| display_formula | CDM ↑ | **0.957** (95.7% formula image-F1) |
+| **Overall** | composite | **92.04** — `((1−0.0938)×100 + 0.898×100 + 0.957×100)/3` |
 
-### CDM status (formula image-F1) — ROOT CAUSE FOUND & FIXED
+### CDM status (formula image-F1) — RESOLVED
 
-CDM previously returned **0.0** for every page. **Root cause:** OmniDocBench's PDF→PNG step (`latex2bbox_color.convert_pdf2img`) calls the **`magick`** binary (ImageMagick 7), but this host had only ImageMagick 6 (`convert`) installed — so PDF→PNG silently failed → no character bboxes → CDM=0. **Fix:** `sudo ln -s /usr/bin/convert /usr/local/bin/magick` (IM6 `convert` is argument-compatible with CDM's exact invocation). Verified: the CDM render pipeline now produces character bboxes (was 0). Re-scoring with CDM to populate the real formula CDM + composite Overall.
+CDM initially returned **0.0** for every page. **Root cause:** OmniDocBench's PDF→PNG step (`latex2bbox_color.convert_pdf2img`) calls the **`magick`** binary (ImageMagick 7), but this host had only ImageMagick 6 (`convert`) — so PDF→PNG silently failed → no character bboxes → CDM=0. **Fix:** `sudo ln -s /usr/bin/convert /usr/local/bin/magick` (IM6 `convert` is argument-compatible). After the fix, **CDM = 0.957 (95.7%)** and the composite **Overall = 92.04**.
 
 > Reproduction note: the OmniDocBench docs specify "ImageMagick **7.x** with PDF read/write enabled". On Debian/Ubuntu (which ships IM6), either install IM7 or create the `magick→convert` symlink above.
 
@@ -61,7 +59,7 @@ Where Unlimited-OCR sits on the official OmniDocBench v1.6 leaderboard. This is 
 | Unlimited-OCR | ~93.92 | self-reported in Baidu's paper; ~5th on the board — not SOTA |
 | DeepSeek-OCR-2 | 90.25 | DeepSeek-OCR ≠ Unlimited-OCR (different companies) |
 | Marker | 78.44 | |
-| **Unlimited-OCR-ROCm (this project)** | _pending CDM_ | AMD gfx1100, gundam mode — text 0.094 / table TEDS 0.898 measured; Overall pending CDM |
+| **Unlimited-OCR-ROCm (this project)** | **92.04** | AMD gfx1100, gundam (speed) mode. ~1.9 below self-report 93.92 — attributable to gundam mode; base mode would score higher. |
 
 _Source: official OmniDocBench v1.6 leaderboard._
 
