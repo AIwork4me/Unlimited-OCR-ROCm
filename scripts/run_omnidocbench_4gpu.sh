@@ -26,5 +26,6 @@ for i in $(seq 0 $((NUM_GPUS - 1))); do
   pids+=($!)
 done
 echo "PIDs: ${pids[*]}  (tail -f log/shard*.log)"
-wait
-echo "All shards done. Predictions: $(ls "${PRED_DIR}"/*.md 2>/dev/null | wc -l)"
+# Don't let one shard's crash (e.g. core dump) abort the whole run — wait for all.
+wait || true
+echo "All shards done. Predictions: $(ls "${PRED_DIR}"/*.md 2>/dev/null | wc -l)  | failures: $(grep -h FAIL log/shard*.log 2>/dev/null | wc -l)"

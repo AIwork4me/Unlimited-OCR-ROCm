@@ -89,23 +89,30 @@ def main() -> None:
         os.makedirs(tmp, exist_ok=True)
         img_size = 640 if args.image_mode == "gundam" else 1024
         crop = args.image_mode == "gundam"
-        model.infer(
-            tok,
-            prompt="<image>document parsing.",
-            image_file=img,
-            output_path=tmp,
-            base_size=1024,
-            image_size=img_size,
-            crop_mode=crop,
-            max_length=args.max_length,
-            no_repeat_ngram_size=35,
-            ngram_window=128,
-            save_results=True,
-        )
-        src = os.path.join(tmp, "result.md")
-        if os.path.exists(src):
-            shutil.move(src, out_md)
-        done += 1
+        try:
+            model.infer(
+                tok,
+                prompt="<image>document parsing.",
+                image_file=img,
+                output_path=tmp,
+                base_size=1024,
+                image_size=img_size,
+                crop_mode=crop,
+                max_length=args.max_length,
+                no_repeat_ngram_size=35,
+                ngram_window=128,
+                save_results=True,
+            )
+            src = os.path.join(tmp, "result.md")
+            if os.path.exists(src):
+                shutil.move(src, out_md)
+            done += 1
+        except Exception as e:
+            # Contain per-image failures (e.g. OOM) so one bad page doesn't kill the shard.
+            msg = f"{type(e).__name__}: {e}"
+            print(f"[shard {args.shard}] FAILED {base}: {msg}", flush=True)
+            with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
+                f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
     print(
         f"done: {done} new inferences in {elapsed:.0f}s "
