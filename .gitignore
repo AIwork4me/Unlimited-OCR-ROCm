@@ -34,7 +34,7 @@ outputs/
 log/
 *.log
 benchmark_results/
-eval_predictions/
+eval_predictions*/
 result/
 
 # OS and editor files
