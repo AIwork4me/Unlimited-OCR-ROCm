@@ -71,11 +71,11 @@ _Source: official OmniDocBench v1.6 leaderboard._
    huggingface-cli download opendatalab/OmniDocBench --repo-type dataset --local-dir ./OmniDocBench_data
    ```
    To score both versions, clone the `main` branch (**v1.6**, 1,651 pages) and the `v1_5` branch (**v1.5**, 1,355 pages). Note: v1.5↔v1.6 deltas are **not** strictly comparable — annotation set and matcher changed between versions.
-3. **Generate predictions.** SGLang serving is not currently working for this model on ROCm (model-config incompat in current sglang). Generate predictions via the direct path:
+3. **Generate predictions (4-GPU, ~5 h).** SGLang serving is not currently working for this model on ROCm (model-config incompat in current sglang). Use the direct path across all 4 GPUs:
    ```bash
-   python scripts/run_omnidocbench_direct.py \
-       --omnidocbench-dir ./OmniDocBench_data --pred-dir ./eval_predictions_v16
+   bash scripts/run_omnidocbench_4gpu.sh ./OmniDocBench_data ./eval_predictions_v16
    ```
+   (Single-GPU fallback: `python scripts/run_omnidocbench_direct.py --omnidocbench-dir ./OmniDocBench_data --pred-dir ./eval_predictions_v16` — ~20 h.)
 4. **Score** the predictions with the official OmniDocBench scorer (from the OmniDocBench repo):
    ```bash
    python pdf_validation.py --config configs/unlimited_rocm.yaml
