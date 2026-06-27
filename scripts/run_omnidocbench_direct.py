@@ -29,6 +29,12 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="limit # images (0 = all)")
     ap.add_argument("--max-length", type=int, default=32768)
     ap.add_argument(
+        "--image-mode",
+        choices=("gundam", "base"),
+        default="gundam",
+        help="gundam=640px cropped (speed); base=1024px full (quality, aligns with Baidu reference)",
+    )
+    ap.add_argument(
         "--shard",
         type=int,
         default=0,
@@ -81,14 +87,16 @@ def main() -> None:
         if os.path.exists(out_md):
             continue  # resumable
         os.makedirs(tmp, exist_ok=True)
+        img_size = 640 if args.image_mode == "gundam" else 1024
+        crop = args.image_mode == "gundam"
         model.infer(
             tok,
             prompt="<image>document parsing.",
             image_file=img,
             output_path=tmp,
             base_size=1024,
-            image_size=640,  # gundam mode (matches README 56 tok/s config)
-            crop_mode=True,
+            image_size=img_size,
+            crop_mode=crop,
             max_length=args.max_length,
             no_repeat_ngram_size=35,
             ngram_window=128,
