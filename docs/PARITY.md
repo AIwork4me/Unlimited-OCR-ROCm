@@ -4,9 +4,9 @@
 
 ## Headline
 
-**Overall (v1.6):** _pending CDM_ — the composite needs the formula score.
+**Overall (v1.6):** _invalid — CDM returns 0 (rendering failure, not a real score)._ Do **not** cite the 60.14 composite.
 
-Text / table / reading-order sub-scores below are **measured on AMD ROCm (gfx1100, W7900-class), 2026-06**. Formula CDM and the composite Overall are pending the CDM toolchain (TeX Live).
+Text / table / reading-order sub-scores below are **measured on AMD ROCm (gfx1100, W7900-class), 2026-06**. The composite Overall requires the formula **CDM** metric, which currently returns 0.0 (the model's formula LaTeX renders to 0 characters in OmniDocBench's CDM image pipeline — a metric/model-format issue under investigation, **not** a real score). The formula **Edit_dist** (0.104) is a valid formula-quality signal in the meantime.
 
 ## OmniDocBench modules
 
@@ -35,10 +35,13 @@ Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the s
 | table | TEDS ↑ | **0.898** |
 | table | TEDS_structure_only ↑ | **0.931** |
 | reading_order | Edit_dist ↓ | **0.145** (≈ 85.5%) |
-| display_formula | CDM ↑ | _pending CDM toolchain_ |
-| **Overall** | composite | _pending CDM_ — `((1−0.0938)×100 + 0.898×100 + CDM×100)/3` |
+| display_formula | Edit_dist ↓ | **0.104** (≈ 90% formula text accuracy) |
+| display_formula | CDM ↑ | **0.0 — rendering failure** (see CDM status below) |
+| **Overall** | composite | _invalid_ — CDM=0 drags it to 60.14; not citable |
 
-The headline **Overall** needs the formula CDM score (TeX Live + ImageMagick + Ghostscript). Install those and re-score to populate it.
+### CDM status (formula image-F1)
+
+CDM returns **0.0** for every page. The CDM toolchain is installed and detected (pdflatex / ImageMagick / Ghostscript / CJK), and the model's formulas are extracted (formula Edit_dist = 0.104 works), but the prediction LaTeX renders to **0 characters** in OmniDocBench's CDM image pipeline. This is a metric/model-format rendering issue under investigation — **not** a real score. Until resolved, report the four sub-scores above (and formula Edit_dist), not the composite Overall.
 
 ### Parity framing (honest)
 
