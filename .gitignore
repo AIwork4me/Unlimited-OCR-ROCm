@@ -26,17 +26,23 @@ htmlcov/
 .ruff_cache/
 .ipynb_checkpoints/
 
+# Agent scratch (subagent-driven-development ledger, etc.)
+.superpowers/
+
 # Local runtime outputs
 outputs/
 log/
 *.log
 benchmark_results/
+eval_predictions*/
+result/
 
 # OS and editor files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+.opencode/
 
 # Docker
 hf_cache/

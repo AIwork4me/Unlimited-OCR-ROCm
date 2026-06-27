@@ -1,72 +1,57 @@
 #!/usr/bin/env python3
 """
-=============================================================================
- Unlimited-OCR-ROCm — SGLang Client Example
-=============================================================================
- Sends streaming OCR requests to a running SGLang server on AMD ROCm.
+Unlimited-OCR-ROCm — SGLang Client Example
+===========================================
 
- Prerequisites:
-   1. Start the SGLang server: bash examples/sglang_server.sh
-   2. Run this client: python examples/sglang_client.py --image photo.png
+Sends streaming OCR requests to a running SGLang server on AMD ROCm.
 
- Usage:
-   python examples/sglang_client.py --image ./photo.png
-   python examples/sglang_client.py --pdf ./my_document.pdf
-   python examples/sglang_client.py --image ./photo.jpg --mode gundam
-=============================================================================
+Prerequisites:
+    1. ``uv pip install -e ".[dev]"`` (installs rocm_ocr as editable)
+    2. Start the SGLang server: ``bash examples/sglang_server.sh``
+    3. Run this client: ``python examples/sglang_client.py --image photo.png``
+
+Usage::
+
+    python examples/sglang_client.py --image ./photo.png
+    python examples/sglang_client.py --pdf ./my_document.pdf
+    python examples/sglang_client.py --image ./photo.jpg --mode gundam
 """
 
+from __future__ import annotations
+
 import argparse
-import base64
 import json
 import os
 import sys
-import tempfile
 import time
+from pathlib import Path
 
-import fitz
 import requests
 
-from sglang.srt.sampling.custom_logit_processor import (
-    DeepseekOCRNoRepeatNGramLogitProcessor,
-)
-
-
-def pdf_to_images(pdf_path: str, dpi: int = 300) -> list[str]:
-    doc = fitz.open(pdf_path)
-    tmp_dir = tempfile.mkdtemp(prefix="unlimited_ocr_pdf_")
-    mat = fitz.Matrix(dpi / 72, dpi / 72)
-    paths = []
-    for i, page in enumerate(doc):
-        out = os.path.join(tmp_dir, f"page_{i + 1:04d}.png")
-        page.get_pixmap(matrix=mat).save(out)
-        paths.append(out)
-    doc.close()
-    return paths
-
-
-def encode_image(image_path: str) -> dict:
-    ext = os.path.splitext(image_path)[1].lower()
-    mime = "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext.lstrip('.')}"
-    with open(image_path, "rb") as f:
-        data = base64.b64encode(f.read()).decode("utf-8")
-    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}}
+from rocm_ocr.image import encode_image
+from rocm_ocr.infer import _get_ngram_processor_str
+from rocm_ocr.pdf import pdf_to_images
 
 
 def build_content(prompt: str, image_paths: list[str]) -> list[dict]:
     return [{"type": "text", "text": prompt}] + [encode_image(p) for p in image_paths]
 
 
-def generate(server_url: str, prompt: str, image_paths: list[str],
-             image_mode: str = "gundam", ngram_window: int = 128,
-             output_file: str | None = None) -> str:
+def generate(
+    server_url: str,
+    prompt: str,
+    image_paths: list[str],
+    image_mode: str = "gundam",
+    ngram_window: int = 128,
+    output_file: str | None = None,
+) -> str:
     payload = {
         "model": "Unlimited-OCR",
         "messages": [{"role": "user", "content": build_content(prompt, image_paths)}],
         "temperature": 0,
         "skip_special_tokens": False,
         "images_config": {"image_mode": image_mode},
-        "custom_logit_processor": DeepseekOCRNoRepeatNGramLogitProcessor.to_str(),
+        "custom_logit_processor": _get_ngram_processor_str(),
         "custom_params": {"ngram_size": 35, "window_size": ngram_window},
         "stream": True,
     }
@@ -80,9 +65,10 @@ def generate(server_url: str, prompt: str, image_paths: list[str],
     )
     response.raise_for_status()
 
-    chunks = []
+    chunks: list[str] = []
     token_count = 0
-    first_token_time = None
+    first_token_time: float | None = None
+
     f = open(output_file, "w", encoding="utf-8") if output_file else None
     try:
         for line in response.iter_lines(chunk_size=1, decode_unicode=True):
@@ -113,7 +99,7 @@ def generate(server_url: str, prompt: str, image_paths: list[str],
     return "".join(chunks)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Unlimited-OCR SGLang streaming client (AMD ROCm)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -145,21 +131,33 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     if args.pdf:
-        name = os.path.splitext(os.path.basename(args.pdf))[0]
+        name = Path(args.pdf).stem
         images = pdf_to_images(args.pdf, dpi=args.dpi)
         print(f"[INFO] PDF: {len(images)} pages")
         for i, img in enumerate(images):
             print(f"[INFO] Page {i + 1}/{len(images)} ...")
             out_file = os.path.join(args.output_dir, f"{name}_page_{i + 1:04d}.md")
-            generate(args.server_url, args.prompt, [img],
-                     image_mode="base", ngram_window=1024, output_file=out_file)
+            generate(
+                args.server_url,
+                args.prompt,
+                [img],
+                image_mode="base",
+                ngram_window=1024,
+                output_file=out_file,
+            )
             print()
     else:
-        name = os.path.basename(args.image)
+        name = Path(args.image).name
         print(f"[INFO] Processing: {name}")
-        out_file = os.path.join(args.output_dir, f"{os.path.splitext(name)[0]}.md")
-        generate(args.server_url, args.prompt, [args.image],
-                 image_mode=args.mode, ngram_window=128, output_file=out_file)
+        out_file = os.path.join(args.output_dir, f"{Path(name).stem}.md")
+        generate(
+            args.server_url,
+            args.prompt,
+            [args.image],
+            image_mode=args.mode,
+            ngram_window=128,
+            output_file=out_file,
+        )
 
     print(f"\n[INFO] Results saved to: {args.output_dir}")
 

@@ -1,47 +1,36 @@
 #!/usr/bin/env python3
 """
-=============================================================================
- Unlimited-OCR-ROCm — Transformers Inference Example
-=============================================================================
- Uses HuggingFace transformers to run Unlimited-OCR on AMD ROCm GPU.
+Unlimited-OCR-ROCm — Transformers Inference Example
+===================================================
 
- Usage:
-   python examples/transformers_infer.py --image ./photo.png
-   python examples/transformers_infer.py --pdf ./my_document.pdf
-   python examples/transformers_infer.py --image ./photo.jpg --mode gundam
+Uses HuggingFace transformers to run Unlimited-OCR on AMD ROCm GPU.
 
- Requirements:
-   pip install --index-url https://download.pytorch.org/whl/rocm6.2 \
-       torch torchvision torchaudio
-   pip install transformers Pillow einops addict easydict pymupdf psutil
-=============================================================================
+Usage::
+
+    python examples/transformers_infer.py --image ./photo.png
+    python examples/transformers_infer.py --pdf ./my_document.pdf
+    python examples/transformers_infer.py --image ./photo.jpg --mode gundam
+
+Requirements:
+    ``pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvision torchaudio``
+    ``pip install transformers Pillow einops addict easydict pymupdf psutil``
 """
+
+from __future__ import annotations
 
 import argparse
 import os
 import sys
-import tempfile
 import time
+from pathlib import Path
 
 import torch
 from transformers import AutoModel, AutoTokenizer
 
-
-def pdf_to_images(pdf_path: str, dpi: int = 300) -> list[str]:
-    import fitz
-    doc = fitz.open(pdf_path)
-    tmp_dir = tempfile.mkdtemp(prefix="unlimited_ocr_pdf_")
-    mat = fitz.Matrix(dpi / 72, dpi / 72)
-    paths = []
-    for i, page in enumerate(doc):
-        out = os.path.join(tmp_dir, f"page_{i + 1:04d}.png")
-        page.get_pixmap(matrix=mat).save(out)
-        paths.append(out)
-    doc.close()
-    return paths
+from rocm_ocr.pdf import pdf_to_images
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Unlimited-OCR transformers inference example (AMD ROCm)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -73,7 +62,10 @@ def main():
     t0 = time.time()
     tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     model = AutoModel.from_pretrained(
-        args.model, trust_remote_code=True, use_safetensors=True, torch_dtype=torch.bfloat16,
+        args.model,
+        trust_remote_code=True,
+        use_safetensors=True,
+        torch_dtype=torch.bfloat16,
     )
     model = model.eval().to(device)
     print(f"[INFO] Model loaded in {time.time() - t0:.1f}s")
@@ -96,9 +88,12 @@ def main():
             prompt=args.prompt,
             image_file=args.image,
             output_path=args.output_dir,
-            base_size=base_size, image_size=image_size, crop_mode=crop_mode,
+            base_size=base_size,
+            image_size=image_size,
+            crop_mode=crop_mode,
             max_length=args.max_length,
-            no_repeat_ngram_size=35, ngram_window=ngram_window,
+            no_repeat_ngram_size=35,
+            ngram_window=ngram_window,
             save_results=True,
         )
         print(f"[INFO] Done in {time.time() - t1:.1f}s")
@@ -106,7 +101,7 @@ def main():
         print(f"[INFO] OCR: {args.pdf} (mode=base, multi-page)")
         t1 = time.time()
         images = pdf_to_images(args.pdf, dpi=args.dpi)
-        print(f"[INFO] {len(images)} pages → images (DPI={args.dpi})")
+        print(f"[INFO] {len(images)} pages -> images (DPI={args.dpi})")
         model.infer_multi(
             tokenizer,
             prompt=args.prompt,
@@ -114,7 +109,8 @@ def main():
             output_path=args.output_dir,
             image_size=1024,
             max_length=args.max_length,
-            no_repeat_ngram_size=35, ngram_window=1024,
+            no_repeat_ngram_size=35,
+            ngram_window=1024,
             save_results=True,
         )
         print(f"[INFO] Done in {time.time() - t1:.1f}s")

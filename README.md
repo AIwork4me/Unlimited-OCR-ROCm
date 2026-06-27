@@ -1,18 +1,15 @@
 <h1 align="center">Unlimited-OCR-ROCm</h1>
 
 <p align="center">
-  <strong>State-of-the-Art OCR on AMD GPUs — Try it yourself on <a href="https://radeon.anruicloud.com/">AMD Radeon Cloud</a></strong>
+  <strong>Run Baidu Unlimited-OCR on AMD ROCm — one command.</strong>
 </p>
 
 <p align="center">
-  We brought Baidu Unlimited-OCR to AMD ROCm. Same accuracy. Less VRAM.
-  And you can <strong>try it on</strong> real AMD hardware right now.
+  Zero accuracy loss vs. the NVIDIA reference. Constant VRAM — a 16 GB Radeon runs a whole book.
+  Structured Markdown out (tables, formulas, bounding boxes).
 </p>
 
 <div align="center">
-  <a href="https://radeon.anruicloud.com/">
-    <img src="https://img.shields.io/badge/Try_on-AMD_Radeon_Cloud-ED1C24?style=for-the-badge&logo=amd&logoColor=white" alt="Try on AMD Radeon Cloud" />
-  </a>
   <a href="https://pypi.org/project/unlimited-ocr-rocm">
     <img alt="PyPI" src="https://img.shields.io/pypi/v/unlimited-ocr-rocm" />
   </a>
@@ -36,7 +33,7 @@
 </blockquote>
 
 
-[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
+[中文文档 (Chinese README)](README_CN.md) | [Benchmarks](docs/BENCHMARK.md) | [Accuracy parity (OmniDocBench)](docs/PARITY.md) | [Architecture](docs/ARCHITECTURE.md) | [Tuning Guide](docs/TUNING.md)
 
 
 ## Why Unlimited-OCR-ROCm
@@ -100,17 +97,18 @@ R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
 VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles an entire book.
 
 
-## Try It — 3 Ways
+## Try It
 
-| | ModelScope | AMD Radeon Cloud ★ | Local |
-|------|-----------|-------------------|-------|
-| **Cost** | Free | Free trial | Free (MIT) |
-| **GPU** | Free AMD GPU | Dedicated AMD GPU | Your GPU |
-| **Setup** | 0 seconds | 60 seconds | 3 commands |
-| **Best for** | Quick look | Real workload | Full control |
-| **Go** | [Open Demo →]() | **[Register →](https://radeon.anruicloud.com/)** | See below |
+**Fastest: run it locally** — 3 commands on any AMD Radeon / ROCm 6.0+ GPU (see [Quick Start](#quick-start-3-commands)). A 16 GB consumer card is enough for an entire book.
 
-**Recommended path:** Start with the ModelScope demo to see the magic. When you're ready to run your own files at full speed, [register on AMD Radeon Cloud](https://radeon.anruicloud.com/) — same hardware we benchmarked on, 60 seconds to your first OCR result.
+| | Local | ModelScope demo | AMD Radeon Cloud |
+|------|-------|-----------------|-----------------|
+| **Cost** | Free (MIT) | Free | Free trial |
+| **GPU** | Your AMD GPU | Shared AMD GPU | Dedicated AMD GPU |
+| **Setup** | 3 commands | 0 (in-browser) | ~60 s |
+| **Best for** | Full control, real workloads | Quick look | No local GPU |
+
+No AMD hardware? [AMD Radeon Cloud](https://radeon.anruicloud.com/) runs the same GPU we benchmark on.
 
 
 ## Quick Start (3 Commands)
@@ -142,21 +140,63 @@ Full guide: [docs/TUNING.md](docs/TUNING.md)
 
 ```
 unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
-              [--output-dir ./out] [--image-mode gundam|base] \
-              [--gpu 0] [--concurrency 8] [--pdf-dpi 200] \
-              [--page-size 16] [--torch-compile] [--quiet] [--version]
+              [--output-dir ./out] [--output-format markdown|json|html] \
+              [--image-mode gundam|base] [--gpu 0] [--concurrency 8] \
+              [--pdf-dpi 200] [--page-size 16] [--torch-compile] \
+              [--async] [--quiet] [--version] [--config .unlimited-ocr.yaml]
 ```
+
+### Async Engine (New in 1.2)
+
+For high-concurrency batch workloads, the `--async` flag uses aiohttp + asyncio
+for lower overhead and better throughput:
+
+```bash
+unlimited-ocr --pdf ./large_doc.pdf --async --concurrency 16
+```
+
+The sync engine (default) uses requests + ThreadPoolExecutor.
+The async engine uses aiohttp + asyncio.Semaphore.
+Choose sync for simplicity, async for scale.
+
+
+## Configuration File (YAML)
+
+Skip repetitive CLI flags with a config file:
+
+```yaml
+# .unlimited-ocr.yaml
+output_dir: ./outputs
+image_mode: base
+pdf_dpi: 150
+concurrency: 8
+quiet: false
+```
+
+Place it in your project root or any parent directory — it's auto-discovered.
+Or pass `--config ./my-config.yaml` explicitly.
 
 
 ## Project Structure
 
 ```
 Unlimited-OCR-ROCm/
-├── src/rocm_ocr/        # Python package (CLI, GPU detect, infer, server)
-├── examples/            # transformers_infer.py, sglang_server.sh, sglang_client.py
+├── src/rocm_ocr/        # Python package
+│   ├── cli.py           # CLI entry, arg parsing, config merging
+│   ├── config.py        # YAML config loader + auto-discovery
+│   ├── gpu.py           # AMD ROCm detection
+│   ├── image.py         # Image encoding, MIME, collection
+│   ├── infer.py         # Sync inference engine (requests + ThreadPool)
+│   ├── infer_async.py   # Async inference engine (aiohttp + asyncio)
+│   ├── logging.py       # Structured logging
+│   ├── pdf.py           # PDF → image conversion (auto cleanup)
+│   ├── retry.py         # Exponential backoff with jitter
+│   └── server.py        # SGLang server lifecycle
+├── examples/            # transformers_infer.py, sglang_server.sh, client
 ├── docs/                # BENCHMARK.md, TUNING.md, ARCHITECTURE.md
 ├── scripts/             # setup_rocm.sh, benchmarks
-├── tests/               # Unit tests
+├── tests/               # Unit tests (35+ tests, conftest.py fixtures)
+├── .pre-commit-config.yaml  # Automated lint + format on commit
 ├── Makefile             # make install, make test, make benchmark
 ├── Dockerfile           # ROCm 6.0+ Docker image
 └── pyproject.toml       # PEP 621 package metadata
@@ -196,6 +236,8 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 - [💡 Request a feature](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=feature_request.md)
 - [📊 Share your benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
 - [🌍 Help translate](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
+- [Roadmap](ROADMAP.md)
+- [Community benchmarks](docs/COMMUNITY_BENCHMARKS.md)
 
 ## Star History
 

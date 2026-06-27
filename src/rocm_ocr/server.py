@@ -9,6 +9,10 @@ import time
 
 import requests
 
+from rocm_ocr.logging import get_logger
+
+logger = get_logger(__name__)
+
 DEFAULT_HOST: str = "0.0.0.0"
 DEFAULT_PORT: int = 10000
 DEFAULT_CONTEXT_LENGTH: int = 32768
@@ -44,31 +48,48 @@ def start_server(
     gpu_ids: str = "0",
     server_log: str = "./log/sglang_server.log",
 ) -> subprocess.Popen[bytes] | None:
-    """Launch an SGLang server for Unlimited-OCR on AMD ROCm."""
+    """Launch an SGLang server for Unlimited-OCR on AMD ROCm.
+
+    Returns:
+        The server subprocess, or ``None`` if an existing server was reused.
+    """
     server_url = f"http://{host}:{port}"
 
     if server_ready(server_url):
-        print(f"[INFO] Reusing existing SGLang server at {server_url}")
+        logger.info("Reusing existing SGLang server at %s", server_url)
         return None
 
-    os.makedirs(os.path.dirname(os.path.abspath(server_log)) or ".", exist_ok=True)
+    log_dir = os.path.dirname(os.path.abspath(server_log)) or "."
+    os.makedirs(log_dir, exist_ok=True)
 
     env = os.environ.copy()
     env["HIP_VISIBLE_DEVICES"] = gpu_ids
 
     cmd = [
-        sys.executable, "-m", "sglang.launch_server",
-        "--model", model_dir,
-        "--served-model-name", served_model_name,
-        "--attention-backend", DEFAULT_ATTENTION_BACKEND,
-        "--page-size", str(page_size),
-        "--mem-fraction-static", str(mem_fraction_static),
-        "--context-length", str(context_length),
-        "--schedule-conservativeness", str(schedule_conservativeness),
-        "--chunked-prefill-size", str(chunked_prefill_size),
+        sys.executable,
+        "-m",
+        "sglang.launch_server",
+        "--model",
+        model_dir,
+        "--served-model-name",
+        served_model_name,
+        "--attention-backend",
+        DEFAULT_ATTENTION_BACKEND,
+        "--page-size",
+        str(page_size),
+        "--mem-fraction-static",
+        str(mem_fraction_static),
+        "--context-length",
+        str(context_length),
+        "--schedule-conservativeness",
+        str(schedule_conservativeness),
+        "--chunked-prefill-size",
+        str(chunked_prefill_size),
         "--enable-custom-logit-processor",
-        "--host", host,
-        "--port", str(port),
+        "--host",
+        host,
+        "--port",
+        str(port),
     ]
 
     if enable_torch_compile:
@@ -77,26 +98,26 @@ def start_server(
     if skip_warmup:
         cmd.append("--skip-server-warmup")
 
-    print(
-        f"[INFO] Starting SGLang server "
-        f"(backend={DEFAULT_ATTENTION_BACKEND}, gpu={gpu_ids}, port={port})..."
+    logger.info(
+        "Starting SGLang server (backend=%s, gpu=%s, port=%d)",
+        DEFAULT_ATTENTION_BACKEND,
+        gpu_ids,
+        port,
     )
+    logger.debug("SGLang command: %s", " ".join(cmd))
 
-    log_file = open(server_log, "w", encoding="utf-8")
+    log_file = open(server_log, "w", encoding="utf-8")  # noqa: SIM115
     process = subprocess.Popen(cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT)
-    process._log_file = log_file  # type: ignore[attr-defined]
-    print(f"[INFO] Server PID: {process.pid}")
+    process._log_file = log_file
+    logger.info("Server PID: %d (log: %s)", process.pid, server_log)
 
     elapsed: float = 0.0
     while elapsed < SERVER_START_TIMEOUT:
         if process.poll() is not None:
             log_file.flush()
-            raise RuntimeError(
-                f"SGLang server exited early (rc={process.returncode}). "
-                f"Check {server_log}"
-            )
+            raise RuntimeError(f"SGLang server exited early (rc={process.returncode}). Check {server_log}")
         if server_ready(server_url):
-            print(f"[INFO] Server ready in {elapsed:.0f}s")
+            logger.info("Server ready in %.0fs", elapsed)
             return process
         time.sleep(HEALTH_CHECK_INTERVAL)
         elapsed += HEALTH_CHECK_INTERVAL
@@ -109,11 +130,17 @@ def stop_server(process: subprocess.Popen[bytes] | None) -> None:
     """Gracefully terminate the SGLang server process."""
     if process is None:
         return
+
+    logger.info("Stopping server (PID: %d)...", process.pid)
     process.terminate()
     try:
         process.wait(timeout=30)
+        logger.debug("Server terminated normally")
     except subprocess.TimeoutExpired:
+        logger.warning("Server did not stop gracefully — force killing")
         process.kill()
         process.wait()
-    if hasattr(process, "_log_file"):
-        process._log_file.close()  # type: ignore[attr-defined]
+
+    log_file = getattr(process, "_log_file", None)
+    if log_file:
+        log_file.close()

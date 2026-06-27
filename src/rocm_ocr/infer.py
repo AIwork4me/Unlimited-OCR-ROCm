@@ -2,21 +2,30 @@
 
 from __future__ import annotations
 
-import base64
+import contextlib
 import json
-import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
+from tqdm import tqdm
+
+from rocm_ocr.image import encode_image
+from rocm_ocr.logging import get_logger
+from rocm_ocr.retry import DEFAULT_MAX_RETRIES, compute_delay
+
+if TYPE_CHECKING:
+    from rocm_ocr.types import Job, JsonDict
+
+logger = get_logger(__name__)
 
 SERVED_MODEL_NAME: str = "Unlimited-OCR"
 DEFAULT_HOST: str = "0.0.0.0"
 DEFAULT_PORT: int = 10000
 DEFAULT_TEMPERATURE: int = 0
 DEFAULT_REQUEST_TIMEOUT: int = 1200
-MAX_RETRIES: int = 5
+MAX_RETRIES: int = DEFAULT_MAX_RETRIES
 NO_REPEAT_NGRAM_SIZE: int = 35
 DEFAULT_NGRAM_WINDOW: int = 128
 
@@ -24,45 +33,44 @@ _NGRAM_PROCESSOR_STR: str | None = None
 
 
 def _get_ngram_processor_str() -> str:
+    """Lazily load the no-repeat-ngram logit processor string."""
     global _NGRAM_PROCESSOR_STR
     if _NGRAM_PROCESSOR_STR is None:
-        from sglang.srt.sampling.custom_logit_processor import (
-            DeepseekOCRNoRepeatNGramLogitProcessor,
-        )
+        from sglang.srt.sampling.custom_logit_processor import DeepseekOCRNoRepeatNGramLogitProcessor
+
         _NGRAM_PROCESSOR_STR = DeepseekOCRNoRepeatNGramLogitProcessor.to_str()
     return _NGRAM_PROCESSOR_STR
 
 
-def encode_image(image_path: str) -> dict[str, object]:
-    ext = os.path.splitext(image_path)[1].lower()
-    mime = "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext.lstrip('.')}"
-    with open(image_path, "rb") as f:
-        data = base64.b64encode(f.read()).decode("utf-8")
-    return {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{data}"}}
-
-
-def _build_content(prompt: str, image_path: str) -> list[dict[str, object]]:
+def _build_content(prompt: str, image_path: str) -> list[dict[str, Any]]:
+    """Build the message content block for one image."""
     return [{"type": "text", "text": prompt}, encode_image(image_path)]
 
 
-def _collect_stream(response, output_file: str | None) -> dict[str, Any]:
+def _collect_stream(response, output_file: str | None) -> JsonDict:
+    """Collect streaming tokens from an SGLang response.
+
+    Returns:
+        Dict with ``tokens``, ``decode_time``, and ``text`` keys.
+    """
     chunks: list[str] = []
     token_count: int = 0
     first_token_time: float | None = None
-    f = open(output_file, "w", encoding="utf-8") if output_file else None
-    try:
+
+    f_ctx = open(output_file, "w", encoding="utf-8") if output_file else contextlib.nullcontext()  # noqa: SIM115
+    with f_ctx as f:
         for raw_line in response.iter_lines():
             if not raw_line:
                 continue
             line = raw_line.decode("utf-8") if isinstance(raw_line, bytes) else raw_line
             if not line.startswith("data:"):
                 continue
-            data = line[len("data:"):].strip()
+            data = line[len("data:") :].strip()
             if data == "[DONE]":
                 break
             try:
-                chunk = json.loads(data)
-                delta = chunk["choices"][0]["delta"].get("content", "")
+                chunk_data = json.loads(data)
+                delta = chunk_data["choices"][0]["delta"].get("content", "")
             except (json.JSONDecodeError, KeyError):
                 continue
             if not delta:
@@ -73,9 +81,6 @@ def _collect_stream(response, output_file: str | None) -> dict[str, Any]:
             chunks.append(delta)
             if f:
                 f.write(delta)
-    finally:
-        if f:
-            f.close()
 
     end_time = time.time()
     decode_time = (end_time - first_token_time) if first_token_time and token_count > 1 else 0.0
@@ -90,11 +95,23 @@ def infer_one(
     ngram_window: int = DEFAULT_NGRAM_WINDOW,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-    idx: int = 0,
-) -> dict[str, Any]:
-    """Send one image to the SGLang server and collect the OCR result."""
+) -> JsonDict:
+    """Send one image to the SGLang server and collect the OCR result.
+
+    Args:
+        image_path: Path to the image file.
+        output_file: Path to write the Markdown result, or None for stdout-only.
+        prompt: OCR prompt template.
+        image_mode: ``"gundam"`` (cropped 640px) or ``"base"`` (full 1024px).
+        ngram_window: N-gram repetition window size.
+        host: SGLang server host.
+        port: SGLang server port.
+
+    Returns:
+        Dict with ``tokens``, ``decode_time``, ``text``.
+    """
     server_url = f"http://{host}:{port}"
-    payload: dict[str, object] = {
+    payload: dict[str, Any] = {
         "model": SERVED_MODEL_NAME,
         "messages": [{"role": "user", "content": _build_content(prompt, image_path)}],
         "temperature": DEFAULT_TEMPERATURE,
@@ -110,7 +127,7 @@ def infer_one(
             "window_size": ngram_window,
         }
 
-    name = os.path.basename(image_path)
+    name = image_path.rsplit("/", 1)[-1] if "/" in image_path else image_path
 
     for attempt in range(MAX_RETRIES):
         try:
@@ -122,75 +139,100 @@ def infer_one(
                 stream=True,
             )
             if resp.status_code == 502 and attempt < MAX_RETRIES - 1:
-                time.sleep(3 * (attempt + 1))
+                time.sleep(compute_delay(attempt))
                 continue
             resp.raise_for_status()
             result = _collect_stream(resp, output_file)
-            print(f"  [{idx}] {name}: {result['tokens']} tokens, {result['decode_time']:.1f}s")
+            logger.debug("[%s] %d tokens in %.1fs", name, result["tokens"], result["decode_time"])
             return result
         except Exception as e:
             if attempt < MAX_RETRIES - 1:
-                print(f"  [{idx}] {name}: retry {attempt + 1}/{MAX_RETRIES} ({e})")
-                time.sleep(3 * (attempt + 1))
+                logger.warning("[%s] retry %d/%d (%s)", name, attempt + 1, MAX_RETRIES, e)
+                time.sleep(compute_delay(attempt))
                 continue
-            print(f"  [{idx}] {name}: FAILED ({e})")
+            logger.error("[%s] FAILED after %d retries (%s)", name, MAX_RETRIES, e)
             return {"tokens": 0, "decode_time": 0.0, "text": ""}
 
     return {"tokens": 0, "decode_time": 0.0, "text": ""}
 
 
-def collect_image_paths(image_dir: str) -> list[str]:
-    """Return all image file paths under *image_dir*, sorted by file size descending."""
-    exts = (".png", ".jpg", ".jpeg", ".webp", ".bmp")
-    image_files: list[str] = []
-    for root, _, files in os.walk(image_dir):
-        for name in files:
-            if name.lower().endswith(exts):
-                image_files.append(os.path.join(root, name))
-    return sorted(image_files, key=os.path.getsize, reverse=True)
-
-
 def run_concurrent(
-    jobs: list[tuple[str, str | None]],
+    jobs: list[Job],
     concurrency: int = 8,
     prompt: str = "document parsing.",
     image_mode: str = "gundam",
     ngram_window: int = DEFAULT_NGRAM_WINDOW,
     host: str = DEFAULT_HOST,
     port: int = DEFAULT_PORT,
-) -> list[dict[str, Any]]:
-    """Run OCR on a list of *(image_path, output_file)* jobs concurrently."""
+    show_progress: bool = True,
+) -> list[JsonDict]:
+    """Run OCR on a list of ``(image_path, output_file)`` jobs concurrently.
+
+    Args:
+        jobs: List of ``(image_path, output_path)`` tuples.
+        concurrency: Max concurrent requests.
+        prompt: OCR prompt template.
+        image_mode: ``"gundam"`` or ``"base"``.
+        ngram_window: N-gram repetition window size.
+        host: SGLang server host.
+        port: SGLang server port.
+        show_progress: Show tqdm progress bar.
+
+    Returns:
+        List of result dicts, one per job.
+    """
     wall_start = time.time()
-    results: list[dict[str, Any]] = []
+    results: list[JsonDict] = []
 
     with ThreadPoolExecutor(max_workers=concurrency) as executor:
         futures: dict[Any, str] = {}
-        for i, (image_path, output_file) in enumerate(jobs):
+        for image_path, output_file in jobs:
             future = executor.submit(
-                infer_one, image_path, output_file, prompt, image_mode,
-                ngram_window, host, port, i + 1,
+                infer_one,
+                image_path,
+                output_file,
+                prompt,
+                image_mode,
+                ngram_window,
+                host,
+                port,
             )
             futures[future] = image_path
 
-        for future in as_completed(futures):
-            results.append(future.result())
+        iterator = tqdm(
+            as_completed(futures),
+            total=len(futures),
+            desc="OCR",
+            unit="page",
+            disable=not show_progress,
+        )
+        for future in iterator:
+            result = future.result()
+            results.append(result)
+            name = futures[future].rsplit("/", 1)[-1] if "/" in futures[future] else futures[future]
+            t = result.get("decode_time", 0)
+            tok = result.get("tokens", 0)
+            iterator.set_postfix_str(f"{name}: {tok}tok/{t:.1f}s", refresh=False)
 
     wall_time = time.time() - wall_start
     total_tokens = sum(r["tokens"] for r in results)
     successful = sum(1 for r in results if r["tokens"] > 0)
+    failed = len(jobs) - successful
 
-    print(f"\n{'=' * 60}")
-    print("Inference Summary:")
-    print(f"  Requests:    {successful}/{len(jobs)}")
-    print(f"  Total tokens:{total_tokens}")
-    print(f"  Wall time:   {wall_time:.2f}s")
+    logger.info(
+        "Inference complete: %d/%d succeeded, %d tokens in %.1fs",
+        successful,
+        len(jobs),
+        total_tokens,
+        wall_time,
+    )
+
     if wall_time > 0:
-        print(f"  Throughput:  {total_tokens / wall_time:.2f} tokens/s")
-    if successful > 0:
-        avg_decode = sum(r["decode_time"] for r in results if r["tokens"] > 0) / successful
-        avg_tokens = total_tokens / successful
-        print(f"  Avg tokens/req:  {avg_tokens:.0f}")
-        print(f"  Avg decode/req:  {avg_decode:.2f}s")
-    print(f"{'=' * 60}")
+        throughput = total_tokens / wall_time
+        avg_decode = total_tokens / max(sum(r["decode_time"] for r in results if r["tokens"] > 0), 0.001)
+        logger.info("Throughput: %.1f tok/s (wall), %.1f tok/s (avg decode)", throughput, avg_decode)
+
+    if failed > 0:
+        logger.warning("%d request(s) failed", failed)
 
     return results
