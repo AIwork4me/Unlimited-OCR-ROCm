@@ -28,6 +28,18 @@ def main() -> None:
     ap.add_argument("--model", default="baidu/Unlimited-OCR")
     ap.add_argument("--limit", type=int, default=0, help="limit # images (0 = all)")
     ap.add_argument("--max-length", type=int, default=32768)
+    ap.add_argument(
+        "--shard",
+        type=int,
+        default=0,
+        help="this shard index (0-based) for multi-GPU parallel runs",
+    )
+    ap.add_argument(
+        "--num-shards",
+        type=int,
+        default=1,
+        help="total shards (use 4 to spread across 4 GPUs; launch one process per GPU)",
+    )
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
@@ -37,9 +49,19 @@ def main() -> None:
     imgs = iter_page_images(args.omnidocbench_dir)
     if args.limit:
         imgs = imgs[: args.limit]
-    print(f"{len(imgs)} images -> {args.pred_dir}", flush=True)
+    if args.num_shards > 1:
+        imgs = imgs[args.shard :: args.num_shards]
+    print(
+        f"[shard {args.shard}/{args.num_shards}] {len(imgs)} images -> {args.pred_dir}",
+        flush=True,
+    )
 
     dev = torch.device("cuda")
+    print(
+        f"[shard {args.shard}] GPU: HIP_VISIBLE_DEVICES={os.environ.get('HIP_VISIBLE_DEVICES', '?')} "
+        f"count={torch.cuda.device_count()} name={torch.cuda.get_device_name(0)}",
+        flush=True,
+    )
     tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     model = (
         AutoModel.from_pretrained(
