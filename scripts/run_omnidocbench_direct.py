@@ -35,6 +35,12 @@ def main() -> None:
         help="gundam=640px cropped (speed); base=1024px full (quality, aligns with Baidu reference)",
     )
     ap.add_argument(
+        "--prompt-mode",
+        choices=("native", "omnidocbench"),
+        default="native",
+        help="native=document parsing. (model default); omnidocbench=official whole-page prompt",
+    )
+    ap.add_argument(
         "--shard",
         type=int,
         default=0,
@@ -50,7 +56,7 @@ def main() -> None:
 
     os.makedirs(args.pred_dir, exist_ok=True)
     # All supported image extensions (png/jpg/jpeg/webp/bmp), not just .png.
-    from rocm_ocr.omnidocbench import iter_page_images
+    from rocm_ocr.omnidocbench import iter_page_images, CANONICAL_OMNIDOCBENCH_PROMPT
 
     imgs = iter_page_images(args.omnidocbench_dir)
     if args.limit:
@@ -92,7 +98,7 @@ def main() -> None:
         try:
             model.infer(
                 tok,
-                prompt="<image>document parsing.",
+                prompt=("<image>document parsing." if args.prompt_mode == "native" else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT),
                 image_file=img,
                 output_path=tmp,
                 base_size=1024,
