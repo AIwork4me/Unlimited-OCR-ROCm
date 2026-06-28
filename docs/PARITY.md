@@ -4,7 +4,7 @@
 
 ## Headline
 
-**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report, attributable to **gundam mode** (the speed preset — a `base`-mode run would score higher). Full per-module breakdown below.
+**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report — mainly from ~14 inherent looping pages (~1% drag). Note: **gundam mode IS the model's best accuracy** (a `base`-mode run scored 88.78, LOWER — base resizes full pages to 1024px, losing detail). Full per-module breakdown below.
 
 ## OmniDocBench modules
 
@@ -25,7 +25,7 @@ Overall = ((1 − Text EditDist) × 100 + Table TEDS + Formula CDM) / 3
 
 ## Measured results — AMD ROCm (gfx1100 / W7900-class)
 
-Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the speed preset), direct `model.infer` path, native prompt, on OmniDocBench **v1.6** (1,651 pages), scored with the official OmniDocBench scorer (CDM disabled — no TeX Live on the host).
+Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped tiles — the model's best-accuracy mode, also the fastest), direct `model.infer` path, native prompt, on OmniDocBench **v1.6** (1,651 pages), scored with the official OmniDocBench scorer.
 
 | Module | Metric | AMD ROCm result |
 |--------|--------|----------------:|
@@ -43,9 +43,18 @@ CDM initially returned **0.0** for every page. **Root cause:** OmniDocBench's PD
 
 > Reproduction note: the OmniDocBench docs specify "ImageMagick **7.x** with PDF read/write enabled". On Debian/Ubuntu (which ships IM6), either install IM7 or create the `magick→convert` symlink above.
 
+### Image-mode comparison
+
+| Mode | Overall | Text | Table TEDS | Formula CDM | Reading |
+|------|--------:|-----:|----------:|------------:|--------:|
+| **gundam** (640px tiled) ★ | **92.04** | 90.6% | 89.8% | 95.7% | 85.5% |
+| base (1024px full) | 88.78 | 86.3% | 86.7% | 93.4% | 82.4% |
+
+**gundam is both faster AND more accurate** for this model. It tiles the image into high-resolution 640px patches (preserving detail on large pages). `base` resizes the full page to 1024px (losing detail on newspapers/dense docs). Use gundam for both speed and accuracy.
+
 ### Parity framing (honest)
 
-A *controlled* AMD-vs-NVIDIA parity (same weights/prompt/seed, only the GPU backend differs) requires an NVIDIA run that was **not** conducted here (no NVIDIA GPU on this host). The anchor is the **OmniDocBench v1.6 leaderboard**, where Unlimited-OCR self-reports **~93.92 Overall**. Our AMD gundam-mode run is real and reproducible, but it is **not** a controlled Δ-vs-NVIDIA measurement — and gundam mode trades accuracy for speed (a `base`-mode run would score higher).
+A *controlled* AMD-vs-NVIDIA parity (same weights/prompt/seed, only the GPU backend differs) requires an NVIDIA run that was **not** conducted here (no NVIDIA GPU on this host). The anchor is the **OmniDocBench v1.6 leaderboard**, where Unlimited-OCR self-reports **~93.92 Overall**. Our AMD gundam-mode run is real and reproducible, but it is **not** a controlled Δ-vs-NVIDIA measurement — and gundam mode is both faster AND more accurate than base (see the [image-mode comparison](#image-mode-comparison) below).
 
 ## Crowded-field positioning
 
@@ -59,7 +68,7 @@ Where Unlimited-OCR sits on the official OmniDocBench v1.6 leaderboard. This is 
 | Unlimited-OCR | ~93.92 | self-reported in Baidu's paper; ~5th on the board — not SOTA |
 | DeepSeek-OCR-2 | 90.25 | DeepSeek-OCR ≠ Unlimited-OCR (different companies) |
 | Marker | 78.44 | |
-| **Unlimited-OCR-ROCm (this project)** | **92.04** | AMD gfx1100, gundam (speed) mode. ~1.9 below self-report 93.92 — attributable to gundam mode; base mode would score higher. |
+| **Unlimited-OCR-ROCm (this project)** | **92.04** | AMD gfx1100, gundam mode (model's best). ~1.9 below self-report 93.92 — from ~14 inherent looping pages (~1% drag). Base mode scored 88.78 (lower). |
 
 _Source: official OmniDocBench v1.6 leaderboard._
 
