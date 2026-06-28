@@ -29,6 +29,18 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="limit # images (0 = all)")
     ap.add_argument("--max-length", type=int, default=32768)
     ap.add_argument(
+        "--image-mode",
+        choices=("gundam", "base"),
+        default="gundam",
+        help="gundam=640px cropped (speed); base=1024px full (quality, aligns with Baidu reference)",
+    )
+    ap.add_argument(
+        "--prompt-mode",
+        choices=("native", "omnidocbench"),
+        default="native",
+        help="native=document parsing. (model default); omnidocbench=official whole-page prompt",
+    )
+    ap.add_argument(
         "--shard",
         type=int,
         default=0,
@@ -44,7 +56,7 @@ def main() -> None:
 
     os.makedirs(args.pred_dir, exist_ok=True)
     # All supported image extensions (png/jpg/jpeg/webp/bmp), not just .png.
-    from rocm_ocr.omnidocbench import iter_page_images
+    from rocm_ocr.omnidocbench import iter_page_images, CANONICAL_OMNIDOCBENCH_PROMPT
 
     imgs = iter_page_images(args.omnidocbench_dir)
     if args.limit:
@@ -81,23 +93,32 @@ def main() -> None:
         if os.path.exists(out_md):
             continue  # resumable
         os.makedirs(tmp, exist_ok=True)
-        model.infer(
-            tok,
-            prompt="<image>document parsing.",
-            image_file=img,
-            output_path=tmp,
-            base_size=1024,
-            image_size=640,  # gundam mode (matches README 56 tok/s config)
-            crop_mode=True,
-            max_length=args.max_length,
-            no_repeat_ngram_size=35,
-            ngram_window=128,
-            save_results=True,
-        )
-        src = os.path.join(tmp, "result.md")
-        if os.path.exists(src):
-            shutil.move(src, out_md)
-        done += 1
+        img_size = 640 if args.image_mode == "gundam" else 1024
+        crop = args.image_mode == "gundam"
+        try:
+            model.infer(
+                tok,
+                prompt=("<image>document parsing." if args.prompt_mode == "native" else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT),
+                image_file=img,
+                output_path=tmp,
+                base_size=1024,
+                image_size=img_size,
+                crop_mode=crop,
+                max_length=args.max_length,
+                no_repeat_ngram_size=35,
+                ngram_window=128,
+                save_results=True,
+            )
+            src = os.path.join(tmp, "result.md")
+            if os.path.exists(src):
+                shutil.move(src, out_md)
+            done += 1
+        except Exception as e:
+            # Contain per-image failures (e.g. OOM) so one bad page doesn't kill the shard.
+            msg = f"{type(e).__name__}: {e}"
+            print(f"[shard {args.shard}] FAILED {base}: {msg}", flush=True)
+            with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
+                f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
     print(
         f"done: {done} new inferences in {elapsed:.0f}s "

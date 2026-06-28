@@ -22,9 +22,10 @@ pids=()
 for i in $(seq 0 $((NUM_GPUS - 1))); do
   HIP_VISIBLE_DEVICES=$i "${VENV}/bin/python" scripts/run_omnidocbench_direct.py \
     --omnidocbench-dir "${OMNIDOCBENCH_DIR}" --pred-dir "${PRED_DIR}" \
-    --shard "$i" --num-shards "${NUM_GPUS}" > "log/shard${i}.log" 2>&1 &
+    --shard "$i" --num-shards "${NUM_GPUS}" "${@:3}" > "log/shard${i}.log" 2>&1 &
   pids+=($!)
 done
 echo "PIDs: ${pids[*]}  (tail -f log/shard*.log)"
-wait
-echo "All shards done. Predictions: $(ls "${PRED_DIR}"/*.md 2>/dev/null | wc -l)"
+# Don't let one shard's crash (e.g. core dump) abort the whole run — wait for all.
+wait || true
+echo "All shards done. Predictions: $(ls "${PRED_DIR}"/*.md 2>/dev/null | wc -l)  | failures: $(grep -h FAIL log/shard*.log 2>/dev/null | wc -l)"

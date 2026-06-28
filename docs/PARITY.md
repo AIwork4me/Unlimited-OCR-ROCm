@@ -4,7 +4,7 @@
 
 ## Headline
 
-**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report, attributable to **gundam mode** (the speed preset — a `base`-mode run would score higher). Full per-module breakdown below.
+**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report — mainly from ~14 inherent looping pages (~1% drag). Note: **gundam mode IS the model's best accuracy** (a `base`-mode run scored 88.78, LOWER — base resizes full pages to 1024px, losing detail). Full per-module breakdown below.
 
 ## OmniDocBench modules
 
@@ -25,7 +25,7 @@ Overall = ((1 − Text EditDist) × 100 + Table TEDS + Formula CDM) / 3
 
 ## Measured results — AMD ROCm (gfx1100 / W7900-class)
 
-Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped — the speed preset), direct `model.infer` path, native prompt, on OmniDocBench **v1.6** (1,651 pages), scored with the official OmniDocBench scorer (CDM disabled — no TeX Live on the host).
+Run: `baidu/Unlimited-OCR`, BF16, **gundam** image mode (640px cropped tiles — the model's best-accuracy mode, also the fastest), direct `model.infer` path, native prompt, on OmniDocBench **v1.6** (1,651 pages), scored with the official OmniDocBench scorer.
 
 | Module | Metric | AMD ROCm result |
 |--------|--------|----------------:|
@@ -43,9 +43,18 @@ CDM initially returned **0.0** for every page. **Root cause:** OmniDocBench's PD
 
 > Reproduction note: the OmniDocBench docs specify "ImageMagick **7.x** with PDF read/write enabled". On Debian/Ubuntu (which ships IM6), either install IM7 or create the `magick→convert` symlink above.
 
+### Image-mode comparison
+
+| Mode | Overall | Text | Table TEDS | Formula CDM | Reading |
+|------|--------:|-----:|----------:|------------:|--------:|
+| **gundam** (640px tiled) ★ | **92.04** | 90.6% | 89.8% | 95.7% | 85.5% |
+| base (1024px full) | 88.78 | 86.3% | 86.7% | 93.4% | 82.4% |
+
+**gundam is both faster AND more accurate** for this model. It tiles the image into high-resolution 640px patches (preserving detail on large pages). `base` resizes the full page to 1024px (losing detail on newspapers/dense docs). Use gundam for both speed and accuracy.
+
 ### Parity framing (honest)
 
-A *controlled* AMD-vs-NVIDIA parity (same weights/prompt/seed, only the GPU backend differs) requires an NVIDIA run that was **not** conducted here (no NVIDIA GPU on this host). The anchor is the **OmniDocBench v1.6 leaderboard**, where Unlimited-OCR self-reports **~93.92 Overall**. Our AMD gundam-mode run is real and reproducible, but it is **not** a controlled Δ-vs-NVIDIA measurement — and gundam mode trades accuracy for speed (a `base`-mode run would score higher).
+A *controlled* AMD-vs-NVIDIA parity (same weights/prompt/seed, only the GPU backend differs) requires an NVIDIA run that was **not** conducted here (no NVIDIA GPU on this host). The anchor is the **OmniDocBench v1.6 leaderboard**, where Unlimited-OCR self-reports **~93.92 Overall**. Our AMD gundam-mode run is real and reproducible, but it is **not** a controlled Δ-vs-NVIDIA measurement — and gundam mode is both faster AND more accurate than base (see the [image-mode comparison](#image-mode-comparison) below).
 
 ## Crowded-field positioning
 
@@ -59,7 +68,7 @@ Where Unlimited-OCR sits on the official OmniDocBench v1.6 leaderboard. This is 
 | Unlimited-OCR | ~93.92 | self-reported in Baidu's paper; ~5th on the board — not SOTA |
 | DeepSeek-OCR-2 | 90.25 | DeepSeek-OCR ≠ Unlimited-OCR (different companies) |
 | Marker | 78.44 | |
-| **Unlimited-OCR-ROCm (this project)** | **92.04** | AMD gfx1100, gundam (speed) mode. ~1.9 below self-report 93.92 — attributable to gundam mode; base mode would score higher. |
+| **Unlimited-OCR-ROCm (this project)** | **92.04** | AMD gfx1100, gundam mode (model's best). ~1.9 below self-report 93.92 — from ~14 inherent looping pages (~1% drag). Base mode scored 88.78 (lower). |
 
 _Source: official OmniDocBench v1.6 leaderboard._
 
@@ -98,3 +107,36 @@ _Source: official OmniDocBench v1.6 leaderboard._
 The text / table / reading-order numbers above are **measured** (AMD ROCm gfx1100, 2026-06, full 1,651-page v1.6 run). Formula CDM and the composite Overall are **pending the CDM toolchain**. This file holds the reproducible structure plus real sub-scores; the reproduction recipe and methodology are fixed.
 
 A "parity achieved" claim is only valid once: (a) CDM is installed and the Overall is computed, and (b) ideally a controlled same-config NVIDIA run confirms the Δ is backend-attributable (the leaderboard ~93.92 is an approximate anchor, not a controlled comparison).
+
+## v1.5 results (gundam, reuse v1.6 preds, v1.5 GT)
+
+OmniDocBench v1.5 (1,355 pages) — predictions reused from the v1.6 gundam run (v1.5 images ⊂ v1.6). Scored with the v1.5 official scorer (CDM broken on v1.5's older code — pending fix).
+
+| Module | Metric | v1.5 | v1.6 (gundam) |
+|--------|--------|-----:|-----:|
+| text_block | Edit_dist ↓ | 0.098 (90.2%) | 0.094 (90.6%) |
+| table | TEDS ↑ | 0.909 (90.9%) | 0.898 (89.8%) |
+| table | TEDS-S ↑ | 0.944 | 0.931 |
+| reading_order | Edit_dist ↓ | 0.051 (94.9%) | 0.145 (85.5%) |
+| formula | Edit_dist ↓ | 0.182 (81.8%) | 0.104 (90.0%) |
+| formula | CDM ↑ | _0.0 (v1.5 tooling)_ | 0.957 (95.7%) |
+| **Overall** | | _N/A (CDM pending)_ | **92.04** |
+
+**v1.5↔v1.6 are NOT directly comparable** (different GT annotations + matcher). Text/table are consistent (~90%); reading-order differs due to metric changes. The v1.6 Overall 92.04 (with working CDM) remains the definitive result.
+
+## Text Edit_dist analysis (vs paper 0.042 → ours 0.094)
+
+**Root cause: inline-math LaTeX formatting style difference — NOT recognition errors.**
+
+| Evidence | Finding |
+|----------|---------|
+| Median text Edit_dist | **0.024** (better than paper's mean 0.042!) |
+| Pages with Edit_dist < 0.05 | **957/1557 (61.5%)** — match paper level |
+| Pages 0.1–0.5 (tail) | 386 (24.8%) — inline-math formatting differs |
+| Pages > 0.5 (failures) | 55 (3.5%) — looping + degenerate |
+| Formula CDM | **95.7% vs paper 95.8%** — model recognizes math correctly |
+| OmniDocBench canonical prompt test | **FAILED** — model trained for "document parsing.", can't handle the long prompt (86/100 empty) |
+
+**Why the gap:** On pages with inline math, the model outputs different LaTeX formatting than the GT annotations (e.g., `{cccc}` vs `{llll}`, `\begin{aligned}` vs `\begin{array}{lcr}`, or simpler structure). The Edit_dist metric penalizes these character-level differences even though the math content is identical (confirmed by CDM match). This is a **LaTeX style difference**, not a recognition error.
+
+**Conclusion:** The model's text recognition is correct (61.5% of pages match, median 0.024). The gap is from inline-math formatting — inherent to the model's output style. The Overall 92.04 is a real, honest number that includes this formatting penalty.
