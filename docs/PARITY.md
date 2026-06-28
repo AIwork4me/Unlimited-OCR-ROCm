@@ -107,3 +107,19 @@ _Source: official OmniDocBench v1.6 leaderboard._
 The text / table / reading-order numbers above are **measured** (AMD ROCm gfx1100, 2026-06, full 1,651-page v1.6 run). Formula CDM and the composite Overall are **pending the CDM toolchain**. This file holds the reproducible structure plus real sub-scores; the reproduction recipe and methodology are fixed.
 
 A "parity achieved" claim is only valid once: (a) CDM is installed and the Overall is computed, and (b) ideally a controlled same-config NVIDIA run confirms the Δ is backend-attributable (the leaderboard ~93.92 is an approximate anchor, not a controlled comparison).
+
+## v1.5 results (gundam, reuse v1.6 preds, v1.5 GT)
+
+OmniDocBench v1.5 (1,355 pages) — predictions reused from the v1.6 gundam run (v1.5 images ⊂ v1.6). Scored with the v1.5 official scorer (CDM broken on v1.5's older code — pending fix).
+
+| Module | Metric | v1.5 | v1.6 (gundam) |
+|--------|--------|-----:|-----:|
+| text_block | Edit_dist ↓ | 0.098 (90.2%) | 0.094 (90.6%) |
+| table | TEDS ↑ | 0.909 (90.9%) | 0.898 (89.8%) |
+| table | TEDS-S ↑ | 0.944 | 0.931 |
+| reading_order | Edit_dist ↓ | 0.051 (94.9%) | 0.145 (85.5%) |
+| formula | Edit_dist ↓ | 0.182 (81.8%) | 0.104 (90.0%) |
+| formula | CDM ↑ | _0.0 (v1.5 tooling)_ | 0.957 (95.7%) |
+| **Overall** | | _N/A (CDM pending)_ | **92.04** |
+
+**v1.5↔v1.6 are NOT directly comparable** (different GT annotations + matcher). Text/table are consistent (~90%); reading-order differs due to metric changes. The v1.6 Overall 92.04 (with working CDM) remains the definitive result.
