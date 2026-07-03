@@ -1,0 +1,54 @@
+schema: unlimited-ocr-rocm/eval-manifest/v1
+backend: pytorch
+timestamp: '2026-07-03T10:51:00+00:00'
+started_at: '2026-07-03T06:56:00+00:00'
+ended_at: '2026-07-03T10:51:00+00:00'
+run_by: aiwork4me
+git:
+  commit: 003a0dd58d99b70c496bbbe685b1b3f4aecee3af
+  short: 003a0dd58d
+  dirty: false
+  branch: phase1/repetition-fix-and-versioning
+  tag: null
+model:
+  id: baidu/Unlimited-OCR
+  weights_revision: 84757cb0
+  code_revision: ee63731b
+  dtype: bfloat16
+  image_mode: gundam
+  no_repeat_ngram_size: 35
+  ngram_window: 128
+  max_length: 32768
+dataset:
+  version: v1.6
+  data_ref: opendatalab/OmniDocBench@main (1651 pages)
+  pages_scored: 1650
+  missing:
+  - jiaocai_f32828...pdf_9
+env:
+  python: 3.12.3
+  platform: Linux-6.8.0-79-generic-x86_64-with-glibc2.39
+  host: u-20-8d823edc
+  torch: 2.5.1+rocm6.2
+  hip: 6.2.41133-dd7f95766
+  gpus: []
+hardware_fingerprint: x86_64
+metrics:
+  overall: 89.05820981936058
+  text_edit_dist: 0.0944310015424741
+  formula_cdm: 0.8704044151103344
+  table_teds: 0.8957728810129572
+  table_teds_s: 0.9283311905632723
+  reading_order_edit: 0.14549166434491456
+  page_count: 1650
+  looping_pages_detected: 3
+  cdm_sample_count: 2352
+  cdm_error_cases: 0
+timing:
+  backend: pytorch-direct-model.infer
+  shards: 4
+  gpus: 4x gfx1100
+  wall_seconds_approx: 14400
+  looping_pages_before_fix: 3
+  notes: ~4h, 0 failures
+predictions_ref: local:///workspace/eval_predictions_v16 (1650 .md files)
