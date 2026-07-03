@@ -6,6 +6,13 @@
 
 **Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report — mainly from ~14 inherent looping pages (~1% drag). Note: **gundam mode IS the model's best accuracy** (a `base`-mode run scored 88.78, LOWER — base resizes full pages to 1024px, losing detail). Full per-module breakdown below.
 
+## 2026-07-03 re-measurement (fresh host, this session)
+
+Reproduced end-to-end on a fresh W7900-class host (ROCm 7.2.1, `torch 2.5.1+rocm6.2`, `transformers 4.57.1`): **Overall 91.95** (CDM 0.957) — **confirms the ~92.04 above** (within 0.09). Per-module all align (text 0.0944 / table TEDS 0.896 / table TEDS-S 0.928 / reading 0.145 / formula EditDist 0.104). Manifest: `eval/results/pytorch-v1.6__4f8c5eb7ea__2026-07-03.yaml`. Full session log: [PROGRESS_2026-07-03.md](PROGRESS_2026-07-03.md).
+
+- **CDM requires `texlive-lang-chinese`.** The scorer's CDM renders formulas-with-Chinese-`\text{}` (e.g. `$$\frac{\text{阿里巴巴…}}{…}$$`) via `formular_template_zh`, selected by `contains_chinese(latex)` (NOT page language). Without `CJK.sty`+`gkai`, those formulas' Chinese text doesn't render → CDM collapses (Overall drops to **89.06**). Install: `sudo apt install texlive-lang-chinese`. (The ImageMagick `magick→convert` symlink from the original CDM fix is still required too.)
+- **⚠️ Do NOT apply issue #55's `ngram_size=5` globally.** It bans legitimate 5-grams (`<|det|>` tags, bboxes, table headers, common phrases) on normal pages → **Overall crashes to 64.56**. Validated on 2 pages in the issue comment, but catastrophic on the full 1651. The ~3 looping pages need a **targeted** (per-page runaway detection + truncation) fix. See `src/rocm_ocr/repetition_fix.py` (kept with a WARNING) + PROGRESS.
+
 ## OmniDocBench modules
 
 OmniDocBench evaluates four document-parsing modules. Each module is scored by one or more metrics (arrows indicate the direction of "better"):

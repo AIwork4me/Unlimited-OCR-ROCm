@@ -15,6 +15,8 @@
 
 > **Reproduce this:** The identical hardware is available on [AMD Radeon Cloud](https://radeon.anruicloud.com/). Register, run the benchmark scripts, and see the same results.
 
+> **⚠️ SGLang-on-ROCm status (2026-07-03):** SGLang serving is **not yet working** for Unlimited-OCR on this ROCm host (consumer RDNA3 / gfx1100). The throughput numbers above are from the project's earlier/reference setup. The **PyTorch (transformers direct) path is the working, independently-measured backend** on AMD ROCm (OmniDocBench v1.6 Overall **91.95**, ~4 s/page gundam, BF16, 4×gfx1100). SGLang-on-consumer-Radeon enablement is a Phase 2 goal — currently blocked on a ROCm driver/torch version mismatch (host 7.2.1 + torch 2.5.1 vs the SGLang/vLLM ROCm stack needing torch 2.11/rocm7.x). See [ROADMAP](../ROADMAP.md) + [PROGRESS_2026-07-03.md](PROGRESS_2026-07-03.md).
+
 ## Document-Type Throughput
 
 4 real-world document types on the same hardware:
