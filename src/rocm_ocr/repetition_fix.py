@@ -1,5 +1,14 @@
 """Text-repetition fix for Unlimited-OCR (issue #55) — params + runaway detector.
 
+⚠️ FULL-EVAL FINDING (2026-07-03): the ngram_size=5 + repetition_penalty params
+below, applied GLOBALLY, DEGRADE accuracy catastrophically (Overall 91.95 → 64.56) —
+ngram=5 bans legitimate 5-grams (<|det|> tags, bboxes, table headers, common phrases)
+on normal pages. The issue#55 comment validated it on 2 pages only; the full 1651-page
+eval reveals the global harm. THIS MODULE IS NOT WIRED INTO THE EVAL PATH (which uses
+the original ngram=35, Overall 91.95). A TARGETED (per-page runaway detection +
+truncation) approach is needed to fix the ~3 looping pages without harming normal pages.
+Kept here for reference + the runaway length-cap idea.
+
 Two failure modes (see issue #55 + our full-v1.6 eval):
   ① Simple phrase/cell repetition ("畜牧兽医×80", ``(8)(8)(8)...``, ``rowspan="2"></td>×N``)
     → caught by ``no_repeat_ngram_size=5`` (the 35-gram missed it because ``<|det|>``
