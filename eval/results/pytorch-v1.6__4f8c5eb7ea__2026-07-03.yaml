@@ -1,12 +1,12 @@
 schema: unlimited-ocr-rocm/eval-manifest/v1
 backend: pytorch
-timestamp: '2026-07-03T10:51:00+00:00'
+timestamp: '2026-07-03T12:30:00+00:00'
 started_at: '2026-07-03T06:56:00+00:00'
-ended_at: '2026-07-03T10:51:00+00:00'
+ended_at: '2026-07-03T12:30:00+00:00'
 run_by: aiwork4me
 git:
-  commit: 003a0dd58d99b70c496bbbe685b1b3f4aecee3af
-  short: 003a0dd58d
+  commit: 4f8c5eb7ea44ad0fb92e87dc7888ac47516e27fe
+  short: 4f8c5eb7ea
   dirty: false
   branch: phase1/repetition-fix-and-versioning
   tag: null
@@ -21,7 +21,7 @@ model:
   max_length: 32768
 dataset:
   version: v1.6
-  data_ref: opendatalab/OmniDocBench@main (1651 pages)
+  data_ref: opendatalab/OmniDocBench@main
   pages_scored: 1650
   missing:
   - jiaocai_f32828...pdf_9
@@ -34,21 +34,22 @@ env:
   gpus: []
 hardware_fingerprint: x86_64
 metrics:
-  overall: 89.05820981936058
+  overall: 91.95221414747834
   text_edit_dist: 0.0944310015424741
-  formula_cdm: 0.8704044151103344
+  formula_cdm: 0.9572245449538669
   table_teds: 0.8957728810129572
   table_teds_s: 0.9283311905632723
   reading_order_edit: 0.14549166434491456
   page_count: 1650
   looping_pages_detected: 3
-  cdm_sample_count: 2352
-  cdm_error_cases: 0
 timing:
   backend: pytorch-direct-model.infer
   shards: 4
   gpus: 4x gfx1100
   wall_seconds_approx: 14400
   looping_pages_before_fix: 3
-  notes: ~4h, 0 failures
-predictions_ref: local:///workspace/eval_predictions_v16 (1650 .md files)
+  scorer: OmniDocBench@2b161d0 + CJK
+predictions_ref: local:///workspace/eval_predictions_v16 (1650 .md)
+cdm_toolchain_note: CDM requires texlive-lang-chinese (CJK.sty+gkai) for formulas
+  with Chinese \text{}; without it CDM collapses 0.957->0.870 (Overall 91.95->89.06).
+  CJK-fixed CDM=0.957 matches PARITY.
