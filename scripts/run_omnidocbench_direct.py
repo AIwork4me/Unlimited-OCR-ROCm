@@ -57,6 +57,7 @@ def main() -> None:
     os.makedirs(args.pred_dir, exist_ok=True)
     # All supported image extensions (png/jpg/jpeg/webp/bmp), not just .png.
     from rocm_ocr.omnidocbench import iter_page_images, CANONICAL_OMNIDOCBENCH_PROMPT
+    from rocm_ocr.repetition_fix import apply_repetition_fix, NO_REPEAT_NGRAM_SIZE, NGRAM_WINDOW
 
     imgs = iter_page_images(args.omnidocbench_dir)
     if args.limit:
@@ -83,6 +84,7 @@ def main() -> None:
         .to(dev)
     )
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
+    apply_repetition_fix(model)  # issue#55 fix: penalty + runaway length-cap via generate monkey-patch
 
     tmp = "/tmp/odb_infer"
     t0 = time.time()
@@ -105,8 +107,8 @@ def main() -> None:
                 image_size=img_size,
                 crop_mode=crop,
                 max_length=args.max_length,
-                no_repeat_ngram_size=35,
-                ngram_window=128,
+                no_repeat_ngram_size=NO_REPEAT_NGRAM_SIZE,
+                ngram_window=NGRAM_WINDOW,
                 save_results=True,
             )
             src = os.path.join(tmp, "result.md")
