@@ -83,10 +83,39 @@ def _release_kwargs(**overrides):
     return base
 
 
-def test_detect_looping_pages_counts_oversized_predictions(tmp_path: Path) -> None:
-    (tmp_path / "a.md").write_text("short")
-    (tmp_path / "b.md").write_text("y" * 30_000)
-    assert rel.detect_looping_pages(str(tmp_path), char_cap=20_000) == 1
+def test_detect_looping_pages_flags_repetitive_runaway(tmp_path: Path) -> None:
+    """Long + highly compressible (pure repetition) → detected."""
+    (tmp_path / "small.md").write_text("short page — not flagged")
+    (tmp_path / "loop.md").write_text("畜牧兽医 " * 6000)  # 30K chars, compresses <0.05
+    assert rel.detect_looping_pages(str(tmp_path)) == 1
+
+
+def test_detect_looping_pages_skips_dense_legit(tmp_path: Path) -> None:
+    """Long-but-diverse (compresses >0.05) must NOT be flagged — the old char-cap bug."""
+    import random
+
+    rng = random.Random(1)
+    words = [
+        "the",
+        "quick",
+        "brown",
+        "fox",
+        "jumped",
+        "over",
+        "lazy",
+        "dog",
+        "rain",
+        "sun",
+        "table",
+        "news",
+        "page",
+        "line",
+        "text",
+        "data",
+    ]
+    lines = [f"line {i}: " + " ".join(rng.choice(words) for _ in range(rng.randint(5, 12))) for i in range(600)]
+    (tmp_path / "dense.md").write_text("\n".join(lines))  # ~32K chars, compresses ~0.25
+    assert rel.detect_looping_pages(str(tmp_path)) == 0
 
 
 def test_select_previous_manifest_picks_same_backend_dataset(fake_results: Path) -> None:

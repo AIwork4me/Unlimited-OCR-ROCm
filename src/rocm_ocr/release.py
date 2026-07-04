@@ -17,6 +17,7 @@ import subprocess
 import sys
 import time
 import zipfile
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -37,24 +38,40 @@ REPO = Path(__file__).resolve().parents[2]
 RESULTS_DIR = REPO / "eval" / "results"
 PREDICTIONS_ROOT = REPO / "predictions"
 
-# Looping-page heuristics (spec §7): looping pages produce 8K–80K chars of pure
-# repetition; normal pages are well under this.
-LOOPING_CHAR_CAP = 20_000
+# Looping-page heuristics (spec §7): runaway repetition is long AND highly
+# compressible. Real §2 loops (8K–80K of one phrase) compress to <0.05; dense
+# legit pages (newspapers, classifieds, big diverse tables) compress >0.17.
+LOOPING_MIN_CHARS = 5000
+LOOPING_MAX_COMPRESS_RATIO = 0.05
 
 
 # --------------------------------------------------------------------------- #
 # Pure helpers (unit-tested directly)
 # --------------------------------------------------------------------------- #
-def detect_looping_pages(pred_dir: str, *, char_cap: int = LOOPING_CHAR_CAP) -> int:
-    """Count ``.md`` predictions whose length signals runaway repetition."""
+def detect_looping_pages(
+    pred_dir: str,
+    *,
+    min_chars: int = LOOPING_MIN_CHARS,
+    max_ratio: float = LOOPING_MAX_COMPRESS_RATIO,
+) -> int:
+    """Count ``.md`` predictions whose length+compressibility signal runaway repetition.
+
+    A page is looping if it is long (``> min_chars``) AND highly compressible
+    (``zlib`` ratio ``< max_ratio``) — i.e. a large fraction is repeated content.
+    Dense-but-legit pages (newspapers, classifieds, big diverse tables) compress
+    poorly (>0.17) and are correctly excluded; pure-repetition runaways (the §2
+    looping failure mode, 8K–80K of one repeated phrase) compress to <0.05.
+    """
     n = 0
     for md in sorted(Path(pred_dir).glob("*.md")):
         try:
             text = md.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        if len(text) > char_cap:
-            n += 1
+        if len(text) > min_chars:
+            ratio = len(zlib.compress(text.encode("utf-8"), 9)) / len(text)
+            if ratio < max_ratio:
+                n += 1
     return n
 
 
