@@ -1,4 +1,4 @@
-.PHONY: install install-rocm test benchmark benchmark-accuracy eval lint clean help
+.PHONY: install install-rocm test benchmark benchmark-accuracy eval-direct eval-release eval-smoke lint clean help
 
 PYTHON := python3
 PIP := $(PYTHON) -m pip
@@ -29,23 +29,31 @@ benchmark-accuracy: ## Run accuracy benchmark
 	$(PYTHON) scripts/accuracy_benchmark.py
 
 # --- OmniDocBench evaluation -----------------------------------------------
-# Prerequisites (NOT started by this target — it fails clearly if missing):
-#   1. SGLang server running and serving `baidu/Unlimited-OCR` on AMD ROCm.
-#   2. OmniDocBench dataset downloaded:
-#        huggingface-cli download opendatalab/OmniDocBench --repo-type dataset --local-dir $(OMNIDOCBENCH_DIR)
-#   3. A clone of the OmniDocBench repo for the scorer (--run-scorer):
-#        clone `main` (v1.6) and branch `v1_5` (v1.5).
+# Direct path (model.infer) is the working AMD path; the SGLang-client path is
+# broken on ROCm (see docs/PARITY.md). Full eval runs on the 4-GPU host (~4h).
 OMNIDOCBENCH_DIR ?= ./OmniDocBench_data
 GT_JSON ?= $(OMNIDOCBENCH_DIR)/omnidocbench.json
-PRED_DIR ?= ./eval_predictions
+PRED_DIR ?= ./predictions/run
 OMNIDOCBENCH_REPO ?= ./OmniDocBench
-eval: ## Evaluate on OmniDocBench (v1.5+v1.6). Requires: SGLang server + dataset + OmniDocBench repo for --run-scorer.
-	$(PYTHON) scripts/eval_omnidocbench.py \
-	  --omnidocbench-dir $(OMNIDOCBENCH_DIR) \
-	  --gt-json $(GT_JSON) \
-	  --pred-dir $(PRED_DIR) \
-	  --omnidocbench-repo $(OMNIDOCBENCH_REPO) \
-	  --run-scorer
+RESULT_DIR ?= ./result
+LAUNCHER ?= scripts/run_omnidocbench_4gpu.sh
+
+eval-direct: ## Direct-path OmniDocBench predictions (4-GPU sharded, model.infer).
+	$(PYTHON) scripts/run_omnidocbench_4gpu.sh $(OMNIDOCBENCH_DIR) $(PRED_DIR)
+
+eval-release: ## Full eval → manifest → gate → PR → tag → Release. Host only.
+	PYTHONPATH=src $(PYTHON) -m rocm_ocr.release \
+	  --backend $(BACKEND) --dataset $(DATASET) \
+	  --omnidocbench-dir $(OMNIDOCBENCH_DIR) --gt-json $(GT_JSON) \
+	  --omnidocbench-repo $(OMNIDOCBENCH_REPO) --result-dir $(RESULT_DIR) \
+	  --launcher $(LAUNCHER) $(ALLOW_REGRESSION)
+
+eval-smoke: ## Pipeline smoke test (4 pages, no tag/release). Host only.
+	PYTHONPATH=src $(PYTHON) -m rocm_ocr.release \
+	  --backend pytorch --dataset v1.6 --smoke \
+	  --omnidocbench-dir $(OMNIDOCBENCH_DIR) --gt-json $(GT_JSON) \
+	  --omnidocbench-repo $(OMNIDOCBENCH_REPO) --result-dir $(RESULT_DIR) \
+	  --launcher $(LAUNCHER)
 
 lint: ## Lint code
 	ruff check src/ tests/
