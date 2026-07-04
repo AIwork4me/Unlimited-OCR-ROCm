@@ -54,7 +54,7 @@ def _stub_eval_that_writes_predictions(metrics: dict, *, looping: int = 2, pages
 
 
 def _stub_score():
-    def _score(*, omnidocbench_repo, gt_json, pred_dir, result_dir, save_name):
+    def _score(*, omnidocbench_repo, gt_json, pred_dir, result_dir, save_name, **_kw):
         return {
             "overall": 91.95,
             "text_edit_dist": 0.094,
@@ -171,3 +171,72 @@ def test_release_override_publishes_and_records_reason(fake_results: Path, monke
     assert res.verdict == "OVERRIDE"
     assert published  # override → publishes
     assert published[0]["override"]["reason"] == "testing override path"
+
+
+def test_release_threads_scorer_python_into_score_fn(fake_results: Path, monkeypatch) -> None:
+    """release(scorer_python=...) forwards the kwarg to the mocked score_fn."""
+    monkeypatch.setattr(rel, "run_eval", _stub_eval_that_writes_predictions({"overall": 91.95}))
+    score_calls: list[dict] = []
+
+    def _score(**kw):
+        score_calls.append(kw)
+        return {
+            "overall": 91.95,
+            "text_edit_dist": 0.094,
+            "formula_cdm": 0.957,
+            "table_teds": 0.896,
+            "table_teds_s": 0.928,
+            "reading_order_edit": 0.145,
+        }
+
+    monkeypatch.setattr(rel, "score_predictions", _score)
+    monkeypatch.setattr(rel, "publish_release", lambda **kw: "https://x")
+    rel.release(
+        backend="pytorch",
+        dataset_version="v1.6",
+        omnidocbench_dir="/data",
+        gt_json="/gt.json",
+        omnidocbench_repo="/odb",
+        result_dir="/res",
+        launcher="/bin/true",
+        model_id="baidu/Unlimited-OCR",
+        weights_revision="abc",
+        smoke=True,
+        scorer_python="/p311/bin/python",
+    )
+    assert score_calls, "score_fn was never invoked"
+    assert score_calls[-1]["scorer_python"] == "/p311/bin/python"
+
+
+def test_release_defaults_scorer_python_to_none(fake_results: Path, monkeypatch) -> None:
+    """release(scorer_python omitted) passes scorer_python=None (no prior-call breakage)."""
+    monkeypatch.setattr(rel, "run_eval", _stub_eval_that_writes_predictions({"overall": 91.95}))
+    score_calls: list[dict] = []
+
+    def _score(**kw):
+        score_calls.append(kw)
+        return {
+            "overall": 91.95,
+            "text_edit_dist": 0.094,
+            "formula_cdm": 0.957,
+            "table_teds": 0.896,
+            "table_teds_s": 0.928,
+            "reading_order_edit": 0.145,
+        }
+
+    monkeypatch.setattr(rel, "score_predictions", _score)
+    monkeypatch.setattr(rel, "publish_release", lambda **kw: "https://x")
+    rel.release(
+        backend="pytorch",
+        dataset_version="v1.6",
+        omnidocbench_dir="/data",
+        gt_json="/gt.json",
+        omnidocbench_repo="/odb",
+        result_dir="/res",
+        launcher="/bin/true",
+        model_id="baidu/Unlimited-OCR",
+        weights_revision="abc",
+        smoke=True,
+    )
+    assert score_calls, "score_fn was never invoked"
+    assert score_calls[-1]["scorer_python"] is None

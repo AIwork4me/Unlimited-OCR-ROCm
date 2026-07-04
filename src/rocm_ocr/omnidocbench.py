@@ -241,15 +241,20 @@ def parse_run_summary(result_dir: str, save_name: str) -> dict:
     }
 
 
-def run_scorer(*, omnidocbench_repo: str, config_path: str) -> subprocess.CompletedProcess:
+def run_scorer(*, omnidocbench_repo: str, config_path: str, python: str | None = None) -> subprocess.CompletedProcess:
     """Invoke the official OmniDocBench scorer ``pdf_validation.py``.
 
     Runs ``python pdf_validation.py --config <config_path>`` with the working
     directory set to *omnidocbench_repo*. Output is captured (not checked) so
     callers can inspect stdout/stderr regardless of the exit code.
+
+    *python* selects the interpreter for the scorer; it defaults to
+    :data:`sys.executable` when ``None``. The OmniDocBench scorer pins numpy
+    1.24 etc. and must run in its own py3.11 venv (see ``docs/RELEASE.md``),
+    so callers should pass that venv's interpreter explicitly.
     """
     return subprocess.run(
-        [sys.executable, "pdf_validation.py", "--config", config_path],
+        [python or sys.executable, "pdf_validation.py", "--config", config_path],
         cwd=omnidocbench_repo,
         capture_output=True,
         text=True,

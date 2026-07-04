@@ -32,28 +32,31 @@ benchmark-accuracy: ## Run accuracy benchmark
 # Direct path (model.infer) is the working AMD path; the SGLang-client path is
 # broken on ROCm (see docs/PARITY.md). Full eval runs on the 4-GPU host (~4h).
 OMNIDOCBENCH_DIR ?= ./OmniDocBench_data
-GT_JSON ?= $(OMNIDOCBENCH_DIR)/omnidocbench.json
+GT_JSON ?= $(OMNIDOCBENCH_DIR)/OmniDocBench.json
 PRED_DIR ?= ./predictions/run
 OMNIDOCBENCH_REPO ?= ./OmniDocBench
 RESULT_DIR ?= ./result
 LAUNCHER ?= scripts/run_omnidocbench_4gpu.sh
+# The OmniDocBench scorer pins numpy 1.24 etc. and MUST run in its own py3.11
+# venv (separate from the model's py3.12). Override SCORER_PY if it lives elsewhere.
+SCORER_PY ?= /workspace/OmniDocBench/.venv/bin/python
 
 eval-direct: ## Direct-path OmniDocBench predictions (4-GPU sharded, model.infer).
-	$(PYTHON) scripts/run_omnidocbench_4gpu.sh $(OMNIDOCBENCH_DIR) $(PRED_DIR)
+	bash scripts/run_omnidocbench_4gpu.sh $(OMNIDOCBENCH_DIR) $(PRED_DIR)
 
 eval-release: ## Full eval → manifest → gate → PR → tag → Release. Host only.
 	PYTHONPATH=src $(PYTHON) -m rocm_ocr.release \
 	  --backend $(BACKEND) --dataset $(DATASET) \
 	  --omnidocbench-dir $(OMNIDOCBENCH_DIR) --gt-json $(GT_JSON) \
 	  --omnidocbench-repo $(OMNIDOCBENCH_REPO) --result-dir $(RESULT_DIR) \
-	  --launcher $(LAUNCHER) $(ALLOW_REGRESSION)
+	  --launcher $(LAUNCHER) --scorer-python $(SCORER_PY) $(ALLOW_REGRESSION)
 
 eval-smoke: ## Pipeline smoke test (4 pages, no tag/release). Host only.
 	PYTHONPATH=src $(PYTHON) -m rocm_ocr.release \
 	  --backend pytorch --dataset v1.6 --smoke \
 	  --omnidocbench-dir $(OMNIDOCBENCH_DIR) --gt-json $(GT_JSON) \
 	  --omnidocbench-repo $(OMNIDOCBENCH_REPO) --result-dir $(RESULT_DIR) \
-	  --launcher $(LAUNCHER)
+	  --launcher $(LAUNCHER) --scorer-python $(SCORER_PY)
 
 lint: ## Lint code
 	ruff check src/ tests/
