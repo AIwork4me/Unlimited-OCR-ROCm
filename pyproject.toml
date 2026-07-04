@@ -84,6 +84,7 @@ indent-style = "space"
 testpaths = ["tests"]
 timeout = 600
 asyncio_mode = "auto"
+pythonpath = ["src", "."]
 
 [tool.coverage.run]
 source = ["src/rocm_ocr"]

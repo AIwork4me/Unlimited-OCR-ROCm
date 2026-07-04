@@ -52,3 +52,18 @@ hf_cache/
 *.secret
 *.whl
 assets/long-horizon-ocr.gif
+
+# Forward-looking: three-backend / deploy artifacts (workstreams #1/#3/#4).
+# These are NOT tracked — big build outputs belong as Release assets or nowhere.
+predictions/
+releases/
+*.zip
+sglang-src/
+sglang-*-venv/
+vllm-*-venv/
+*-rocm-venv/
+docker-out/
+.rocm_cache/
+build_logs/
+*.deb
+.claude/
