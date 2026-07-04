@@ -6,9 +6,14 @@ gated, tagged GitHub Release with a committed manifest.
 ## Prerequisites (one-time)
 
 - 4-GPU host, ROCm 7.2.1, torch 2.5.1+rocm6.2 (see `scripts/setup_rocm.sh`).
-- OmniDocBench dataset at `./OmniDocBench_data` (images + `omnidocbench.json`).
-- OmniDocBench scorer repo at `./OmniDocBench` + its py3.11 venv (CJK toolchain:
-  `texlive-lang-chinese` is required — without it CDM collapses, see docs/PARITY.md).
+- OmniDocBench dataset at `./OmniDocBench_data` (images + `OmniDocBench.json`).
+- OmniDocBench scorer repo at `./OmniDocBench` + its **py3.11 venv**. The scorer
+  pins numpy 1.24 etc. and **cannot run in the model's py3.12 venv**. The
+  orchestrator launches the scorer with this venv's interpreter via
+  `SCORER_PY` (Makefile default `/workspace/OmniDocBench/.venv/bin/python`,
+  CLI flag `--scorer-python`) — override it if your venv lives elsewhere.
+  CJK toolchain: `texlive-lang-chinese` is required — without it CDM collapses
+  (see docs/PARITY.md).
 - `gh` authed. **Rotate to a fine-grained repo-scoped PAT** (Contents + Pull
   requests write, 90-day) via `gh auth login` in a separate terminal — the token
   must never enter plaintext (scripts/commits/chat). Status: currently a classic
@@ -20,6 +25,7 @@ gated, tagged GitHub Release with a committed manifest.
 make eval-release BACKEND=pytorch DATASET=v1.6
 # → eval (~4h) → manifest → gate vs last pytorch-v1.6 manifest
 # → manifest PR (CI validates schema) → merge → eval/<tag> → Release with predictions.zip
+#   (scorer runs under SCORER_PY — the OmniDocBench py3.11 venv, not sys.executable)
 ```
 
 The gate **blocks** if Overall regresses > 0.3, any module > 0.005, or looping

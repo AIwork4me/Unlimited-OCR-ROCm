@@ -257,6 +257,51 @@ def test_run_scorer_invokes_subprocess_with_correct_args(monkeypatch, tmp_path: 
     assert captured["check"] is False
 
 
+def test_run_scorer_uses_explicit_python_argv0(monkeypatch, tmp_path: Path):
+    """run_scorer(python=...) invokes the subprocess with that interpreter as argv[0]."""
+    captured: dict = {}
+
+    class FakeCompleted:
+        args = []
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, *, cwd, capture_output, text, check):
+        captured["cmd"] = cmd
+        return FakeCompleted()
+
+    monkeypatch.setattr("rocm_ocr.omnidocbench.subprocess.run", fake_run)
+
+    run_scorer(
+        omnidocbench_repo="/opt/OmniDocBench",
+        config_path="/cfg/end2end.yaml",
+        python="/p311/bin/python",
+    )
+    assert captured["cmd"][0] == "/p311/bin/python"
+    assert captured["cmd"][1:] == ["pdf_validation.py", "--config", "/cfg/end2end.yaml"]
+
+
+def test_run_scorer_defaults_to_sys_executable_when_python_none(monkeypatch, tmp_path: Path):
+    """run_scorer(python=None) falls back to sys.executable (preserves prior behavior)."""
+    captured: dict = {}
+
+    class FakeCompleted:
+        args = []
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, *, cwd, capture_output, text, check):
+        captured["cmd"] = cmd
+        return FakeCompleted()
+
+    monkeypatch.setattr("rocm_ocr.omnidocbench.subprocess.run", fake_run)
+
+    run_scorer(omnidocbench_repo="/opt/OmniDocBench", config_path="/cfg/end2end.yaml")
+    assert captured["cmd"][0] == sys.executable
+
+
 def test_main_runs_predictions_only_and_prints_next_command(monkeypatch, tmp_path: Path, capsys):
     odb_dir = tmp_path / "odb"
     (odb_dir / "images").mkdir(parents=True)

@@ -97,15 +97,25 @@ def run_eval(
 
 
 def score_predictions(
-    *, omnidocbench_repo: str, gt_json: str, pred_dir: str, result_dir: str, save_name: str
+    *,
+    omnidocbench_repo: str,
+    gt_json: str,
+    pred_dir: str,
+    result_dir: str,
+    save_name: str,
+    scorer_python: str | None = None,
 ) -> dict[str, Any]:
-    """Run the official scorer and return parsed metrics."""
+    """Run the official scorer and return parsed metrics.
+
+    *scorer_python* selects the scorer's interpreter (py3.11 venv); ``None``
+    falls back to ``sys.executable`` inside :func:`run_scorer`.
+    """
     cfg = write_eval_config(
         gt_json=gt_json,
         pred_dir=pred_dir,
         out_path=str(Path(omnidocbench_repo) / "configs" / "end2end.yaml"),
     )
-    run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg)
+    run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg, python=scorer_python)
     return parse_run_summary(result_dir, save_name)
 
 
@@ -173,6 +183,7 @@ def release(
     limit: int = 0,
     smoke: bool = False,
     override_reason: str | None = None,
+    scorer_python: str | None = None,
     run_by: str = "aiwork4me",
     eval_fn: Callable | None = None,
     score_fn: Callable | None = None,
@@ -198,6 +209,7 @@ def release(
         pred_dir=pred_dir,
         result_dir=result_dir,
         save_name=save_name,
+        scorer_python=scorer_python,
     )
     metrics["page_count"] = len(list(Path(pred_dir).glob("*.md")))
     metrics["looping_pages_detected"] = detect_looping_pages(pred_dir)
@@ -286,6 +298,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--limit", type=int, default=0, help="0 = full eval; N = first N pages (smoke use --smoke)")
     ap.add_argument("--smoke", action="store_true", help="run pipeline on 4 pages; no tag/release")
     ap.add_argument(
+        "--scorer-python",
+        default=None,
+        help="interpreter for the OmniDocBench scorer (its py3.11 venv); "
+        "default sys.executable. Makefile default: SCORER_PY.",
+    )
+    ap.add_argument(
         "--allow-regression",
         default=None,
         metavar="REASON",
@@ -293,7 +311,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = ap.parse_args(argv)
 
-    gt_json = args.gt_json or str(Path(args.omnidocbench_dir) / "omnidocbench.json")
+    gt_json = args.gt_json or str(Path(args.omnidocbench_dir) / "OmniDocBench.json")
     limit = 4 if args.smoke and not args.limit else args.limit
     release(
         backend=args.backend,
@@ -307,6 +325,7 @@ def main(argv: list[str] | None = None) -> None:
         weights_revision=args.weights_revision,
         limit=limit,
         smoke=args.smoke,
+        scorer_python=args.scorer_python,
         override_reason=args.allow_regression,
     )
 
