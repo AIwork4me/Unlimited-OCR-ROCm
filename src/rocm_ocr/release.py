@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import time
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -101,11 +102,15 @@ def score_predictions(
     omnidocbench_repo: str,
     gt_json: str,
     pred_dir: str,
-    result_dir: str,
-    save_name: str,
     scorer_python: str | None = None,
 ) -> dict[str, Any]:
     """Run the official scorer and return parsed metrics.
+
+    The scorer (``pdf_validation.py``, cwd = *omnidocbench_repo*) writes its
+    ``{save_name}_run_summary.json`` / ``_metric_result.json`` to
+    ``<omnidocbench_repo>/result/`` — *not* the caller's ``./result``. The
+    save_name is ``{pred_dir-basename}_quick_match`` (OmniDocBench's
+    ``quick_match`` match method).
 
     *scorer_python* selects the scorer's interpreter (py3.11 venv); ``None``
     falls back to ``sys.executable`` inside :func:`run_scorer`.
@@ -116,7 +121,8 @@ def score_predictions(
         out_path=str(Path(omnidocbench_repo) / "configs" / "end2end.yaml"),
     )
     run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg, python=scorer_python)
-    return parse_run_summary(result_dir, save_name)
+    save_name = f"{Path(pred_dir).name}_quick_match"
+    return parse_run_summary(str(Path(omnidocbench_repo) / "result"), save_name)
 
 
 def _run(cmd: list[str]) -> str:
@@ -134,10 +140,51 @@ def gh(*args: str) -> str:
     return _run(["gh", *args])
 
 
+GH_REPO = "AIwork4me/Unlimited-OCR-ROCm"
+
+
+def _wait_ci(branch: str, timeout: int = 900) -> None:
+    """Poll ``gh pr checks`` until every check is terminal; raise on fail/timeout.
+
+    Called between ``gh pr create`` and ``gh pr merge`` so the merge respects
+    branch-protection required status checks (once enabled in Task 6). Treats
+    ``pass``/``skipped`` as success, ``fail`` as failure, and
+    ``pending``/``blocked``/empty as not-yet-done.
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        out = gh("pr", "checks", branch, "-R", GH_REPO)
+        states = _parse_check_states(out)
+        if states and all(s in ("pass", "skipped") for s in states):
+            return
+        if any(s == "fail" for s in states):
+            raise RuntimeError(f"CI failed for {branch}: {out}")
+        if time.monotonic() >= deadline:
+            raise RuntimeError(f"CI timed out (pending) for {branch} after {timeout}s: {out}")
+        time.sleep(15)
+
+
+def _parse_check_states(out: str) -> list[str]:
+    """Return the state column (lowercased) for each non-empty line of ``gh pr checks``.
+
+    ``gh pr checks`` prints TSV: ``<name>\\t<state>\\t<link>``. Blank output (no
+    checks configured yet) returns ``[]`` so the caller keeps polling.
+    """
+    states: list[str] = []
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        cols = line.split("\t")
+        if len(cols) >= 2:
+            states.append(cols[1].strip().lower())
+    return states
+
+
 def publish_release(
     *, manifest: dict, manifest_path: Path, tag: str, predictions_zip: Path, override: dict | None
 ) -> str:
-    """Manifest-via-PR → merge → tag → gh release. Returns the Release URL."""
+    """Manifest-via-PR → wait CI green → merge → tag → gh release. Returns the Release URL."""
     branch = tag.replace("/", "-")
     git("checkout", "-b", branch)
     git("add", str(manifest_path))
@@ -149,6 +196,7 @@ def publish_release(
         + ("OVERRIDE — see gate.override." if override else "Gate: PASS.")
     )
     gh("pr", "create", "--base", "main", "--head", branch, "--title", f"eval(results): {tag}", "--body", body)
+    _wait_ci(branch)
     gh("pr", "merge", branch, "--squash", "--delete-branch")
     git("fetch", "origin", "main")
     git("checkout", "main")
@@ -176,7 +224,6 @@ def release(
     omnidocbench_dir: str,
     gt_json: str,
     omnidocbench_repo: str,
-    result_dir: str,
     launcher: str,
     model_id: str,
     weights_revision: str,
@@ -202,19 +249,18 @@ def release(
     pred_dir = str(PREDICTIONS_ROOT / f"{backend}-{dataset_version}-{_today_compact()}")
     eval_fn(omnidocbench_dir=omnidocbench_dir, pred_dir=pred_dir, launcher=launcher, limit=limit)
 
-    save_name = f"{Path(pred_dir).name}_quick_match"
     metrics = score_fn(
         omnidocbench_repo=omnidocbench_repo,
         gt_json=gt_json,
         pred_dir=pred_dir,
-        result_dir=result_dir,
-        save_name=save_name,
         scorer_python=scorer_python,
     )
     metrics["page_count"] = len(list(Path(pred_dir).glob("*.md")))
     metrics["looping_pages_detected"] = detect_looping_pages(pred_dir)
 
-    prev = select_previous_manifest(backend, dataset_version)
+    # Smoke runs (4–8 pages) are meaningless vs the committed full-eval baseline;
+    # gate against None so the smoke gets BASELINE and never spuriously BLOCKs.
+    prev = None if smoke else select_previous_manifest(backend, dataset_version)
     short_sha = git("rev-parse", "--short=10", "HEAD") or "nosha"
     version = f"{backend}-{dataset_version}-{short_sha}"
     tag = f"eval/{version}-{_today_compact()}"
@@ -291,7 +337,6 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--omnidocbench-dir", default=str(Path.cwd() / "OmniDocBench_data"))
     ap.add_argument("--gt-json", default=None)
     ap.add_argument("--omnidocbench-repo", default=str(Path.cwd() / "OmniDocBench"))
-    ap.add_argument("--result-dir", default=str(Path.cwd() / "result"))
     ap.add_argument("--launcher", default="scripts/run_omnidocbench_4gpu.sh")
     ap.add_argument("--model", default="baidu/Unlimited-OCR")
     ap.add_argument("--weights-revision", default="84757cb0")
@@ -319,7 +364,6 @@ def main(argv: list[str] | None = None) -> None:
         omnidocbench_dir=args.omnidocbench_dir,
         gt_json=gt_json,
         omnidocbench_repo=args.omnidocbench_repo,
-        result_dir=args.result_dir,
         launcher=args.launcher,
         model_id=args.model,
         weights_revision=args.weights_revision,
