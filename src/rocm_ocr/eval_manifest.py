@@ -30,9 +30,7 @@ MANIFEST_SCHEMA = "unlimited-ocr-rocm/eval-manifest/v1"
 def _git(*args: str, repo: str = ".") -> str:
     """Run a git query in *repo*; return stripped stdout, or '' on any failure."""
     try:
-        out = subprocess.run(
-            ["git", "-C", repo, *args], capture_output=True, text=True, check=False
-        )
+        out = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, check=False)
     except Exception as exc:  # noqa: BLE001
         logger.debug("git %s failed: %s", args, exc)
         return ""
@@ -158,7 +156,5 @@ def write_manifest(manifest: dict[str, Any], out_path: str) -> str:
     path = Path(out_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        yaml.safe_dump(
-            _to_plain(manifest), f, sort_keys=False, default_flow_style=False, allow_unicode=True
-        )
+        yaml.safe_dump(_to_plain(manifest), f, sort_keys=False, default_flow_style=False, allow_unicode=True)
     return str(path)
