@@ -40,10 +40,10 @@ NGRAM_WINDOW = 256
 REPETITION_PENALTY = 1.05
 
 # Runaway guard (mode ②) — conservative, avoids false positives on legit dense/table pages.
-RUNAWAY_MAX_TOKENS = 8192      # hard cap: legit single-page output stays well under this
-RUNAWAY_WINDOW = 256           # sliding window for the repetition check
+RUNAWAY_MAX_TOKENS = 8192  # hard cap: legit single-page output stays well under this
+RUNAWAY_WINDOW = 256  # sliding window for the repetition check
 RUNAWAY_MIN_DISTINCT_RATIO = 0.25  # stop if <25% distinct tokens in the window (heavy loop)
-RUNAWAY_MIN_TOKENS = 512       # don't check before this (let legit content proceed)
+RUNAWAY_MIN_TOKENS = 512  # don't check before this (let legit content proceed)
 
 
 class RunawayStoppingCriteria:
@@ -116,6 +116,7 @@ def apply_repetition_fix(
     model.generate = _generate_with_fix
     logger.info(
         "repetition fix applied (issue #55): repetition_penalty=%s, runaway_guard=%s",
-        repetition_penalty, stop_runaway,
+        repetition_penalty,
+        stop_runaway,
     )
     return model
