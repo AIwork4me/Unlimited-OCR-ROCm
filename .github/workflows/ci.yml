@@ -23,8 +23,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-timeout pytest-cov ruff
-          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+          pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+          pip install -e ".[dev]"
 
       - name: Lint
         run: ruff check src/ tests/
