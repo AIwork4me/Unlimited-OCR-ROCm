@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AIwork4me/Unlimited-OCR-ROCm/eval/results/manifest.schema.json",
+  "title": "Unlimited-OCR-ROCm eval manifest",
+  "type": "object",
+  "required": ["schema", "backend", "timestamp", "metrics", "predictions_ref"],
+  "additionalProperties": true,
+  "properties": {
+    "schema": {"type": "string", "const": "unlimited-ocr-rocm/eval-manifest/v1"},
+    "backend": {"type": "string"},
+    "timestamp": {"type": "string"},
+    "started_at": {"type": "string"},
+    "ended_at": {"type": "string"},
+    "run_by": {"type": "string"},
+    "hardware_fingerprint": {"type": "string"},
+    "git": {"type": "object"},
+    "model": {"type": "object"},
+    "dataset": {"type": "object"},
+    "env": {"type": "object"},
+    "timing": {"type": "object"},
+    "predictions_ref": {"type": "string"},
+    "compared_against": {"type": ["string", "null"]},
+    "metrics": {
+      "type": "object",
+      "required": ["overall"],
+      "additionalProperties": true,
+      "properties": {
+        "overall": {"type": "number"},
+        "text_edit_dist": {"type": "number"},
+        "formula_cdm": {"type": "number"},
+        "table_teds": {"type": "number"},
+        "table_teds_s": {"type": "number"},
+        "reading_order_edit": {"type": "number"},
+        "page_count": {"type": "number"},
+        "looping_pages_detected": {"type": "number"}
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "verdict": {"type": "string", "enum": ["PASS", "BLOCK", "OVERRIDE", "BASELINE"]},
+        "override": {"type": ["object", "null"]}
+      }
+    }
+  }
+}
