@@ -46,3 +46,46 @@ make eval-smoke
 - **Manifest** (`eval/results/*.yaml`) — committed, reviewable evidence trail.
 - **predictions.zip** — GitHub Release asset under the `eval/<tag>` tag (not in git).
 - **Tag** — `eval/<backend>-<dataset>-<shortsha>-<date>` (no PyPI). `v<semver>` → PyPI.
+
+## If a publish crashes mid-flight (crash recovery)
+
+`publish_release` runs these steps in order: **branch → commit → push →
+`gh pr create` → `_wait_ci` → `gh pr merge --squash --delete-branch` →
+fetch/checkout main → reset --hard → `git tag -a` → `git push <tag>` →
+`gh release create`**. A crash anywhere after the manifest PR is created leaves
+the run partially done; on resume `_wait_ci` now short-circuits when the branch
+is already merged/gone (Fix 2), but you may still need to finish the tail
+manually. (Run 3's auto-publish crashed inside `_wait_ci` and was completed this
+way.)
+
+To complete a crashed publish manually:
+
+```bash
+# 1. Merge the manifest PR if it's still open and CI is green.
+TAG="eval/<backend>-<dataset>-<shortsha>-<date>"        # from the manifest filename
+BRANCH="${TAG//\//-}"                                   # eval/... → eval-...
+gh pr merge "$BRANCH" --squash --delete-branch || true  # may be already merged
+
+# 2. Get back to a clean main matching origin.
+git checkout main
+git fetch origin
+git reset --hard origin/main
+
+# 3. Create + push the tag (the manifest's predictions.zip must already exist
+#    at predictions/<version>.zip from the eval run).
+git tag -a "$TAG" -m "$TAG Overall=<overall>"
+git push origin "$TAG"
+
+# 4. Create the Release with the predictions asset.
+gh release create "$TAG" "predictions/<version>.zip" \
+  --title "$TAG" --notes "Eval manifest \`$TAG\`. Gate: PASS."
+```
+
+If the predictions zip is gone (e.g. a `make clean`), re-running the eval is not
+required if the manifest's `predictions_ref` tag already exists on the remote —
+rebuild just the zip from the still-tagged prediction files, or re-publish the
+asset under the existing tag with `gh release upload "$TAG" <zip> --clobber`.
+
+A full idempotent resume (existence checks before each step, automatic
+short-circuit when the manifest is already on main, tree restore in
+`try/finally`) is deferred to workstream #1.

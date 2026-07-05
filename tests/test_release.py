@@ -35,6 +35,14 @@ def fake_results(tmp_path: Path, monkeypatch) -> Path:
     (results / "pytorch-v1.6__aaaaaaaaaa__2026-07-03.yaml").write_text(yaml.safe_dump(prev))
     monkeypatch.setattr(rel, "RESULTS_DIR", results)
     monkeypatch.setattr(rel, "REPO", tmp_path)
+    # Stub git so the preflight clean-tree check (and rev-parse) don't depend on
+    # the developer's working-tree state. Tests that exercise git behavior
+    # explicitly override this.
+    monkeypatch.setattr(
+        rel,
+        "git",
+        lambda *args: "" if args[0] == "status" else ("abc1234567" if args[0] == "rev-parse" else ""),
+    )
     return results
 
 
@@ -133,7 +141,12 @@ def test_select_previous_manifest_none_for_new_backend(fake_results: Path) -> No
 def test_score_predictions_reads_scorer_results_from_odb_repo_result(monkeypatch) -> None:
     """score_predictions computes result_dir + save_name from odb_repo + pred_dir."""
     monkeypatch.setattr(rel, "write_eval_config", lambda **kw: "/cfg/end2end.yaml")
-    monkeypatch.setattr(rel, "run_scorer", lambda **kw: None)
+
+    class _Ok:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(rel, "run_scorer", lambda **kw: _Ok())
     captured: dict = {}
 
     def _fake_parse(result_dir, save_name):
@@ -157,7 +170,12 @@ def test_score_predictions_threads_scorer_python_into_run_scorer(monkeypatch) ->
     """scorer_python kwarg is forwarded to run_scorer (not parse_run_summary)."""
     monkeypatch.setattr(rel, "write_eval_config", lambda **kw: "/cfg/end2end.yaml")
     scorer_calls: list[dict] = []
-    monkeypatch.setattr(rel, "run_scorer", lambda **kw: scorer_calls.append(kw))
+
+    class _Ok:
+        returncode = 0
+        stderr = ""
+
+    monkeypatch.setattr(rel, "run_scorer", lambda **kw: scorer_calls.append(kw) or _Ok())
     monkeypatch.setattr(rel, "parse_run_summary", lambda *a, **kw: {"overall": 1.0})
 
     rel.score_predictions(
@@ -341,6 +359,7 @@ def test_wait_ci_tolerates_no_checks_window_then_pass(monkeypatch) -> None:
     monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
     polls = iter(
         [
+            _FakeCompleted("OPEN", returncode=0),  # gh pr view probe → live branch
             _FakeCompleted("", returncode=1),  # no checks reported yet
             _FakeCompleted("build\tpending\nlint\tpending", returncode=0),
             _FakeCompleted("build\tpass\nlint\tpass", returncode=0),
@@ -352,22 +371,29 @@ def test_wait_ci_tolerates_no_checks_window_then_pass(monkeypatch) -> None:
 
 def test_wait_ci_returns_on_first_all_pass(monkeypatch) -> None:
     monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(
-        rel.subprocess,
-        "run",
-        lambda *a, **k: _FakeCompleted("build\tpass\nlint\tskipped"),
-    )
+    # gh pr view probe → OPEN (live); then checks poll → all pass.
+    probe = _FakeCompleted("OPEN", returncode=0)
+
+    def _run(cmd, *a, **k):
+        if "view" in cmd:
+            return probe
+        return _FakeCompleted("build\tpass\nlint\tskipped")
+
+    monkeypatch.setattr(rel.subprocess, "run", _run)
     rel._wait_ci("b", timeout=60)
 
 
 def test_wait_ci_raises_on_failed_check(monkeypatch) -> None:
     """A terminal 'fail' check → RuntimeError."""
     monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(
-        rel.subprocess,
-        "run",
-        lambda *a, **k: _FakeCompleted("build\tfail\nlint\tpass"),
-    )
+    probe = _FakeCompleted("OPEN", returncode=0)
+
+    def _run(cmd, *a, **k):
+        if "view" in cmd:
+            return probe
+        return _FakeCompleted("build\tfail\nlint\tpass")
+
+    monkeypatch.setattr(rel.subprocess, "run", _run)
     with pytest.raises(RuntimeError, match="(?i)fail"):
         rel._wait_ci("b", timeout=60)
 
@@ -378,11 +404,14 @@ def test_wait_ci_raises_on_timeout(monkeypatch) -> None:
     # monotonic counter: first poll at t=0, next at t=10000 (> timeout).
     ticks = iter([0.0, 10_000.0])
     monkeypatch.setattr(rel.time, "monotonic", lambda: next(ticks))
-    monkeypatch.setattr(
-        rel.subprocess,
-        "run",
-        lambda *a, **k: _FakeCompleted("build\tpending"),
-    )
+    probe = _FakeCompleted("OPEN", returncode=0)
+
+    def _run(cmd, *a, **k):
+        if "view" in cmd:
+            return probe
+        return _FakeCompleted("build\tpending")
+
+    monkeypatch.setattr(rel.subprocess, "run", _run)
     with pytest.raises(RuntimeError, match="(?i)timeout|pending"):
         rel._wait_ci("b", timeout=60)
 
@@ -427,6 +456,163 @@ def test_publish_release_calls_wait_ci_between_create_and_merge(monkeypatch) -> 
 # --------------------------------------------------------------------------- #
 # Fix D: release() re-reads REPO at call time — no test-isolation leak
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# Hardening: scorer failures must surface (Fix 1); _wait_ci short-circuits on
+# an already-merged/deleted branch (Fix 2); release() preflight clean-tree
+# check (Fix 3); baseline_was_override flag (Fix 5).
+# --------------------------------------------------------------------------- #
+def test_score_predictions_raises_on_scorer_nonzero_exit(monkeypatch) -> None:
+    """A scorer crash (returncode != 0) must raise RuntimeError BEFORE parse_run_summary.
+
+    Regression: score_predictions discarded the CompletedProcess, so a scorer
+    crash (missing CJK toolchain, numpy-pin violation, OOM) silently produced
+    zero/None metrics and the gate emitted a confusing verdict with no signal
+    that the scorer itself died. parse_run_summary must NOT run on failure.
+    """
+    monkeypatch.setattr(rel, "write_eval_config", lambda **kw: "/cfg/end2end.yaml")
+
+    class _Boom:
+        returncode = 1
+        stdout = ""
+        stderr = "boom: missing texlive-lang-chinese"
+
+    monkeypatch.setattr(rel, "run_scorer", lambda **kw: _Boom())
+    parse_calls: list = []
+    monkeypatch.setattr(rel, "parse_run_summary", lambda *a, **k: parse_calls.append((a, k)) or {"overall": 0.0})
+
+    with pytest.raises(RuntimeError, match="scorer failed"):
+        rel.score_predictions(
+            omnidocbench_repo="/odb",
+            gt_json="/g.json",
+            pred_dir="/p/run",
+        )
+    assert parse_calls == [], "parse_run_summary must NOT run when the scorer crashed"
+
+
+def test_score_predictions_succeeds_when_scorer_returncode_zero(monkeypatch) -> None:
+    """returncode 0 → parse_run_summary runs as before (regression guard for Fix 1)."""
+    monkeypatch.setattr(rel, "write_eval_config", lambda **kw: "/cfg/end2end.yaml")
+
+    class _Ok:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(rel, "run_scorer", lambda **kw: _Ok())
+    monkeypatch.setattr(rel, "parse_run_summary", lambda *a, **k: {"overall": 91.95})
+    out = rel.score_predictions(omnidocbench_repo="/odb", gt_json="/g.json", pred_dir="/p/run")
+    assert out["overall"] == 91.95
+
+
+def test_wait_ci_short_circuits_when_branch_already_merged(monkeypatch) -> None:
+    """On crash-and-resume where `gh pr merge --delete-branch` already ran, the
+    branch is gone (gh pr view → MERGED / non-zero). _wait_ci must return
+    immediately instead of polling the full 900s on empty `gh pr checks`.
+    """
+    poll_count = 0
+
+    def fake_subprocess_run(cmd, *a, **k):
+        nonlocal poll_count
+        poll_count += 1
+        # `gh pr checks <branch>` on a merged/deleted branch → empty stdout,
+        # which the OLD code polled for the full timeout. The merged-detection
+        # probe (`gh pr view ... --json state`) returns state=MERGED.
+        if "checks" in cmd:
+            return _FakeCompleted("", returncode=1)
+        if "view" in cmd:
+            return _FakeCompleted("MERGED", returncode=0)
+        return _FakeCompleted("", returncode=1)
+
+    monkeypatch.setattr(rel.subprocess, "run", fake_subprocess_run)
+    monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
+    rel._wait_ci("merged-branch", timeout=900)
+    assert poll_count <= 3, f"_wait_ci burned {poll_count} polls on a merged branch"
+
+
+def test_wait_ci_still_polls_when_branch_is_live(monkeypatch) -> None:
+    """A live (OPEN) branch must keep the existing pending/pass/timeout logic."""
+    monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
+    polls = iter(
+        [
+            _FakeCompleted("OPEN", returncode=0),  # gh pr view → OPEN (live branch)
+            _FakeCompleted("build\tpending"),
+            _FakeCompleted("build\tpass\nlint\tpass"),
+        ]
+    )
+    monkeypatch.setattr(rel.subprocess, "run", lambda *a, **k: next(polls))
+    rel._wait_ci("live-branch", timeout=60)  # must not raise
+
+
+def test_release_preflight_rejects_dirty_working_tree(fake_results: Path, monkeypatch) -> None:
+    """release() must raise BEFORE running eval if the working tree is dirty.
+
+    A dirty tree means the manifest's git-SHA would not match the evaluated
+    code. The preflight must run BEFORE eval so a dirty tree doesn't waste a
+    4h eval.
+    """
+    monkeypatch.setattr(rel, "git", lambda *args: " M src/foo.py\n" if args[0] == "status" else "")
+    eval_calls: list = []
+    monkeypatch.setattr(rel, "run_eval", lambda **kw: eval_calls.append(kw))
+    monkeypatch.setattr(rel, "score_predictions", lambda **kw: {"overall": 91.95})
+    monkeypatch.setattr(rel, "publish_release", lambda **kw: "https://x")
+    with pytest.raises(RuntimeError, match="(?i)working tree not clean"):
+        rel.release(**_release_kwargs(smoke=False))
+    assert eval_calls == [], "eval must NOT run when the working tree is dirty"
+
+
+def test_release_preflight_passes_on_clean_tree(fake_results: Path, monkeypatch) -> None:
+    """Clean tree (empty `git status --porcelain`) → eval proceeds (regression guard)."""
+    monkeypatch.setattr(
+        rel,
+        "git",
+        lambda *args: "" if args[0] == "status" else ("abc1234567" if args[0] == "rev-parse" else ""),
+    )
+    monkeypatch.setattr(rel, "run_eval", _stub_eval_that_writes_predictions({"overall": 91.95}))
+    monkeypatch.setattr(rel, "score_predictions", _stub_score())
+    monkeypatch.setattr(rel, "publish_release", lambda **kw: "https://x")
+    rel.release(**_release_kwargs(smoke=True))  # must not raise
+
+
+def test_release_flags_baseline_was_override_when_prev_was_overridden(fake_results: Path, monkeypatch) -> None:
+    """When the selected baseline manifest has gate.verdict == OVERRIDE, the new
+    manifest carries baseline_was_override: true so readers see the comparison
+    is from an already-overridden baseline. (No gate-behavior change.)
+    """
+    # Rewrite the fake_results baseline to be an OVERRIDE.
+    for y in fake_results.glob("*.yaml"):
+        m = yaml.safe_load(y.read_text())
+        m["gate"] = {"verdict": "OVERRIDE"}
+        y.write_text(yaml.safe_dump(m))
+
+    captured: dict = {}
+
+    def _capture_publish(**kw):
+        captured["manifest"] = kw["manifest"]
+        return "https://release"
+
+    monkeypatch.setattr(rel, "run_eval", _stub_eval_that_writes_predictions({"overall": 91.95}))
+    monkeypatch.setattr(rel, "score_predictions", _stub_score())
+    monkeypatch.setattr(rel, "publish_release", _capture_publish)
+    rel.release(**_release_kwargs(smoke=False))
+    assert captured["manifest"].get("baseline_was_override") is True
+
+
+def test_release_omits_baseline_was_override_for_clean_baseline(fake_results: Path, monkeypatch) -> None:
+    """A non-OVERRIDE baseline must NOT set baseline_was_override (regression guard)."""
+    # The fake_results baseline has no gate.verdict (treated as not-OVERRIDE).
+    captured: dict = {}
+
+    def _capture_publish(**kw):
+        captured["manifest"] = kw["manifest"]
+        return "https://release"
+
+    monkeypatch.setattr(rel, "run_eval", _stub_eval_that_writes_predictions({"overall": 91.95}))
+    monkeypatch.setattr(rel, "score_predictions", _stub_score())
+    monkeypatch.setattr(rel, "publish_release", _capture_publish)
+    rel.release(**_release_kwargs(smoke=False))
+    assert "baseline_was_override" not in captured["manifest"]
+
+
 def test_release_pred_dir_re_reads_repo_respecting_monkeypatch(tmp_path: Path, monkeypatch) -> None:
     """release() must derive pred_dir from the CURRENT rel.REPO, not a module-level
     PREDICTIONS_ROOT captured at import.
@@ -442,6 +628,10 @@ def test_release_pred_dir_re_reads_repo_respecting_monkeypatch(tmp_path: Path, m
     before = {p.name for p in real_predictions.glob("*.md")} if real_predictions.is_dir() else set()
 
     monkeypatch.setattr(rel, "REPO", tmp_path)
+    # Stub git so the preflight clean-tree check doesn't depend on dev-tree state.
+    monkeypatch.setattr(
+        rel, "git", lambda *a: "" if a[0] == "status" else ("abc1234567" if a[0] == "rev-parse" else "")
+    )
     captured: dict = {}
 
     def _eval(*, omnidocbench_dir, pred_dir, launcher, limit=0, extra_args=None):
