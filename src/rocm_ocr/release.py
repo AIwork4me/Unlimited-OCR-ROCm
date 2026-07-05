@@ -170,17 +170,28 @@ def _wait_ci(branch: str, timeout: int = 900) -> None:
     branch-protection required status checks (once enabled in Task 6). Treats
     ``pass``/``skipped`` as success, ``fail`` as failure, and
     ``pending``/``blocked``/empty as not-yet-done.
+
+    Invokes ``gh pr checks`` via ``subprocess.run(check=False)`` rather than the
+    raising ``gh()`` wrapper: in the first seconds after ``gh pr create``,
+    GitHub hasn't registered any checks yet, so ``gh pr checks`` exits non-zero
+    with ``no checks reported on the '<branch>' branch``. That pre-registration
+    window (non-zero exit / empty stdout) must be treated as pending, not fatal.
     """
     deadline = time.monotonic() + timeout
     while True:
-        out = gh("pr", "checks", branch, "-R", GH_REPO)
-        states = _parse_check_states(out)
+        r = subprocess.run(  # noqa: S603
+            ["gh", "pr", "checks", branch, "-R", GH_REPO],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        states = _parse_check_states(r.stdout)
         if states and all(s in ("pass", "skipped") for s in states):
             return
         if any(s == "fail" for s in states):
-            raise RuntimeError(f"CI failed for {branch}: {out}")
+            raise RuntimeError(f"CI failed for {branch}: {r.stdout}")
         if time.monotonic() >= deadline:
-            raise RuntimeError(f"CI timed out (pending) for {branch} after {timeout}s: {out}")
+            raise RuntimeError(f"CI timed out for {branch} after {timeout}s: {r.stdout}")
         time.sleep(15)
 
 

@@ -316,37 +316,58 @@ def test_release_nonsmoke_still_calls_select_previous_manifest(fake_results: Pat
 
 
 # --------------------------------------------------------------------------- #
-# Fix C: publish_release waits for CI green between create and merge
+# Fix C: publish_release waits for CI green between create and merge.
+# _wait_ci uses subprocess.run(check=False) directly (not the raising gh()
+# wrapper) so the "no checks reported" window right after `gh pr create` —
+# where `gh pr checks` exits non-zero — is treated as pending, not fatal.
 # --------------------------------------------------------------------------- #
-def test_wait_ci_returns_when_all_checks_pass(monkeypatch) -> None:
-    """Two polls: pending → all pass → returns."""
-    monkeypatch.setattr(rel.time, "sleep", lambda *_: None)  # no real sleeping
+class _FakeCompleted:
+    """Stand-in for subprocess.run's CompletedProcess used by _wait_ci."""
+
+    def __init__(self, stdout: str, returncode: int = 0) -> None:
+        self.stdout = stdout
+        self.returncode = returncode
+        self.stderr = ""
+
+
+def test_wait_ci_tolerates_no_checks_window_then_pass(monkeypatch) -> None:
+    """Pre-registration → pending → all pass: returns without raising.
+
+    Right after `gh pr create`, GitHub hasn't registered any checks yet, so
+    `gh pr checks` exits non-zero with empty stdout. The OLD gh()-based code
+    raised on that non-zero exit and crashed every auto-publish. The fix calls
+    subprocess.run(check=False), treating empty/non-zero as pending.
+    """
+    monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
     polls = iter(
         [
-            "build\tpending\nlint\tpending",
-            "build\tpass\nlint\tpass",
+            _FakeCompleted("", returncode=1),  # no checks reported yet
+            _FakeCompleted("build\tpending\nlint\tpending", returncode=0),
+            _FakeCompleted("build\tpass\nlint\tpass", returncode=0),
         ]
     )
-
-    def fake_gh(*args):
-        if args[:2] == ("pr", "checks"):
-            return next(polls)
-        return ""
-
-    monkeypatch.setattr(rel, "gh", fake_gh)
-    rel._wait_ci("some-branch", timeout=60)  # should not raise
+    monkeypatch.setattr(rel.subprocess, "run", lambda *a, **k: next(polls))
+    rel._wait_ci("some-branch", timeout=60)  # must not raise
 
 
 def test_wait_ci_returns_on_first_all_pass(monkeypatch) -> None:
     monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(rel, "gh", lambda *a: "build\tpass\nlint\tskipped")
+    monkeypatch.setattr(
+        rel.subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted("build\tpass\nlint\tskipped"),
+    )
     rel._wait_ci("b", timeout=60)
 
 
 def test_wait_ci_raises_on_failed_check(monkeypatch) -> None:
     """A terminal 'fail' check → RuntimeError."""
     monkeypatch.setattr(rel.time, "sleep", lambda *_: None)
-    monkeypatch.setattr(rel, "gh", lambda *a: "build\tfail\nlint\tpass")
+    monkeypatch.setattr(
+        rel.subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted("build\tfail\nlint\tpass"),
+    )
     with pytest.raises(RuntimeError, match="(?i)fail"):
         rel._wait_ci("b", timeout=60)
 
@@ -357,7 +378,11 @@ def test_wait_ci_raises_on_timeout(monkeypatch) -> None:
     # monotonic counter: first poll at t=0, next at t=10000 (> timeout).
     ticks = iter([0.0, 10_000.0])
     monkeypatch.setattr(rel.time, "monotonic", lambda: next(ticks))
-    monkeypatch.setattr(rel, "gh", lambda *a: "build\tpending")
+    monkeypatch.setattr(
+        rel.subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted("build\tpending"),
+    )
     with pytest.raises(RuntimeError, match="(?i)timeout|pending"):
         rel._wait_ci("b", timeout=60)
 
