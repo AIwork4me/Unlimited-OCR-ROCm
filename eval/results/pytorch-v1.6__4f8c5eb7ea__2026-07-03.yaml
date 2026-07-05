@@ -41,7 +41,10 @@ metrics:
   table_teds_s: 0.9283311905632723
   reading_order_edit: 0.14549166434491456
   page_count: 1650
-  looping_pages_detected: 3
+  looping_pages_detected: 5
+  looping_pages_detected_method: 'canonical compression detector (zlib ratio<0.05,
+    min 5000c); re-counted 2026-07-05 from 3 (ad-hoc method undercount). Same 5 pages
+    are deterministic across runs.'
 timing:
   backend: pytorch-direct-model.infer
   shards: 4
