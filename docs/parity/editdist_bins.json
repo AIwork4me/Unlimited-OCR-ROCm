@@ -1,0 +1,43 @@
+{
+  "n": 1557,
+  "mean": 0.0944310015424741,
+  "median": 0.023529411764705882,
+  "bins": [
+    {
+      "bin": [
+        0.0,
+        0.05
+      ],
+      "count": 957,
+      "pct": 61.5,
+      "contribution_to_mean": 0.006
+    },
+    {
+      "bin": [
+        0.05,
+        0.1
+      ],
+      "count": 158,
+      "pct": 10.1,
+      "contribution_to_mean": 0.007
+    },
+    {
+      "bin": [
+        0.1,
+        0.5
+      ],
+      "count": 386,
+      "pct": 24.8,
+      "contribution_to_mean": 0.0556
+    },
+    {
+      "bin": [
+        0.5,
+        1.01
+      ],
+      "count": 56,
+      "pct": 3.6,
+      "contribution_to_mean": 0.0259
+    }
+  ]
+}
