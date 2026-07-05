@@ -64,8 +64,9 @@ Bin distribution over 1,557 pages: `==0` 419 · `(0,0.05)` 538 · `[0.05,0.1)` 1
 - Total match rows: 11,517 across 1,557 pages.
 - Rows with `pred_cat==''` and empty `norm_pred` (unmatched GT): **485 (4.2%)**
   across **87 pages (5.6%)**, covering **62,240 / 2,295,589 GT chars (2.7%)**.
-- Rows whose `pred` contains non-text markers (`[Non-Text]`, `<td>`,
-  `colspan`, …): **207 (1.8%)** across **151 pages**.
+- Rows where any of `gt`/`pred`/`norm_gt`/`norm_pred` contains non-text
+  markers (`[Non-Text]`, `<td`, ` colspan`, `rowspan`, …): **66 (0.57%)**
+  across **32 pages**.
 - Among the 11,032 properly matched rows (both cats non-empty): **mean edit
   0.0873, median 0.0000** — i.e. the matched-pair distribution is healthy; the
   gap lives in the tail + unmatched rows.
@@ -82,7 +83,7 @@ Bin distribution over 1,557 pages: `==0` 419 · `(0,0.05)` 538 · `[0.05,0.1)` 1
 The evidence: (1) among properly matched pairs the median edit is 0.0 and the
 mean is only 0.087 — the scorer is parsing and matching our predictions
 correctly in the vast majority of cases; (2) the pathologies that do exist
-(unmatched GT on 87 pages, `[Non-Text]`/table leak on 151 pages) are
+(unmatched GT on 87 pages, `[Non-Text]`/table leak on 32 pages, 66 rows / 0.57% of total) are
 **symptoms of bad model output**, not of the scorer mis-reading good output —
 the `.md` files genuinely contain looping hallucinations (`yanbaopptmerge`),
 `[Non-Text]` spam (`newspaper`), missing files (`jiaocai`), and over-segmented
