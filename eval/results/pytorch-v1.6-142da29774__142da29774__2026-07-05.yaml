@@ -1,0 +1,89 @@
+schema: unlimited-ocr-rocm/eval-manifest/v1
+backend: pytorch
+timestamp: '2026-07-05T12:23:30+00:00'
+started_at: '2026-07-05T11:58:24+00:00'
+ended_at: '2026-07-05T12:23:30+00:00'
+run_by: aiwork4me
+git:
+  commit: 142da29774a52b91cfecee82f986735eb802cfea
+  short: 142da29774
+  dirty: false
+  branch: main
+  tag: null
+model:
+  id: baidu/Unlimited-OCR
+  weights_revision: 84757cb0
+  dtype: bfloat16
+  image_mode: gundam
+  no_repeat_ngram_size: 35
+  ngram_window: 128
+  max_length: 32768
+dataset:
+  version: v1.6
+env:
+  python: 3.12.3
+  platform: Linux-6.8.0-79-generic-x86_64-with-glibc2.39
+  host: u-20-8d823edc
+  torch: 2.5.1+rocm6.2
+  hip: 6.2.41133-dd7f95766
+  gpus:
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+hardware_fingerprint: AMDx4
+metrics:
+  overall: 91.97171139881544
+  text_edit_dist: 0.0938606221753525
+  formula_cdm: 0.9572245449538669
+  table_teds: 0.8957874191859493
+  table_teds_s: 0.9283311905632723
+  reading_order_edit: 0.14491684234152113
+  page_count: 1653
+  looping_pages_detected: 5
+timing:
+  backend: pytorch-direct
+  tok_per_sec: null
+predictions_ref: release-asset://eval/pytorch-v1.6-142da29774-20260705
+gate:
+  verdict: PASS
+  checks:
+  - name: overall
+    curr: 91.97171139881544
+    prev: 91.95221414747834
+    delta: 0.019497251337099897
+    passed: true
+  - name: text_edit_dist
+    curr: 0.0938606221753525
+    prev: 0.0944310015424741
+    delta: 0.0005703793671215929
+    passed: true
+  - name: formula_cdm
+    curr: 0.9572245449538669
+    prev: 0.9572245449538669
+    delta: 0.0
+    passed: true
+  - name: table_teds
+    curr: 0.8957874191859493
+    prev: 0.8957728810129572
+    delta: 1.4538172992129006e-05
+    passed: true
+  - name: table_teds_s
+    curr: 0.9283311905632723
+    prev: 0.9283311905632723
+    delta: 0.0
+    passed: true
+  - name: reading_order_edit
+    curr: 0.14491684234152113
+    prev: 0.14549166434491456
+    delta: 0.000574822003393427
+    passed: true
+  - name: looping_pages_detected
+    curr: 5.0
+    prev: 5.0
+    delta: 0.0
+    passed: true
+  speed: null
+  override: null
+  authoritative: true
+compared_against: 4f8c5eb7ea44ad0fb92e87dc7888ac47516e27fe
