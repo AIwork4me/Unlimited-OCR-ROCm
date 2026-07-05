@@ -397,3 +397,64 @@ def test_publish_release_calls_wait_ci_between_create_and_merge(monkeypatch) -> 
     assert create_idx < merge_idx
     # _wait_ci was invoked exactly once (between create and merge).
     assert len(wait_calls) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Fix D: release() re-reads REPO at call time — no test-isolation leak
+# --------------------------------------------------------------------------- #
+def test_release_pred_dir_re_reads_repo_respecting_monkeypatch(tmp_path: Path, monkeypatch) -> None:
+    """release() must derive pred_dir from the CURRENT rel.REPO, not a module-level
+    PREDICTIONS_ROOT captured at import.
+
+    Regression: a module-level PREDICTIONS_ROOT bound to the real repo at import
+    leaked test-fixture predictions (``"x"*30000``) into the real predictions/
+    dir, inflating a real eval's looping count. Monkeypatching rel.REPO must
+    redirect ALL prediction writes (incl. the smoke zip's source dir) to tmp_path.
+    """
+    real_repo = rel.REPO
+    real_predictions = real_repo / "predictions"
+    # Snapshot existing files in the real predictions dir so we can assert no leak.
+    before = {p.name for p in real_predictions.glob("*.md")} if real_predictions.is_dir() else set()
+
+    monkeypatch.setattr(rel, "REPO", tmp_path)
+    captured: dict = {}
+
+    def _eval(*, omnidocbench_dir, pred_dir, launcher, limit=0, extra_args=None):
+        captured["pred_dir"] = pred_dir
+        p = Path(pred_dir)
+        p.mkdir(parents=True, exist_ok=True)
+        for i in range(2):
+            (p / f"page{i}.md").write_text("x" * 30_000)
+
+    monkeypatch.setattr(rel, "run_eval", _eval)
+    monkeypatch.setattr(
+        rel,
+        "score_predictions",
+        lambda **kw: {
+            "overall": 91.95,
+            "text_edit_dist": 0.094,
+            "formula_cdm": 0.957,
+            "table_teds": 0.896,
+            "table_teds_s": 0.928,
+            "reading_order_edit": 0.145,
+        },
+    )
+    monkeypatch.setattr(rel, "publish_release", lambda **kw: "https://x")
+    # No fake_results fixture: RESULTS_DIR still points at the real repo, so a
+    # manifest file WOULD be written to the real results dir unless we redirect.
+    results_tmp = tmp_path / "eval" / "results"
+    results_tmp.mkdir(parents=True)
+    monkeypatch.setattr(rel, "RESULTS_DIR", results_tmp)
+
+    rel.release(**_release_kwargs(smoke=True))
+
+    # 1. pred_dir the eval stub received must live UNDER tmp_path (the monkeypatched REPO).
+    assert captured["pred_dir"].startswith(str(tmp_path)), (
+        f"pred_dir {captured['pred_dir']!r} not under tmp_path {tmp_path!r} — "
+        "REPO not re-read at call time (test-isolation leak)"
+    )
+    assert (tmp_path / "predictions").is_dir()
+    # 2. The real predictions dir must be untouched (no test-fixture leak).
+    after = {p.name for p in real_predictions.glob("*.md")} if real_predictions.is_dir() else set()
+    leaked = after - before
+    assert not leaked, f"test fixtures leaked into real predictions dir: {leaked}"

@@ -36,7 +36,10 @@ logger = get_logger(__name__)
 
 REPO = Path(__file__).resolve().parents[2]
 RESULTS_DIR = REPO / "eval" / "results"
-PREDICTIONS_ROOT = REPO / "predictions"
+# NOTE: no module-level PREDICTIONS_ROOT — release() re-derives it from the
+# CURRENT REPO attr at call time so tests monkeypatching rel.REPO redirect
+# prediction writes to the tmp dir (a module-level binding would capture the
+# real repo at import time and leak test fixtures into the real predictions/).
 
 # Looping-page heuristics (spec §7): runaway repetition is long AND highly
 # compressible. Real §2 loops (8K–80K of one phrase) compress to <0.05; dense
@@ -263,7 +266,7 @@ def release(
     if publish_fn is None:
         publish_fn = publish_release
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    pred_dir = str(PREDICTIONS_ROOT / f"{backend}-{dataset_version}-{_today_compact()}")
+    pred_dir = str(Path(REPO) / "predictions" / f"{backend}-{dataset_version}-{_today_compact()}")
     eval_fn(omnidocbench_dir=omnidocbench_dir, pred_dir=pred_dir, launcher=launcher, limit=limit)
 
     metrics = score_fn(
@@ -332,7 +335,7 @@ def release(
         logger.info("SMOKE: manifest written to %s; NOT tagging/releasing.", manifest_path)
         return gate_res
 
-    predictions_zip = PREDICTIONS_ROOT / f"{version}.zip"
+    predictions_zip = Path(REPO) / "predictions" / f"{version}.zip"
     with zipfile.ZipFile(predictions_zip, "w", zipfile.ZIP_DEFLATED) as z:
         for md in sorted(Path(pred_dir).glob("*.md")):
             z.write(md, md.name)
