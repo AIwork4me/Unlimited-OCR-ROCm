@@ -140,7 +140,13 @@ def score_predictions(
         pred_dir=pred_dir,
         out_path=str(Path(omnidocbench_repo) / "configs" / "end2end.yaml"),
     )
-    run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg, python=scorer_python)
+    completed = run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg, python=scorer_python)
+    # Surface scorer crashes instead of silently emitting zero/None metrics.
+    # A scorer crash (missing CJK toolchain, numpy-pin violation, OOM) otherwise
+    # makes parse_run_summary return zeros/None and the gate emits a confusing
+    # verdict with no signal that the scorer itself died.
+    if completed.returncode != 0:
+        raise RuntimeError(f"scorer failed (rc={completed.returncode}): {(completed.stderr or '').strip()[-2000:]}")
     save_name = f"{Path(pred_dir).name}_quick_match"
     return parse_run_summary(str(Path(omnidocbench_repo) / "result"), save_name)
 
@@ -176,7 +182,24 @@ def _wait_ci(branch: str, timeout: int = 900) -> None:
     GitHub hasn't registered any checks yet, so ``gh pr checks`` exits non-zero
     with ``no checks reported on the '<branch>' branch``. That pre-registration
     window (non-zero exit / empty stdout) must be treated as pending, not fatal.
+
+    Resume short-circuit: on a crash-and-resume where ``gh pr merge
+    --delete-branch`` already ran, the branch is gone (merged or deleted). Then
+    ``gh pr checks <branch>`` is empty forever and the poll would burn the full
+    *timeout*. We probe ``gh pr view <branch> --json state`` once first; a
+    ``MERGED`` state (or non-zero exit / branch-not-found) means the PR is
+    already terminal and we return immediately without polling.
     """
+    # One tolerant merged/gone probe: MERGED → done; non-zero (branch gone /
+    # no PR) → also treat as terminal to avoid burning the timeout on a resume.
+    probe = subprocess.run(  # noqa: S603
+        ["gh", "pr", "view", branch, "-R", GH_REPO, "--json", "state", "-q", ".state"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode != 0 or (probe.stdout or "").strip().upper() == "MERGED":
+        return
     deadline = time.monotonic() + timeout
     while True:
         r = subprocess.run(  # noqa: S603
@@ -276,6 +299,14 @@ def release(
         score_fn = score_predictions
     if publish_fn is None:
         publish_fn = publish_release
+    # Preflight (spec §6 step 1): a dirty tree means the manifest's git-SHA
+    # would not match the evaluated code. Runs BEFORE eval so a dirty tree
+    # doesn't waste a 4h eval.
+    if git("status", "--porcelain").strip():
+        raise RuntimeError(
+            "working tree not clean — commit or stash before eval-release "
+            "(the manifest's git-SHA must match the evaluated code)"
+        )
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     pred_dir = str(Path(REPO) / "predictions" / f"{backend}-{dataset_version}-{_today_compact()}")
     eval_fn(omnidocbench_dir=omnidocbench_dir, pred_dir=pred_dir, launcher=launcher, limit=limit)
@@ -312,7 +343,10 @@ def release(
         },
         dataset={"version": dataset_version},
         predictions_ref=predictions_ref,
-        timing={"backend": f"{backend}-direct", "tok_per_sec": None},  # filled by real eval timing
+        # tok_per_sec is intentionally deferred: real throughput capture lives in
+        # the speed workstream. The gate's speed Check is advisory (currently inert)
+        # — see gate.evaluate. Set to None until the speed harness lands.
+        timing={"backend": f"{backend}-direct", "tok_per_sec": None},
         backend=backend,
         started_at=started,
         run_by=run_by,
@@ -330,6 +364,10 @@ def release(
         "authoritative": not smoke,
     }
     manifest["compared_against"] = (prev or {}).get("git", {}).get("commit") if prev else None
+    # Flag when the selected baseline was itself an OVERRIDE so future readers see
+    # the comparison is from an already-overridden baseline (no gate-behavior change).
+    if prev is not None and (prev.get("gate") or {}).get("verdict") == "OVERRIDE":
+        manifest["baseline_was_override"] = True
 
     fname = manifest_filename(version=version)
     if smoke:
