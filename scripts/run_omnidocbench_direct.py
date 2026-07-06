@@ -88,21 +88,15 @@ def main() -> None:
     )
     tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     model = AutoModel.from_pretrained(args.model, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().to(dev)
-    # WS-D D1: per-page runaway guard. Bounds the ~5 looping/degenerate pages
-    # (8K–32K-token runaway) WITHOUT a global ngram=5 change (which crashed Overall
-    # to 64.56 — see repetition_fix.py WARNING). We apply ONLY the targeted
-    # RunawayStoppingCriteria via an idempotent monkey-patch on model.generate
-    # (model.infer calls self.generate internally); repetition_penalty=1.0 is a no-op
-    # so normal-page generation is byte-identical to the unpatched path.
-    # no_repeat_ngram_size=35 / ngram_window=128 (passed to model.infer below) are
-    # intentionally UNCHANGED.
-    from rocm_ocr.repetition_fix import apply_repetition_fix
-
-    apply_repetition_fix(
-        model,
-        repetition_penalty=1.0,  # no-op: do NOT globally alter normal generation
-        stop_runaway=True,
-    )
+    # WS-D D1 REVERTED (2026-07-06): the RunawayStoppingCriteria (distinct-ratio
+    # truncation) REGRESSED the full eval — text EditDist 0.094 -> 0.154. The
+    # distinct-ratio check (<0.25 over the last 256 generated tokens) fires on legit
+    # long/dense pages (146 pages: exams/books/papers/newspapers truncated to 10-40%
+    # of correct length), not just the ~5 looping pages it bounds. The signal cannot
+    # safely distinguish runaway from this model's repetitive-but-correct output.
+    # The criteria + tests remain in src/rocm_ocr/repetition_fix.py (DISABLED) for
+    # reference. Eval uses the original generation (ngram=35/window=128), Overall 91.97.
+    # See docs/parity/attribution-2026-07-05.md for the full diagnosis.
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
 
     tmp = "/tmp/odb_infer"

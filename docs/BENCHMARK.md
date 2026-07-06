@@ -2,20 +2,19 @@
 
 > Full benchmark results on real AMD hardware. Same GPU available on [AMD Radeon Cloud](https://radeon.anruicloud.com/) — you can reproduce every number below.
 
-## Hardware
+## Hardware (working path)
 
 | Item | Detail |
 |------|--------|
-| GPU | AMD Radeon PRO W7900 |
-| VRAM Total | 48 GB |
-| ROCm / HIP | 7.2.53211 |
-| PyTorch | 2.12.1+rocm7.2 |
-| Model | baidu/Unlimited-OCR |
-| Backend | SGLang (Triton attention) |
+| GPU | 4× AMD gfx1100 (Radeon PRO W7900-class, RDNA3), 48 GB each |
+| ROCm / HIP | 7.2.1 driver / HIP 6.2 (`torch 2.5.1+rocm6.2`) |
+| PyTorch | 2.5.1+rocm6.2 |
+| transformers | 4.57.1 |
+| Model | baidu/Unlimited-OCR (BF16, weights rev `84757cb0`) |
+| Backend | **PyTorch-direct (transformers)** — the only working backend on this host |
+| OmniDocBench v1.6 Overall | **91.97** (gundam, ~4 s/page, BF16) |
 
-> **Reproduce this:** The identical hardware is available on [AMD Radeon Cloud](https://radeon.anruicloud.com/). Register, run the benchmark scripts, and see the same results.
-
-> **⚠️ SGLang-on-ROCm status (2026-07-03):** SGLang serving is **not yet working** for Unlimited-OCR on this ROCm host (consumer RDNA3 / gfx1100). The throughput numbers above are from the project's earlier/reference setup. The **PyTorch (transformers direct) path is the working, independently-measured backend** on AMD ROCm (OmniDocBench v1.6 Overall **91.95**, ~4 s/page gundam, BF16, 4×gfx1100). SGLang-on-consumer-Radeon enablement is a Phase 2 goal — currently blocked on a ROCm driver/torch version mismatch (host 7.2.1 + torch 2.5.1 vs the SGLang/vLLM ROCm stack needing torch 2.11/rocm7.x). See [ROADMAP](../ROADMAP.md) + [PROGRESS_2026-07-03.md](PROGRESS_2026-07-03.md).
+> **⚠️ SGLang on consumer gfx1100: BLOCKED (2026-07-06).** SGLang core imports on `torch 2.5.1+rocm6.2` (the `[all_hip]`/`torchao` blocker is sidesteppable) and the server boots (weights + KV load, `/health` 200) — but **inference page-faults on the fused-MoE triton kernel on RDNA3** (no gfx11-viable MoE backend in this stack: flashinfer/aiter/cutlass/marlin/deep_gemm all unavailable). The throughput tables below are from an earlier/reference setup and are **not reproducible on this host today**. Re-enablement needs a gfx1100 MoE-kernel fix, a real-`aiter` backend, or a datacenter-ROCm/NVIDIA host. Full diagnosis: [upstream/sglang-rocm-enablement.md](upstream/sglang-rocm-enablement.md).
 
 ## Document-Type Throughput
 

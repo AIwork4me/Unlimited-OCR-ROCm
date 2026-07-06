@@ -1,5 +1,15 @@
 """Text-repetition fix for Unlimited-OCR (issue #55) — params + runaway detector.
 
+⚠️ D1 FULL-EVAL REGRESSION (2026-07-06): the RunawayStoppingCriteria below WAS
+wired into the eval path (WS-D D1) and REGRESSED the full OmniDocBench v1.6 eval —
+text EditDist 0.094 -> 0.154 — because the distinct-ratio check (<0.25 over the
+last 256 GENERATED tokens) fires on legit long/dense pages (146 pages: exams /
+books / papers / newspapers truncated to 10-40% of correct length), not just the
+~5 true looping pages it bounds. The mechanism cannot safely distinguish runaway
+from this model's repetitive-but-correct output. IT IS NO LONGER WIRED INTO THE
+EVAL PATH (reverted 2026-07-06; see scripts/run_omnidocbench_direct.py +
+docs/parity/attribution-2026-07-05.md). Kept as a documented failed experiment.
+
 ⚠️ FULL-EVAL FINDING (2026-07-03): the ngram_size=5 + repetition_penalty params
 below, applied GLOBALLY, DEGRADE accuracy catastrophically (Overall 91.95 → 64.56) —
 ngram=5 bans legitimate 5-grams (<|det|> tags, bboxes, table headers, common phrases)
