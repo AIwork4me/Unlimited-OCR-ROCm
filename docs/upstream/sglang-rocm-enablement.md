@@ -218,3 +218,110 @@ WS-B B2 (smoke serve + single-page PyTorch-vs-SGLang diff) can proceed against
 this venv without a driver upgrade. If B2 surfaces a *runtime* dependency that
 truly needs a newer ROCm stack, that becomes the Stage-2 (driver upgrade)
 trigger — separate, sudo task.
+
+## B2 serve result
+
+**Outcome: STAGE-1 SERVE BLOCK.** The SGLang server loads the model weights
+and starts the HTTP listener ("The server is fired up and ready to roll!") but
+**cannot complete a single inference forward** — the fused-MoE triton kernel
+triggers a GPU memory-access fault on first invocation. No diff vs the PyTorch
+prediction could be produced. The block is a *runtime compute-kernel* failure,
+not an import/config failure.
+
+### What was fixed to get this far (venv-only, no driver change)
+1. **`aiter` eager-import crash (B1-flagged, confirmed).** `deepseek_ocr.py`
+   pulls in `sglang.srt.layers.quantization`, whose quark/mxfp4/fp8/unquant
+   scheme files eagerly `from aiter... import ...` under `if is_hip():`. There
+   are ~40 such sites. None are exercised on an unquantized BF16 forward. Fix:
+   installed a stub `aiter` package at
+   `/workspace/sglang-serve-venv/lib/python3.12/site-packages/aiter/__init__.py`
+   that uses a `sys.meta_path` finder to synthesize any `aiter.*` submodule and
+   return a `_StubCallable` for every attribute. Imports resolve; the stub
+   raises `NotImplementedError` *if actually called* (so BF16 stays correct and
+   any quantized path fails loudly instead of silently). `deepseek_ocr` and all
+   quantization modules import cleanly after this.
+2. **Missing model-file deps.** The `trust-remote-code` modeling files require
+   `addict` and `easydict` (pure-python), which were absent from the venv.
+   Installed both (`pip install --no-deps addict easydict`).
+
+### Launch-script deviations from the issue-#14 reference recipe
+The reference flags (`fa3`, cuda-graph-on, warmup-on) are NVIDIA-shaped. Three
+hardware-driven deviations (all documented inline in `scripts/sglang_serve.sh`):
+- `--attention-backend triton` instead of `fa3`. `fa3` asserts `SM in [80,90]`
+  (NVIDIA-only); this host is AMD RDNA3 (gfx11, `arch=(11,0)`, ROCm 6.2).
+  `flashinfer` is not in the venv; the `aiter` attention backend needs the real
+  aiter package. `triton` (3.1.0, ships with torch 2.5.1+rocm6.2) is the only
+  ROCm-compatible backend available here.
+- `--disable-cuda-graph`. With cuda-graph capture enabled the server hung at
+  "Capture cuda graph bs [1,2,4,8,12,16,24,32]" — GPU use 0%, no log progress
+  for minutes (graph-capture deadlock on gfx11). Disabling moved the failure
+  to the genuine compute path (more informative).
+- `--skip-server-warmup`. With warmup on, the server crashed (SIGABRT, exit -6)
+  during the warmup forward. Skipping lets the HTTP listener reach "ready" so
+  the failure point is isolated to a real request.
+
+### The actual block (precise characterization)
+Server boot sequence on this host:
+1. Config + tokenizer + remote-code load — OK.
+2. Weight load — OK. `type=UnlimitedOCRForCausalLM`, 6.30 GB, avail mem 41.46 GB.
+3. KV cache alloc — OK (sliding-window pool, 31.89 GB).
+4. HTTP listener — OK ("fired up and ready to roll", `GET /model_info` -> 200).
+5. **First MoE forward — FAULTS.** Whether triggered by warmup (SIGABRT) or by
+   the first real request (scheduler hangs, then `Health check failed. Server
+   couldn't get a response from detokenizer for last 20 seconds`), the failure
+   is the same:
+
+   ```
+   Memory access fault by GPU node-2 (Agent handle: 0x4a269150) on address
+   0x7efe3fa50000. Reason: Page not present or supervisor privilege.
+   Fatal Python error: Aborted
+   ```
+   Crash stack (warmup path) bottoms out in triton AMD-backend JIT compiling
+   the fused-MoE kernel:
+   ```
+   triton/backends/amd/compiler.py:261 in hash
+   triton/compiler/compiler.py:240 in compile
+   ...fused_moe_triton/fused_moe_triton_kernels.py:1005 in act_and_mul_triton
+   ...fused_moe_triton/fused_moe.py:527 in fused_experts_impl
+   ```
+   The model is a DeepseekV2-style MoE (`E=64, N=896`); the triton-compiled
+   fused-experts kernel produces a kernel that page-faults on gfx11.
+
+### Why it is a Stage-1 block (not a tuning issue)
+`MoeRunnerBackend` options are `AUTO, DEEP_GEMM, TRITON, TRITON_KERNELS,
+FLASHINFER_*, CUTLASS, MARLIN`. On this venv every option except `TRITON`
+requires an unavailable kernel library (flashinfer / cutlass / marlin /
+deep_gemm — all NVIDIA-shaped or not installed). `AUTO` resolves to `TRITON`.
+So the fused-MoE triton kernel is the **only** MoE path available, and it
+faults on gfx11. The attention backend is a separate axis and is already on
+the working `triton` backend; the fault is in the MoE runner, not attention.
+
+### Single-page diff vs PyTorch
+**Not produced.** No request could complete (scheduler hangs on first MoE
+forward). The chosen page was
+`/workspace/OmniDocBench_data/images/PPT_1001115_eng_page_003.png` vs
+`/workspace/eval_predictions_v16/PPT_1001115_eng_page_003.md` (356 chars) —
+both verified present, but the diff script
+(`scripts/analysis/sglang_singlepage_diff.py`) was never able to run against a
+serving endpoint.
+
+### Routing recommendation for B3
+This is a **runtime kernel** block, not an import/env block — Stage 1 (no
+driver upgrade) cannot clear it with venv-only changes. Candidate Stage-2
+routes:
+- Driver/ROCm-stack upgrade (the host is on ROCm 6.2 / gfx11; a newer ROCm
+  may ship a fixed triton/MoE codegen for RDNA3).
+- Install real `aiter` (ROCm quantization/MoE kernels) with gfx11 support and
+  switch `--moe-runner-backend` / `--attention-backend aiter` — aiter's fused
+  MoE may avoid the triton-compiler fault. (This also un-stubs the aiter path.)
+- Install `flashinfer` for ROCm and use its MoE runner.
+- Upstream a gfx11 fix to SGLang's `fused_moe_triton` tile/heuristic config
+  (the `device_name=AMD_Radeon_Graphics.json` config file is missing — the
+  warning suggests the default heuristic is wrong for gfx11).
+
+### Reproducibility
+- Launch: `bash scripts/sglang_serve.sh` (best-attempt config; see deviations
+  above). Server reaches "ready" then blocks on first MoE forward.
+- Diff (once server serves): `python scripts/analysis/sglang_singlepage_diff.py
+  <page_img> <pytorch_pred.md>` — exit 0 = identical, 2 = different.
+- Kill any hung server: `pkill -9 -f 'python -m sglang.launch_server'`.
