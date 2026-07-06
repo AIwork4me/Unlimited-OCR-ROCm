@@ -50,4 +50,8 @@ def apply_native_moe_on_hip() -> None:
 
 # Auto-apply on import when the gate is set (the serve wrapper imports us).
 if os.environ.get("SGLANG_MOE_NATIVE_ON_HIP", "0") == "1":
-    apply_native_moe_on_hip()
+    try:
+        apply_native_moe_on_hip()
+    except ImportError:
+        # sglang not installed in this environment; override stays inactive.
+        pass
