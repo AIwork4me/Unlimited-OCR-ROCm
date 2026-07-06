@@ -4,7 +4,6 @@ Per-page guard that bounds looping/degenerate generation WITHOUT a global
 ngram=5 change. See .superpowers/sdd/task-D1-brief.md.
 """
 
-import zlib
 from unittest.mock import MagicMock
 
 import torch
@@ -12,7 +11,6 @@ import torch
 from rocm_ocr.repetition_fix import (
     RunawayStoppingCriteria,
     _RepetitionConfig,
-    apply_repetition_fix,
     is_looping_output,
 )
 

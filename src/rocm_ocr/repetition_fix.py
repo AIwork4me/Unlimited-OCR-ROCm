@@ -190,11 +190,11 @@ class _RepetitionConfig:
         self.model = model
         self.base_penalty = base_penalty
 
-    def __call__(self, *, penalty: float) -> "_RepetitionConfig._PenaltyContext":
+    def __call__(self, *, penalty: float) -> _RepetitionConfig._PenaltyContext:
         return _RepetitionConfig._PenaltyContext(self, penalty)
 
     class _PenaltyContext:
-        def __init__(self, parent: "_RepetitionConfig", penalty: float) -> None:
+        def __init__(self, parent: _RepetitionConfig, penalty: float) -> None:
             self.parent = parent
             self.penalty = penalty
 
