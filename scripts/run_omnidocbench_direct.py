@@ -60,6 +60,11 @@ def main() -> None:
             "D1 subset eval (looping + normal safety gate). Empty = all pages."
         ),
     )
+    ap.add_argument(
+        "--no-retry",
+        action="store_true",
+        help="disable two-pass retry: single-pass ngram=35 only (control run)",
+    )
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
@@ -89,13 +94,14 @@ def main() -> None:
     model = AutoModel.from_pretrained(args.model, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().to(dev)
     # Two-pass targeted retry: default ngram=35 for all pages; issue #55
     # settings (ngram=5, window=256, repetition_penalty=1.05) ONLY for pages
-    # detected as looping via zlib compression ratio. Hard cap applies to all
-    # pages (8192 generated tokens). See spec: 2026-07-06-targeted-looping-fix.
-    from rocm_ocr.repetition_fix import apply_repetition_fix, is_looping_output
-    repetition_config = apply_repetition_fix(
-        model,
-        repetition_penalty=1.0,  # no-op for default path
-    )
+    # detected as looping via zlib compression ratio.  --no-retry disables
+    # this entirely for control/baseline runs. See spec: 2026-07-06-targeted-looping-fix.
+    if not args.no_retry:
+        from rocm_ocr.repetition_fix import apply_repetition_fix, is_looping_output
+        repetition_config = apply_repetition_fix(
+            model,
+            repetition_penalty=1.0,  # no-op for default path
+        )
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
 
     tmp = "/tmp/odb_infer"
@@ -129,41 +135,46 @@ def main() -> None:
                 save_results=True,
             )
             result_path = os.path.join(tmp, "result.md")
-            with open(result_path, encoding="utf-8") as f:
-                text = f.read()
-            if is_looping_output(text):
-                logger = __import__("logging").getLogger(__name__)
-                logger.info("retry %s", base)
-                try:
-                    with repetition_config(penalty=1.05):
-                        model.infer(
-                            tok,
-                            prompt=(
-                                "<image>document parsing."
-                                if args.prompt_mode == "native"
-                                else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
-                            ),
-                            image_file=img,
-                            output_path=tmp,
-                            base_size=1024,
-                            image_size=img_size,
-                            crop_mode=crop,
-                            max_length=args.max_length,
-                            no_repeat_ngram_size=5,
-                            ngram_window=256,
-                            save_results=True,
-                        )
-                    with open(result_path, encoding="utf-8") as f:
-                        text = f.read()
-                    retried += 1
-                except Exception as e:
-                    msg = f"{type(e).__name__}: {e}"
-                    print(f"[shard {args.shard}] RETRY FAILED {base}: {msg}", flush=True)
-                    with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
-                        f.write(f"{base}\tretry_failed\t{msg}\n")
-                    # keep first-pass text
-            Path(out_md).write_text(text, encoding="utf-8")
-            done += 1
+            if not args.no_retry:
+                with open(result_path, encoding="utf-8") as f:
+                    text = f.read()
+                if is_looping_output(text):
+                    logger = __import__("logging").getLogger(__name__)
+                    logger.info("retry %s", base)
+                    try:
+                        with repetition_config(penalty=1.05):
+                            model.infer(
+                                tok,
+                                prompt=(
+                                    "<image>document parsing."
+                                    if args.prompt_mode == "native"
+                                    else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
+                                ),
+                                image_file=img,
+                                output_path=tmp,
+                                base_size=1024,
+                                image_size=img_size,
+                                crop_mode=crop,
+                                max_length=args.max_length,
+                                no_repeat_ngram_size=5,
+                                ngram_window=256,
+                                save_results=True,
+                            )
+                        with open(result_path, encoding="utf-8") as f:
+                            text = f.read()
+                        retried += 1
+                    except Exception as e:
+                        msg = f"{type(e).__name__}: {e}"
+                        print(f"[shard {args.shard}] RETRY FAILED {base}: {msg}", flush=True)
+                        with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
+                            f.write(f"{base}\tretry_failed\t{msg}\n")
+                        # keep first-pass text
+                Path(out_md).write_text(text, encoding="utf-8")
+            else:
+                import shutil
+                src = os.path.join(tmp, "result.md")
+                if os.path.exists(src):
+                    shutil.move(src, out_md)
         except Exception as e:
             msg = f"{type(e).__name__}: {e}"
             print(f"[shard {args.shard}] FAILED {base}: {msg}", flush=True)
