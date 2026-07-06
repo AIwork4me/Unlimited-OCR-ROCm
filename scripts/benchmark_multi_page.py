@@ -26,11 +26,13 @@ def get_vram_mb() -> int:
     try:
         result = subprocess.run(
             ["rocm-smi", "--showmeminfo", "vram", "--json"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             data = json.loads(result.stdout)
-            for card_id, info in data.items():
+            for _card_id, info in data.items():
                 return int(info.get("VRAM Total Used Memory (B)", 0)) // (1024 * 1024)
     except Exception:
         pass
@@ -55,9 +57,9 @@ def main():
     results = []
 
     for num_pages in page_sizes:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Benchmarking {num_pages} pages...")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         # Start server
         process = start_server(
@@ -76,13 +78,15 @@ def main():
 
             # Run OCR one by one for accurate per-page measurement
             from rocm_ocr.infer import infer_one
+
             total_tokens = 0
             total_time = 0.0
 
             for i, img in enumerate(images):
-                out_file = os.path.join(OUTPUT_DIR, f"page_{i+1:04d}.md")
+                out_file = os.path.join(OUTPUT_DIR, f"page_{i + 1:04d}.md")
                 result = infer_one(
-                    img, out_file,
+                    img,
+                    out_file,
                     prompt="document parsing.",
                     image_mode="gundam",
                     ngram_window=128,
@@ -95,16 +99,20 @@ def main():
             vram_peak = get_vram_mb()
             tok_per_sec = total_tokens / total_time if total_time > 0 else 0
 
-            print(f"  {num_pages}p: {total_tokens} tokens, {total_time:.1f}s decode, "
-                  f"{tok_per_sec:.0f} tok/s, VRAM: {vram_peak} MB")
+            print(
+                f"  {num_pages}p: {total_tokens} tokens, {total_time:.1f}s decode, "
+                f"{tok_per_sec:.0f} tok/s, VRAM: {vram_peak} MB"
+            )
 
-            results.append({
-                "pages": num_pages,
-                "total_tokens": total_tokens,
-                "decode_time_s": round(total_time, 1),
-                "tok_per_s": round(tok_per_sec, 0),
-                "vram_mb": vram_peak,
-            })
+            results.append(
+                {
+                    "pages": num_pages,
+                    "total_tokens": total_tokens,
+                    "decode_time_s": round(total_time, 1),
+                    "tok_per_s": round(tok_per_sec, 0),
+                    "vram_mb": vram_peak,
+                }
+            )
         finally:
             stop_server(process)
 

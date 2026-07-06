@@ -65,13 +65,15 @@ def run_ocr(file, dpi: int, image_mode: str) -> tuple[str, str]:
     # Build request
     payload = {
         "model": "Unlimited-OCR",
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": DEFAULT_PROMPT},
-                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_data}"}},
-            ]
-        }],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": DEFAULT_PROMPT},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_data}"}},
+                ],
+            }
+        ],
         "temperature": 0,
         "skip_special_tokens": False,
         "stream": True,
@@ -93,7 +95,7 @@ def run_ocr(file, dpi: int, image_mode: str) -> tuple[str, str]:
         for line in resp.iter_lines(decode_unicode=True):
             if not line or not line.startswith("data:"):
                 continue
-            data = line[len("data:"):].strip()
+            data = line[len("data:") :].strip()
             if data == "[DONE]":
                 break
             try:
@@ -138,7 +140,10 @@ def build_demo():
                     file_types=[".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp"],
                 )
                 dpi_slider = gr.Slider(
-                    minimum=100, maximum=300, value=150, step=50,
+                    minimum=100,
+                    maximum=300,
+                    value=150,
+                    step=50,
                     label="DPI (150 recommended — same quality as 300, faster)",
                 )
                 mode_radio = gr.Radio(

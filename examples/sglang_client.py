@@ -69,12 +69,12 @@ def generate(
     token_count = 0
     first_token_time: float | None = None
 
-    f = open(output_file, "w", encoding="utf-8") if output_file else None
+    fh = open(output_file, "w", encoding="utf-8") if output_file else None  # noqa: SIM115
     try:
         for line in response.iter_lines(chunk_size=1, decode_unicode=True):
             if not line or not line.startswith("data: "):
                 continue
-            data = line[len("data: "):]
+            data = line[len("data: ") :]
             if data == "[DONE]":
                 break
             event = json.loads(data)
@@ -85,11 +85,11 @@ def generate(
                 token_count += 1
                 print(delta, end="", flush=True)
                 chunks.append(delta)
-                if f:
-                    f.write(delta)
+                if fh:
+                    fh.write(delta)
     finally:
-        if f:
-            f.close()
+        if fh:
+            fh.close()
 
     print()
     decode_time = (time.time() - first_token_time) if first_token_time and token_count > 1 else 0

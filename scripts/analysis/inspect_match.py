@@ -28,10 +28,11 @@ The 11 pages used in docs/parity/parsing_audit.md were chosen by
 `--from-per-page-edit`: 5 worst (edit>=0.99), 3 tail (0.1<=edit<0.5),
 3 good (edit<0.05).
 """
+
 from __future__ import annotations
+
 import argparse
 import json
-import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -85,8 +86,10 @@ def dump_page(img: str, by_img: dict[str, list[dict]], max_rows: int) -> None:
         gt = (r.get("norm_gt") or "")[:70]
         pred = (r.get("norm_pred") or "")[:70]
         hint = _classify_row(r)
-        print(f"  [{i}] edit={r['edit']:.3f} gt_cat={r.get('gt_category_type')!r} "
-              f"pred_cat={r.get('pred_category_type')!r}  ({hint})")
+        print(
+            f"  [{i}] edit={r['edit']:.3f} gt_cat={r.get('gt_category_type')!r} "
+            f"pred_cat={r.get('pred_category_type')!r}  ({hint})"
+        )
         print(f"       norm_gt  ={gt!r}")
         print(f"       norm_pred={pred!r}")
 
@@ -98,9 +101,10 @@ def live_parse(img: str) -> None:
     """
     try:
         import sys as _sys
+
         _sys.path.insert(0, "/workspace/OmniDocBench")
-        from src.core.preprocess.extract import md_tex_filter  # type: ignore
         from src.core.matching.match import match_gt2pred_simple  # type: ignore
+        from src.core.preprocess.extract import md_tex_filter  # type: ignore
     except Exception as e:  # pragma: no cover
         print(f"  [live] scorer import failed: {e}")
         return
@@ -124,8 +128,7 @@ def live_parse(img: str) -> None:
     print(f"  [live] GT text_blocks={len(gt_text)}  PRED text_all={len(pred_text)}")
     ml, _ = match_gt2pred_simple(gt_text, pred_text, "text_all", img)
     for m in ml[:6]:
-        print(f"    [live] edit={m['edit']:.3f} gt_cat={m['gt_category_type']!r} "
-              f"pred_cat={m['pred_category_type']!r}")
+        print(f"    [live] edit={m['edit']:.3f} gt_cat={m['gt_category_type']!r} pred_cat={m['pred_category_type']!r}")
         print(f"           gt={(m.get('norm_gt') or '')[:60]!r}")
         print(f"           pred={(m.get('norm_pred') or '')[:60]!r}")
 
@@ -133,11 +136,9 @@ def live_parse(img: str) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("images", nargs="*", help="image_name(s) to dump")
-    ap.add_argument("--live", action="store_true",
-                    help="also re-run md_tex_filter + match_gt2pred_simple")
+    ap.add_argument("--live", action="store_true", help="also re-run md_tex_filter + match_gt2pred_simple")
     ap.add_argument("--max-rows", type=int, default=6)
-    ap.add_argument("--from-per-page-edit", action="store_true",
-                    help="ignore `images`; pick 5 worst + 3 tail + 3 good")
+    ap.add_argument("--from-per-page-edit", action="store_true", help="ignore `images`; pick 5 worst + 3 tail + 3 good")
     args = ap.parse_args()
 
     by_img = load_result_by_img()

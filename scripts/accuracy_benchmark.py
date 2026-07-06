@@ -7,6 +7,7 @@ Compares each parameter variant against DPI=300/base reference using:
   - Truncation detection
   - Repetition detection (3-line repeats)
 """
+
 import json
 import os
 import sys
@@ -23,17 +24,22 @@ DEVICE = torch.device("cuda")
 gpu_name = torch.cuda.get_device_name(0)
 hip_ver = getattr(torch.version, "hip", "N/A")
 
+
 def vram_used():
     return torch.cuda.memory_allocated(0) / 1e9
+
 
 def sim_ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, a, b).ratio()
 
+
 def count_tokens(text: str) -> int:
     return len(text) // 3
 
+
 def is_truncated(text: str, max_len: int) -> bool:
     return len(text) > max_len * 2  # rough: if char count close to token limit
+
 
 def detect_repetition(text: str) -> bool:
     lines = [line_.strip() for line_ in text.split("\n") if line_.strip()]
@@ -42,15 +48,21 @@ def detect_repetition(text: str) -> bool:
             return True
     return False
 
+
 # ── Load model ──
 t0 = time.time()
 tokenizer = AutoTokenizer.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, local_files_only=True)
 model = AutoModel.from_pretrained(
-    "baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True,
-    torch_dtype=torch.bfloat16, local_files_only=True)
+    "baidu/Unlimited-OCR",
+    trust_remote_code=True,
+    use_safetensors=True,
+    torch_dtype=torch.bfloat16,
+    local_files_only=True,
+)
 model = model.eval().to(DEVICE)
 idle_vram = vram_used()
-print(f"GPU: {gpu_name}  HIP: {hip_ver}  Load: {time.time()-t0:.1f}s  IdleVRAM: {idle_vram:.1f}GB", file=sys.stderr)
+print(f"GPU: {gpu_name}  HIP: {hip_ver}  Load: {time.time() - t0:.1f}s  IdleVRAM: {idle_vram:.1f}GB", file=sys.stderr)
+
 
 def run_ocr(params, name):
     """Run OCR with given params, return {text, time_s, vram_peak, tokens, repetition, truncated}."""
@@ -78,9 +90,12 @@ def run_ocr(params, name):
         prompt="<image>document parsing.",
         image_file=page0,
         output_path=out_path,
-        base_size=1024, image_size=img_size, crop_mode=crop,
+        base_size=1024,
+        image_size=img_size,
+        crop_mode=crop,
         max_length=max_len,
-        no_repeat_ngram_size=35, ngram_window=ngram_w,
+        no_repeat_ngram_size=35,
+        ngram_window=ngram_w,
         save_results=True,
     )
     elapsed = time.time() - t0
@@ -97,17 +112,22 @@ def run_ocr(params, name):
     repeated = detect_repetition(text)
 
     result = {
-        "name": name, "params": params,
-        "time_s": round(elapsed, 1), "vram_peak_gb": round(peak, 1),
+        "name": name,
+        "params": params,
+        "time_s": round(elapsed, 1),
+        "vram_peak_gb": round(peak, 1),
         "vram_delta_gb": round(peak - vram_before, 2),
-        "tokens": tokens, "chars": len(text),
-        "truncated": truncated, "repetition": repeated,
+        "tokens": tokens,
+        "chars": len(text),
+        "truncated": truncated,
+        "repetition": repeated,
         "text": text,
     }
     print(
-        f"  {name}: {elapsed:.1f}s, {tokens} tok, VRAM {peak:.1f}GB, trunc={truncated}, rep={repeated}",
-        file=sys.stderr)
+        f"  {name}: {elapsed:.1f}s, {tokens} tok, VRAM {peak:.1f}GB, trunc={truncated}, rep={repeated}", file=sys.stderr
+    )
     return result
+
 
 # ============================================================
 # Step 1: Reference (highest quality)
@@ -164,8 +184,8 @@ for r in results:
     p = r["params"]
     tok_s = r["tokens"] / max(r["time_s"], 0.01)
     ps = (
-        f"dpi={p.get('dpi','?')} mode={p.get('mode','?')} "
-        f"maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
+        f"dpi={p.get('dpi', '?')} mode={p.get('mode', '?')} "
+        f"maxlen={p.get('max_length', '?')} ngram={p.get('ngram_window', '?')}"
     )
     print(
         f"{r['name']:<18} {r['time_s']:>5.1f}s {tok_s:>5.0f} {r['vram_peak_gb']:>5.1f}GB "

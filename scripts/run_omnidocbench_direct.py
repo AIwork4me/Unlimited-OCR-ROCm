@@ -9,8 +9,8 @@ predictions so it's resumable.
 Then score with the official OmniDocBench scorer (see scripts/eval_omnidocbench.py /
 the project's omnidocbench module): point the scorer config at --pred-dir.
 """
+
 import argparse
-import glob
 import os
 import shutil
 import time
@@ -52,13 +52,25 @@ def main() -> None:
         default=1,
         help="total shards (use 4 to spread across 4 GPUs; launch one process per GPU)",
     )
+    ap.add_argument(
+        "--pages",
+        default="",
+        help=(
+            "comma-separated list of page basenames (no extension, e.g. "
+            "'newspaper_abc_1,doc_57') to run ONLY those pages — used for the "
+            "D1 subset eval (looping + normal safety gate). Empty = all pages."
+        ),
+    )
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
     # All supported image extensions (png/jpg/jpeg/webp/bmp), not just .png.
-    from rocm_ocr.omnidocbench import iter_page_images, CANONICAL_OMNIDOCBENCH_PROMPT
+    from rocm_ocr.omnidocbench import CANONICAL_OMNIDOCBENCH_PROMPT, iter_page_images
 
     imgs = iter_page_images(args.omnidocbench_dir)
+    if args.pages:
+        wanted = {p.strip() for p in args.pages.split(",") if p.strip()}
+        imgs = [im for im in imgs if Path(im).stem in wanted]
     if args.limit:
         imgs = imgs[: args.limit]
     if args.num_shards > 1:
@@ -75,12 +87,21 @@ def main() -> None:
         flush=True,
     )
     tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
-    model = (
-        AutoModel.from_pretrained(
-            args.model, trust_remote_code=True, torch_dtype=torch.bfloat16
-        )
-        .eval()
-        .to(dev)
+    model = AutoModel.from_pretrained(args.model, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().to(dev)
+    # WS-D D1: per-page runaway guard. Bounds the ~5 looping/degenerate pages
+    # (8K–32K-token runaway) WITHOUT a global ngram=5 change (which crashed Overall
+    # to 64.56 — see repetition_fix.py WARNING). We apply ONLY the targeted
+    # RunawayStoppingCriteria via an idempotent monkey-patch on model.generate
+    # (model.infer calls self.generate internally); repetition_penalty=1.0 is a no-op
+    # so normal-page generation is byte-identical to the unpatched path.
+    # no_repeat_ngram_size=35 / ngram_window=128 (passed to model.infer below) are
+    # intentionally UNCHANGED.
+    from rocm_ocr.repetition_fix import apply_repetition_fix
+
+    apply_repetition_fix(
+        model,
+        repetition_penalty=1.0,  # no-op: do NOT globally alter normal generation
+        stop_runaway=True,
     )
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
 
@@ -98,7 +119,11 @@ def main() -> None:
         try:
             model.infer(
                 tok,
-                prompt=("<image>document parsing." if args.prompt_mode == "native" else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT),
+                prompt=(
+                    "<image>document parsing."
+                    if args.prompt_mode == "native"
+                    else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
+                ),
                 image_file=img,
                 output_path=tmp,
                 base_size=1024,
@@ -121,8 +146,7 @@ def main() -> None:
                 f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
     print(
-        f"done: {done} new inferences in {elapsed:.0f}s "
-        f"({done / max(elapsed, 1):.2f} img/s)",
+        f"done: {done} new inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s)",
         flush=True,
     )
 
