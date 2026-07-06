@@ -40,6 +40,7 @@ but not ``repetition_penalty``/``stopping_criteria``, so this module monkey-patc
 from __future__ import annotations
 
 import logging
+import zlib
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,35 @@ RUNAWAY_MAX_TOKENS = 8192  # hard cap: legit single-page output stays well under
 RUNAWAY_WINDOW = 256  # sliding window for the repetition check
 RUNAWAY_MIN_DISTINCT_RATIO = 0.25  # stop if <25% distinct tokens in the window (heavy loop)
 RUNAWAY_MIN_TOKENS = 512  # don't check before this (let legit content proceed)
+
+# Text-level looping detection — zlib compression ratio.
+# Pure repetition runaways (8K–80K of one phrase) compress to <0.05;
+# dense legit pages (newspapers, books, tables) compress >0.17.
+LOOPING_MIN_CHARS = 5000
+LOOPING_MAX_COMPRESS_RATIO = 0.05
+
+
+def is_looping_output(
+    text: str,
+    *,
+    min_chars: int = LOOPING_MIN_CHARS,
+    max_ratio: float = LOOPING_MAX_COMPRESS_RATIO,
+) -> bool:
+    """Return True if *text* appears to be runaway repetition.
+
+    Detects runaway looping (mode ① from issue #55) via zlib compression
+    ratio: long texts that compress extremely well consist largely of
+    repeated content.  Dense-but-legit pages compress poorly (>0.17) and
+    are correctly excluded.
+
+    This is the same signal used by :func:`release.detect_looping_pages`
+    but as a stateless pure function for use during per-page inference.
+    """
+    if len(text) <= min_chars:
+        return False
+    raw = len(text)
+    compressed = len(zlib.compress(text.encode("utf-8"), 9))
+    return (compressed / raw) < max_ratio
 
 
 class RunawayStoppingCriteria:

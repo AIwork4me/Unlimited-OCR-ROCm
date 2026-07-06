@@ -4,9 +4,11 @@ Per-page guard that bounds looping/degenerate generation WITHOUT a global
 ngram=5 change. See .superpowers/sdd/task-D1-brief.md.
 """
 
+import zlib
+
 import torch
 
-from rocm_ocr.repetition_fix import RunawayStoppingCriteria
+from rocm_ocr.repetition_fix import RunawayStoppingCriteria, is_looping_output
 
 
 def make_criteria():
@@ -76,3 +78,23 @@ def test_prompt_aware_runaway_in_generated_suffix_stops():
     runaway = torch.full((1, 64), 8, dtype=torch.long)  # gen=64, all token 8
     ids = torch.cat([prompt, runaway], dim=1)  # n=1564, gen=64, ratio 1/64
     assert c(ids, scores=None) is True
+
+
+def test_is_looping_positive():
+    """80x repeated phrase → zlib ratio ~0.01 → True."""
+    text = "畜牧兽医\n" * 2000
+    assert is_looping_output(text) is True
+
+
+def test_is_looping_negative_short():
+    """Short text (<5000 chars) never triggers, even if repetitive."""
+    text = "repeat\n" * 100
+    assert is_looping_output(text) is False
+
+
+def test_is_looping_negative_dense():
+    """Dense varied text → zlib ratio >0.17 → False."""
+    words = [f"token_{i:06d}" for i in range(10000)]
+    text = " ".join(words)
+    assert len(text) > 5000
+    assert is_looping_output(text) is False
