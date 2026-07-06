@@ -8,6 +8,7 @@ page, resumable, sharded, with the same two-pass looping retry as the PyTorch
 path (so the A/B is not confounded by decoding drift). Then score with the
 official OmniDocBench scorer as usual.
 """
+
 import argparse
 import base64
 import mimetypes
@@ -29,8 +30,13 @@ def _encode_image(path: str) -> tuple[str, str]:
         return base64.b64encode(f.read()).decode(), mime
 
 
-def infer_page_sglang(base_url: str, img_path: str, ngram: int = CONTRACT.no_repeat_ngram_size,
-                      window: int = CONTRACT.ngram_window, penalty: float = 1.0) -> str:
+def infer_page_sglang(
+    base_url: str,
+    img_path: str,
+    ngram: int = CONTRACT.no_repeat_ngram_size,
+    window: int = CONTRACT.ngram_window,
+    penalty: float = 1.0,
+) -> str:
     b64, mime = _encode_image(img_path)
     payload = build_sglang_request(CONTRACT, b64, mime, ngram, window, penalty)
     r = requests.post(f"{base_url}/v1/chat/completions", json=payload, timeout=3600)
@@ -50,7 +56,8 @@ def infer_with_retry(base_url: str, img_path: str) -> tuple[str, bool, str | Non
     if is_looping_output(text):
         try:
             text = infer_page_sglang(
-                base_url, img_path,
+                base_url,
+                img_path,
                 ngram=CONTRACT.retry_ngram_size,
                 window=CONTRACT.retry_ngram_window,
                 penalty=CONTRACT.retry_repetition_penalty,
@@ -102,7 +109,9 @@ def main() -> None:
             with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
                 f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
-    print(f"done: {done} inferences in {elapsed:.0f}s ({done/max(elapsed,1):.2f} img/s), {retried} retried", flush=True)
+    print(
+        f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried", flush=True
+    )
 
 
 if __name__ == "__main__":

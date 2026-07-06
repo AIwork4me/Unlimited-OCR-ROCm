@@ -1,14 +1,17 @@
 # tests/test_run_omnidocbench_sglang.py
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 def test_infer_page_uses_contract_defaults():
     import scripts.run_omnidocbench_sglang as runner
+
     fake_resp = MagicMock()
     fake_resp.json.return_value = {"choices": [{"message": {"content": "# hello"}}]}
     fake_resp.raise_for_status.return_value = None
-    with patch("scripts.run_omnidocbench_sglang.requests.post", return_value=fake_resp) as p, \
-         patch("scripts.run_omnidocbench_sglang._encode_image", return_value=("fake_b64", "image/png")):
+    with (
+        patch("scripts.run_omnidocbench_sglang.requests.post", return_value=fake_resp) as p,
+        patch("scripts.run_omnidocbench_sglang._encode_image", return_value=("fake_b64", "image/png")),
+    ):
         out = runner.infer_page_sglang("http://x", "/tmp/a.png")
         assert out == "# hello"
         sent = p.call_args.kwargs["json"]
@@ -18,15 +21,17 @@ def test_infer_page_uses_contract_defaults():
 
 def test_two_pass_retry_on_looping():
     import scripts.run_omnidocbench_sglang as runner
+
     calls = {"ngrams": []}
 
     def fake_infer(base_url, img, ngram=35, window=128, penalty=1.0):
         calls["ngrams"].append((ngram, penalty))
         return "aaaa aaaa aaaa aaaa" if ngram == 35 else "clean output"
 
-    with patch("scripts.run_omnidocbench_sglang.infer_page_sglang", side_effect=fake_infer), \
-         patch("scripts.run_omnidocbench_sglang.is_looping_output",
-               side_effect=lambda t: "aaaa aaaa aaaa" in t):
+    with (
+        patch("scripts.run_omnidocbench_sglang.infer_page_sglang", side_effect=fake_infer),
+        patch("scripts.run_omnidocbench_sglang.is_looping_output", side_effect=lambda t: "aaaa aaaa aaaa" in t),
+    ):
         text, retried, retry_err = runner.infer_with_retry("http://x", "/tmp/a.png")
     assert text == "clean output"
     assert retried is True
@@ -36,6 +41,7 @@ def test_two_pass_retry_on_looping():
 
 def test_retry_failure_returns_first_pass_and_signal():
     import scripts.run_omnidocbench_sglang as runner
+
     looping_text = "aaaa aaaa aaaa aaaa"
 
     def fake_infer(base_url, img, ngram=35, window=128, penalty=1.0):
@@ -43,11 +49,15 @@ def test_retry_failure_returns_first_pass_and_signal():
             return looping_text
         raise RuntimeError("boom")
 
-    with patch("scripts.run_omnidocbench_sglang.infer_page_sglang", side_effect=fake_infer), \
-         patch("scripts.run_omnidocbench_sglang.is_looping_output",
-               side_effect=lambda t: t is looping_text or "aaaa aaaa aaaa" in t):
+    with (
+        patch("scripts.run_omnidocbench_sglang.infer_page_sglang", side_effect=fake_infer),
+        patch(
+            "scripts.run_omnidocbench_sglang.is_looping_output",
+            side_effect=lambda t: t is looping_text or "aaaa aaaa aaaa" in t,
+        ),
+    ):
         text, retried, retry_err = runner.infer_with_retry("http://x", "/tmp/a.png")
-    assert text == looping_text            # first-pass text kept
+    assert text == looping_text  # first-pass text kept
     assert retried is False
     assert retry_err == "RuntimeError: boom"
 
