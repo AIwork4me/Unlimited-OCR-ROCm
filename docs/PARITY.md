@@ -2,9 +2,17 @@
 
 > Accuracy parity of Unlimited-OCR-ROCm vs the **NVIDIA reference** run of Baidu Unlimited-OCR on the OmniDocBench standard benchmark, scored on both **v1.5** and **v1.6**.
 
-## Headline
+## Headline — honest, controlled measurement (updated 2026-07-06)
 
-**Overall (v1.6): 92.04** — measured on AMD ROCm (gfx1100, W7900-class), gundam (speed) image mode, 2026-06. For reference, Baidu self-reports Unlimited-OCR at ~93.92 Overall on v1.6 (board SOTA MinerU2.5-Pro = 95.75); our 92.04 is ~1.9 below the self-report — mainly from ~14 inherent looping pages (~1% drag). Note: **gundam mode IS the model's best accuracy** (a `base`-mode run scored 88.78, LOWER — base resizes full pages to 1024px, losing detail). Full per-module breakdown below.
+**Overall (v1.6): 91.97** — our controlled, reproducible measurement (PyTorch-direct, gundam, BF16, 4× AMD gfx1100). Baidu self-reports **~93.92** on v1.6 (paper Table 1); that number is **not on the OmniDocBench leaderboard and has not been independently reproduced** by anyone (zero issues reference it in either repo). The ~1.95-point gap is **rigorously diagnosed but not closable on this gfx1100 host** — full analysis: [parity/attribution-2026-07-05.md](parity/attribution-2026-07-05.md).
+
+**The gap is ~entirely Text EditDist** (ours 0.094 vs paper 0.042; Formula CDM 95.72 ≈ 95.79, so recognition is at parity; the official scorer already fully normalizes — `clean_string(textblock2unicode(text))` — so 0.094 is a *real* output difference, not a scoring artifact). Attribution of the 0.052: **~47% failure tail** (looping/degenerate pages) + **~53% "moderate tail"** (genuine output differences on 386 pages). Parsing/matching mismatch was **ruled out** (matched-pair median edit 0.0; the 2.7% unmatched chars are bad model output, not scorer mis-reads).
+
+**Two levers attempted; both blocked on gfx1100:**
+- **SGLang** (the paper's likely backend; `baidu/Unlimited-OCR` issue #14 reports SGLang > transformers for this model): core imports on `torch 2.5.1+rocm6.2` and the server boots, but **inference page-faults on the fused-MoE triton kernel on gfx1100/RDNA3** (no gfx11-viable MoE backend). See [upstream/sglang-rocm-enablement.md](upstream/sglang-rocm-enablement.md). So the ~53% moderate tail is **unattributed** here (no controlled A/B possible on this host).
+- **Looping truncation (D1, a per-page RunawayStoppingCriteria):** **regressed the full eval** (text 0.094→0.154) — the distinct-ratio check truncates 146 legit long/dense pages (exams/books/papers/newspapers), not just the ~5 looping ones. Reverted; documented in `src/rocm_ocr/repetition_fix.py`.
+
+> Note (2026-06): `gundam` is the model's best-accuracy image mode (a `base`-mode run scored 88.78 — lower; base resizes full pages to 1024px). Sections below the fold retain earlier (partly-superseded) analysis; the headline above + the attribution report are authoritative.
 
 ## 2026-07-03 re-measurement (fresh host, this session)
 
