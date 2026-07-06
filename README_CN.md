@@ -53,10 +53,10 @@
 
 百度的 [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) 是当前长文档解析的新标杆，单次前向传播即可处理整本书、多页合同和密集表格。我们将其移植到 AMD ROCm，并运行完整的 OmniDocBench v1.6 标准评测（1,651 页），建立精度对齐基线。
 
-| | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
-|---|---|---|---|---|---|---|---|
+| Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
+|---|---:|---:|---:|---:|---:|---:|
 | **AMD ROCm**（本项目） | **92.04** | 0.094 | 95.7 | 89.8 | 93.1 | 0.145 |
-| Baidu原始论文* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
+| Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
 *\*百度原始论文自报分数，来源：[arxiv:2606.23050](https://arxiv.org/abs/2606.23050)。我们的 AMD 实测分数约低 1.88pt，已知根因：~14 个固有循环页面（~1% 拖累）和内联 LaTeX 格式风格差异 — 并非识别错误（FormulaCDM 95.7 ≈ 论文 95.79）。每次评测结果均附带已提交的 manifest 和 gate 通过验证。*
 
