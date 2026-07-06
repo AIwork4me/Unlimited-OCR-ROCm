@@ -325,3 +325,26 @@ routes:
 - Diff (once server serves): `python scripts/analysis/sglang_singlepage_diff.py
   <page_img> <pytorch_pred.md>` — exit 0 = identical, 2 = different.
 - Kill any hung server: `pkill -9 -f 'python -m sglang.launch_server'`.
+
+## B3 — Stage-1 gate verdict (2026-07-06)
+
+**Verdict: Stage-1 SERVE BLOCKED.** SGLang core imports cleanly (B1 PASS) and the
+server boots (B2: weights + KV loaded, `/health` 200), but inference page-faults
+on the gfx1100 fused-MoE triton kernel on the first MoE forward — no
+gfx11-viable MoE backend exists in this `torch 2.5.1+rocm6.2` venv (flashinfer /
+aiter / cutlass / marlin / deep_gemm all unavailable). This is a **runtime
+compute-kernel fault on consumer RDNA3**, not a driver-API or import issue — so
+a driver upgrade is a gamble, not a guaranteed fix.
+
+**Decision (user, 2026-07-06): PyTorch-only pivot.** Accept SGLang-on-gfx1100-
+consumer-Radeon as blocked at the MoE kernel. Proceed with D1 (looping targeted
+truncation) on the working PyTorch-direct path and ship an honest release. The
+controlled PyTorch-vs-SGLang A/B (WS-C) cannot run on this host, so the ~53%
+"moderate tail" of the text-EditDist gap remains **unattributed** (backend
+contribution unmeasured). Honest landing ≈ D1-improved PyTorch (text EditDist
+~0.070 ceiling), not 0.042.
+
+**Revisitation triggers:** (a) a gfx1100 fused-MoE triton heuristic fix or a
+real-`aiter` gfx11 MoE backend becomes viable on torch 2.5.1; (b) an NVIDIA or
+datacenter-ROCm host becomes available to run the original SGLang stack → then
+revisit WS-C.
