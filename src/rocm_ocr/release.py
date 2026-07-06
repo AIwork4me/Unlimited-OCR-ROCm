@@ -17,7 +17,6 @@ import subprocess
 import sys
 import time
 import zipfile
-import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -59,22 +58,19 @@ def detect_looping_pages(
 ) -> int:
     """Count ``.md`` predictions whose length+compressibility signal runaway repetition.
 
-    A page is looping if it is long (``> min_chars``) AND highly compressible
-    (``zlib`` ratio ``< max_ratio``) — i.e. a large fraction is repeated content.
-    Dense-but-legit pages (newspapers, classifieds, big diverse tables) compress
-    poorly (>0.17) and are correctly excluded; pure-repetition runaways (the §2
-    looping failure mode, 8K–80K of one repeated phrase) compress to <0.05.
+    Delegates to :func:`rocm_ocr.repetition_fix.is_looping_output` — the single
+    source of truth for the looping-detection heuristic.
     """
+    from rocm_ocr.repetition_fix import is_looping_output
+
     n = 0
     for md in sorted(Path(pred_dir).glob("*.md")):
         try:
             text = md.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        if len(text) > min_chars:
-            ratio = len(zlib.compress(text.encode("utf-8"), 9)) / len(text)
-            if ratio < max_ratio:
-                n += 1
+        if is_looping_output(text, min_chars=min_chars, max_ratio=max_ratio):
+            n += 1
     return n
 
 

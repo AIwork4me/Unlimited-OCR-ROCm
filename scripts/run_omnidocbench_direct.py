@@ -12,7 +12,6 @@ the project's omnidocbench module): point the scorer config at --pred-dir.
 
 import argparse
 import os
-import shutil
 import time
 from pathlib import Path
 
@@ -88,26 +87,27 @@ def main() -> None:
     )
     tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
     model = AutoModel.from_pretrained(args.model, trust_remote_code=True, torch_dtype=torch.bfloat16).eval().to(dev)
-    # WS-D D1 REVERTED (2026-07-06): the RunawayStoppingCriteria (distinct-ratio
-    # truncation) REGRESSED the full eval — text EditDist 0.094 -> 0.154. The
-    # distinct-ratio check (<0.25 over the last 256 generated tokens) fires on legit
-    # long/dense pages (146 pages: exams/books/papers/newspapers truncated to 10-40%
-    # of correct length), not just the ~5 looping pages it bounds. The signal cannot
-    # safely distinguish runaway from this model's repetitive-but-correct output.
-    # The criteria + tests remain in src/rocm_ocr/repetition_fix.py (DISABLED) for
-    # reference. Eval uses the original generation (ngram=35/window=128), Overall 91.97.
-    # See docs/parity/attribution-2026-07-05.md for the full diagnosis.
+    # Two-pass targeted retry: default ngram=35 for all pages; issue #55
+    # settings (ngram=5, window=256, repetition_penalty=1.05) ONLY for pages
+    # detected as looping via zlib compression ratio. Hard cap applies to all
+    # pages (8192 generated tokens). See spec: 2026-07-06-targeted-looping-fix.
+    from rocm_ocr.repetition_fix import apply_repetition_fix, is_looping_output
+    repetition_config = apply_repetition_fix(
+        model,
+        repetition_penalty=1.0,  # no-op for default path
+    )
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
 
     tmp = "/tmp/odb_infer"
+    os.makedirs(tmp, exist_ok=True)
     t0 = time.time()
     done = 0
+    retried = 0
     for img in tqdm(imgs, desc="OCR"):
         base = Path(img).stem
         out_md = os.path.join(args.pred_dir, base + ".md")
         if os.path.exists(out_md):
             continue  # resumable
-        os.makedirs(tmp, exist_ok=True)
         img_size = 640 if args.image_mode == "gundam" else 1024
         crop = args.image_mode == "gundam"
         try:
@@ -128,19 +128,50 @@ def main() -> None:
                 ngram_window=128,
                 save_results=True,
             )
-            src = os.path.join(tmp, "result.md")
-            if os.path.exists(src):
-                shutil.move(src, out_md)
+            result_path = os.path.join(tmp, "result.md")
+            with open(result_path, encoding="utf-8") as f:
+                text = f.read()
+            if is_looping_output(text):
+                logger = __import__("logging").getLogger(__name__)
+                logger.info("retry %s", base)
+                try:
+                    with repetition_config(penalty=1.05):
+                        model.infer(
+                            tok,
+                            prompt=(
+                                "<image>document parsing."
+                                if args.prompt_mode == "native"
+                                else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
+                            ),
+                            image_file=img,
+                            output_path=tmp,
+                            base_size=1024,
+                            image_size=img_size,
+                            crop_mode=crop,
+                            max_length=args.max_length,
+                            no_repeat_ngram_size=5,
+                            ngram_window=256,
+                            save_results=True,
+                        )
+                    with open(result_path, encoding="utf-8") as f:
+                        text = f.read()
+                    retried += 1
+                except Exception as e:
+                    msg = f"{type(e).__name__}: {e}"
+                    print(f"[shard {args.shard}] RETRY FAILED {base}: {msg}", flush=True)
+                    with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
+                        f.write(f"{base}\tretry_failed\t{msg}\n")
+                    # keep first-pass text
+            Path(out_md).write_text(text, encoding="utf-8")
             done += 1
         except Exception as e:
-            # Contain per-image failures (e.g. OOM) so one bad page doesn't kill the shard.
             msg = f"{type(e).__name__}: {e}"
             print(f"[shard {args.shard}] FAILED {base}: {msg}", flush=True)
             with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
                 f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
     print(
-        f"done: {done} new inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s)",
+        f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried",
         flush=True,
     )
 

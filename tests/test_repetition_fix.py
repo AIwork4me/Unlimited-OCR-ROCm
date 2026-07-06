@@ -4,9 +4,15 @@ Per-page guard that bounds looping/degenerate generation WITHOUT a global
 ngram=5 change. See .superpowers/sdd/task-D1-brief.md.
 """
 
+from unittest.mock import MagicMock
+
 import torch
 
-from rocm_ocr.repetition_fix import RunawayStoppingCriteria
+from rocm_ocr.repetition_fix import (
+    RunawayStoppingCriteria,
+    _RepetitionConfig,
+    is_looping_output,
+)
 
 
 def make_criteria():
@@ -76,3 +82,41 @@ def test_prompt_aware_runaway_in_generated_suffix_stops():
     runaway = torch.full((1, 64), 8, dtype=torch.long)  # gen=64, all token 8
     ids = torch.cat([prompt, runaway], dim=1)  # n=1564, gen=64, ratio 1/64
     assert c(ids, scores=None) is True
+
+
+def test_is_looping_positive():
+    """80x repeated phrase → zlib ratio ~0.01 → True."""
+    text = "畜牧兽医\n" * 2000
+    assert is_looping_output(text) is True
+
+
+def test_is_looping_negative_short():
+    """Short text (<5000 chars) never triggers, even if repetitive."""
+    text = "repeat\n" * 100
+    assert is_looping_output(text) is False
+
+
+def test_is_looping_negative_dense():
+    """Dense varied text → zlib ratio >0.17 → False."""
+    words = [f"token_{i:06d}" for i in range(10000)]
+    text = " ".join(words)
+    assert len(text) > 5000
+    assert is_looping_output(text) is False
+
+
+def test_repetition_config_enter_exit():
+    """Context manager switches and restores repetition_penalty."""
+    model = MagicMock()
+    orig_generate = MagicMock()
+    model.generate = orig_generate
+
+    cfg = _RepetitionConfig(orig_generate, model, base_penalty=1.0)
+
+    with cfg(penalty=1.05):
+        model.generate()
+        assert orig_generate.call_count == 1
+        assert orig_generate.call_args[1].get("repetition_penalty") == 1.05
+
+    model.generate()
+    assert orig_generate.call_count == 2
+    assert orig_generate.call_args[1].get("repetition_penalty") == 1.0

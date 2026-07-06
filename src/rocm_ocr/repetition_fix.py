@@ -40,6 +40,7 @@ but not ``repetition_penalty``/``stopping_criteria``, so this module monkey-patc
 from __future__ import annotations
 
 import logging
+import zlib
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,35 @@ RUNAWAY_MAX_TOKENS = 8192  # hard cap: legit single-page output stays well under
 RUNAWAY_WINDOW = 256  # sliding window for the repetition check
 RUNAWAY_MIN_DISTINCT_RATIO = 0.25  # stop if <25% distinct tokens in the window (heavy loop)
 RUNAWAY_MIN_TOKENS = 512  # don't check before this (let legit content proceed)
+
+# Text-level looping detection — zlib compression ratio.
+# Pure repetition runaways (8K–80K of one phrase) compress to <0.05;
+# dense legit pages (newspapers, books, tables) compress >0.17.
+LOOPING_MIN_CHARS = 5000
+LOOPING_MAX_COMPRESS_RATIO = 0.05
+
+
+def is_looping_output(
+    text: str,
+    *,
+    min_chars: int = LOOPING_MIN_CHARS,
+    max_ratio: float = LOOPING_MAX_COMPRESS_RATIO,
+) -> bool:
+    """Return True if *text* appears to be runaway repetition.
+
+    Detects runaway looping (mode ① from issue #55) via zlib compression
+    ratio: long texts that compress extremely well consist largely of
+    repeated content.  Dense-but-legit pages compress poorly (>0.17) and
+    are correctly excluded.
+
+    This is the same signal used by :func:`release.detect_looping_pages`
+    but as a stateless pure function for use during per-page inference.
+    """
+    if len(text) <= min_chars:
+        return False
+    raw = len(text)
+    compressed = len(zlib.compress(text.encode("utf-8"), 9))
+    return (compressed / raw) < max_ratio
 
 
 class RunawayStoppingCriteria:
@@ -143,53 +173,105 @@ class RunawayStoppingCriteria:
         return False
 
 
+class _RepetitionConfig:
+    """Per-page repetition_penalty switcher — context manager.
+
+    Created by :func:`apply_repetition_fix` and called as a factory to
+    produce a context manager: ``with config(penalty=1.05):`` temporarily
+    patches ``model.generate`` with the requested penalty, then restores
+    the original on exit.
+
+    This allows the retry path to use issue #55's ``repetition_penalty=1.05``
+    without affecting the default first-pass path (``penalty=1.0`` = no-op).
+    """
+
+    def __init__(self, orig_generate: Any, model: Any, *, base_penalty: float = 1.0) -> None:
+        self.orig = orig_generate
+        self.model = model
+        self.base_penalty = base_penalty
+
+    def __call__(self, *, penalty: float) -> _RepetitionConfig._PenaltyContext:
+        return _RepetitionConfig._PenaltyContext(self, penalty)
+
+    class _PenaltyContext:
+        def __init__(self, parent: _RepetitionConfig, penalty: float) -> None:
+            self.parent = parent
+            self.penalty = penalty
+
+        def __enter__(self) -> None:
+            self.parent.model.generate = self.parent._make_generate(self.penalty)
+
+        def __exit__(self, *args: Any) -> None:  # noqa: ANN401
+            self.parent.model.generate = self.parent._make_generate(self.parent.base_penalty)
+
+    def _make_generate(self, penalty: float) -> Any:
+        orig = self.orig
+
+        def _generate_wrapper(*args: Any, **kwargs: Any):  # noqa: ANN202
+            kwargs.setdefault("repetition_penalty", penalty)
+            if kwargs.get("stopping_criteria") is None:
+                input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+                prompt_len = 0
+                try:
+                    prompt_len = int(input_ids.shape[-1])
+                except Exception:  # noqa: BLE001
+                    prompt_len = 0
+                criteria = RunawayStoppingCriteria(prompt_len=prompt_len, min_distinct_ratio=0.0)
+                kwargs["stopping_criteria"] = [criteria]
+            return orig(*args, **kwargs)
+
+        return _generate_wrapper
+
+
 def apply_repetition_fix(
     model: Any,
     *,
-    repetition_penalty: float = REPETITION_PENALTY,
-    stop_runaway: bool = True,
-    **criteria_kwargs: Any,
+    repetition_penalty: float = 1.0,
 ) -> Any:
-    """Monkey-patch ``model.generate`` to inject the issue#55 fix.
+    """Monkey-patch ``model.generate`` to inject the issue#55 targeted fix.
 
-    Injects ``repetition_penalty`` (soft global anti-repeat) and, unless
-    ``stop_runaway=False``, a :class:`RunawayStoppingCriteria` (bounds/catches
-    mode-② runaway). Composes with the n-gram processor that ``model.infer``
-    already adds from the ``no_repeat_ngram_size``/``ngram_window`` args.
+    Applies a HARD TOKEN CAP only (RunawayStoppingCriteria with min_distinct_ratio=0.0
+    disables the distinct-ratio check that regressed the full eval). Returns a
+    ``_RepetitionConfig`` callable that produces context managers for per-page
+    ``repetition_penalty`` switching.
 
-    Idempotent. Returns the model for chaining.
+    Usage::
+
+        config = apply_repetition_fix(model, repetition_penalty=1.0)
+        # default generation (hard cap only, penalty=1.0 no-op)
+        text = model.infer(...)
+        if is_looping_output(text):
+            with config(penalty=1.05):
+                text = model.infer(ngram=5, window=256)
+
+    Idempotent. Returns the config callable.
     """
     if getattr(model.generate, "_repetition_fix_applied", False):
-        return model
+        return _RepetitionConfig(_find_orig_generate(model), model, base_penalty=repetition_penalty)
 
     orig_generate = model.generate
 
     def _generate_with_fix(*args: Any, **kwargs: Any):  # noqa: ANN202
         kwargs.setdefault("repetition_penalty", repetition_penalty)
-        if stop_runaway:
-            # Create a FRESH criteria per generate() call so:
-            #   (a) prompt_len is captured from THIS call's input_ids (the prompt),
-            #      not leaked across pages; and
-            #   (b) thresholds apply to the GENERATED suffix only (HF passes the full
-            #      prompt+generated sequence to stopping_criteria; the vision-token-
-            #      heavy prompt would otherwise trip the distinct-ratio check and
-            #      blank every page).
-            input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+        input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+        prompt_len = 0
+        try:
+            prompt_len = int(input_ids.shape[-1])
+        except Exception:  # noqa: BLE001
             prompt_len = 0
-            try:
-                prompt_len = int(input_ids.shape[-1])
-            except Exception:  # noqa: BLE001
-                prompt_len = 0
-            fresh = RunawayStoppingCriteria(prompt_len=prompt_len, **criteria_kwargs)
-            existing = list(kwargs.get("stopping_criteria") or [])
-            kwargs["stopping_criteria"] = existing + [fresh]
+        criteria = RunawayStoppingCriteria(prompt_len=prompt_len, min_distinct_ratio=0.0)
+        existing = list(kwargs.get("stopping_criteria") or [])
+        kwargs["stopping_criteria"] = existing + [criteria]
         return orig_generate(*args, **kwargs)
 
     _generate_with_fix._repetition_fix_applied = True  # type: ignore[attr-defined]
     model.generate = _generate_with_fix
-    logger.info(
-        "repetition fix applied (issue #55): repetition_penalty=%s, runaway_guard=%s",
-        repetition_penalty,
-        stop_runaway,
-    )
-    return model
+    logger.info("repetition fix applied: hard cap only (RunawayStoppingCriteria, min_distinct_ratio=0.0)")
+    return _RepetitionConfig(orig_generate, model, base_penalty=repetition_penalty)
+
+
+def _find_orig_generate(model: Any) -> Any:
+    """Recover the original generate from a previously patched model."""
+    current = model.generate
+    closure = getattr(current, "__wrapped__", None) or current
+    return getattr(closure, "__func__", closure) or current
