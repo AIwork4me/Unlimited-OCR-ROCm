@@ -158,3 +158,84 @@ eval/ → omnidocbench predictions → gate gatekeeper → manifest.yaml → rel
 - **Release** — Full automated pipeline: eval → manifest → gate → PR → merge → git tag → PyPI publish. Every release has a committed eval manifest.
 
 See the [release runbook](docs/RELEASE.md) for the full workflow.
+
+---
+
+## Usage Cheatsheet
+
+```
+unlimited-ocr --image-dir ./images | --pdf ./doc.pdf \
+              [--output-dir ./out] [--image-mode gundam|base] \
+              [--gpu 0] [--concurrency 8] [--pdf-dpi 200] \
+              [--page-size 16] [--torch-compile] \
+              [--async] [--quiet] [--version] [--config .unlimited-ocr.yaml]
+```
+
+### Async Engine
+
+For high-concurrency batch workloads, `--async` uses aiohttp + asyncio for lower overhead:
+
+```bash
+unlimited-ocr --pdf ./large_doc.pdf --async --concurrency 16
+```
+
+The sync engine (default) uses requests + ThreadPoolExecutor. Choose sync for simplicity, async for scale.
+
+### Configuration File (YAML)
+
+```yaml
+# .unlimited-ocr.yaml
+output_dir: ./outputs
+image_mode: base
+pdf_dpi: 150
+concurrency: 8
+quiet: false
+```
+
+Place it in your project root or any parent directory — auto-discovered. Or `--config ./my-config.yaml`.
+
+---
+
+## Project Structure
+
+```
+Unlimited-OCR-ROCm/
+├── src/rocm_ocr/        # Python package (CLI, inference, evaluation pipeline, GPU tools)
+├── docs/                # Architecture, benchmarks, parity, tuning, release runbook
+├── eval/                # Evaluation manifests + JSON Schema (CI-enforced)
+├── scripts/             # Setup, multi-GPU eval runners, benchmarks
+├── tests/               # Unit tests (conftest fixtures)
+├── examples/            # transformers_infer.py, SGLang server/client
+├── Makefile             # make install, make test, make benchmark, make eval-release
+├── Dockerfile           # ROCm 6.0+ Docker image
+├── docker-compose.yml   # Docker Compose orchestration
+└── pyproject.toml       # PEP 621 package metadata
+```
+
+---
+
+## Troubleshooting
+
+<details>
+<summary><b>SGLang: "No HIP GPUs available"</b></summary>
+
+```bash
+rocm-smi --showproductname
+export HIP_VISIBLE_DEVICES=0
+```
+</details>
+
+<details>
+<summary><b>OOM (out of memory)</b></summary>
+
+Reduce `--mem-fraction` or `--pdf-dpi`. See [docs/TUNING.md](docs/TUNING.md) Scenario 3.
+</details>
+
+<details>
+<summary><b>torch.cuda.is_available() → False</b></summary>
+
+```bash
+pip uninstall torch torchvision torchaudio -y
+pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvision torchaudio
+```
+</details>
