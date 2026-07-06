@@ -38,8 +38,14 @@ def infer_page_sglang(base_url: str, img_path: str, ngram: int = CONTRACT.no_rep
     return r.json()["choices"][0]["message"]["content"]
 
 
-def infer_with_retry(base_url: str, img_path: str) -> tuple[str, bool]:
-    """Two-pass: default ngram=35; on looping, retry ngram=5/window=256/penalty=1.05."""
+def infer_with_retry(base_url: str, img_path: str) -> tuple[str, bool, str | None]:
+    """Two-pass: default ngram=35; on looping, retry ngram=5/window=256/penalty=1.05.
+
+    Returns (text, retried, retry_err):
+      - clean first pass        -> (text, False, None)
+      - retry succeeded         -> (text, True,  None)
+      - retry raised            -> (first_pass_text, False, "<Type: msg>")  # first-pass text kept
+    """
     text = infer_page_sglang(base_url, img_path)
     if is_looping_output(text):
         try:
@@ -49,10 +55,12 @@ def infer_with_retry(base_url: str, img_path: str) -> tuple[str, bool]:
                 window=CONTRACT.retry_ngram_window,
                 penalty=CONTRACT.retry_repetition_penalty,
             )
-            return text, True
+            return text, True, None
         except Exception as e:
-            print(f"RETRY FAILED {img_path}: {type(e).__name__}: {e}", flush=True)
-    return text, False
+            err = f"{type(e).__name__}: {e}"
+            print(f"RETRY FAILED {img_path}: {err}", flush=True)
+            return text, False, err
+    return text, False, None
 
 
 def main() -> None:
@@ -80,7 +88,11 @@ def main() -> None:
         if os.path.exists(out_md):
             continue
         try:
-            text, retried_flag = infer_with_retry(args.base_url, img)
+            text, retried_flag, retry_err = infer_with_retry(args.base_url, img)
+            if retry_err:
+                print(f"[shard {args.shard}] RETRY FAILED {base}: {retry_err}", flush=True)
+                with open(os.path.join(args.pred_dir, "_failures.log"), "a") as f:
+                    f.write(f"{base}\tretry_failed\t{retry_err}\n")
             Path(out_md).write_text(text, encoding="utf-8")
             done += 1
             retried += int(retried_flag)
