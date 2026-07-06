@@ -53,12 +53,12 @@
 
 Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing — entire books, multi-page contracts, dense tables in a single forward pass. We've ported it to AMD ROCm and run the full OmniDocBench v1.6 standard evaluation (1,651 pages) to establish precision alignment.
 
-|  | Overall | Text | Table TEDS | Formula CDM | Reading |
-|---|---|---|---|---|---|
-| **AMD ROCm** (this project) | **92.04** | 90.6% | 89.8% | 95.7% | 85.5% |
-| Baidu原始论文* | ~93.92 | — | — | 95.8% | — |
+| | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
+|---|---|---|---|---|---|---|---|
+| **AMD ROCm** (this project) | **92.04** | 0.094 | 95.7 | 89.8 | 93.1 | 0.145 |
+| Baidu原始论文* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050). Our AMD measured score is ~1.88pt below, with known root causes: ~14 inherent looping pages (~1% drag) and inline-math LaTeX formatting style differences — not recognition errors (formula CDM 95.7% ≈ paper 95.8%). Every evaluation result has a committed manifest with gate PASS verification.*
+*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050). Our AMD measured score is ~1.88pt below, with known root causes: ~14 inherent looping pages (~1% drag) and inline-math LaTeX formatting style differences — not recognition errors (FormulaCDM 95.7 ≈ paper 95.79). Every evaluation result has a committed manifest with gate PASS verification.*
 
 **→ [Full parity report with per-module breakdown](docs/PARITY.md) · [Reproduction recipe](docs/PARITY.md#reproduction-recipe) →**
 
