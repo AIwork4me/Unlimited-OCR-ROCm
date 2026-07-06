@@ -173,53 +173,105 @@ class RunawayStoppingCriteria:
         return False
 
 
+class _RepetitionConfig:
+    """Per-page repetition_penalty switcher — context manager.
+
+    Created by :func:`apply_repetition_fix` and called as a factory to
+    produce a context manager: ``with config(penalty=1.05):`` temporarily
+    patches ``model.generate`` with the requested penalty, then restores
+    the original on exit.
+
+    This allows the retry path to use issue #55's ``repetition_penalty=1.05``
+    without affecting the default first-pass path (``penalty=1.0`` = no-op).
+    """
+
+    def __init__(self, orig_generate: Any, model: Any, *, base_penalty: float = 1.0) -> None:
+        self.orig = orig_generate
+        self.model = model
+        self.base_penalty = base_penalty
+
+    def __call__(self, *, penalty: float) -> "_RepetitionConfig._PenaltyContext":
+        return _RepetitionConfig._PenaltyContext(self, penalty)
+
+    class _PenaltyContext:
+        def __init__(self, parent: "_RepetitionConfig", penalty: float) -> None:
+            self.parent = parent
+            self.penalty = penalty
+
+        def __enter__(self) -> None:
+            self.parent.model.generate = self.parent._make_generate(self.penalty)
+
+        def __exit__(self, *args: Any) -> None:  # noqa: ANN401
+            self.parent.model.generate = self.parent._make_generate(self.parent.base_penalty)
+
+    def _make_generate(self, penalty: float) -> Any:
+        orig = self.orig
+
+        def _generate_wrapper(*args: Any, **kwargs: Any):  # noqa: ANN202
+            kwargs.setdefault("repetition_penalty", penalty)
+            if kwargs.get("stopping_criteria") is None:
+                input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+                prompt_len = 0
+                try:
+                    prompt_len = int(input_ids.shape[-1])
+                except Exception:  # noqa: BLE001
+                    prompt_len = 0
+                criteria = RunawayStoppingCriteria(prompt_len=prompt_len, min_distinct_ratio=0.0)
+                kwargs["stopping_criteria"] = [criteria]
+            return orig(*args, **kwargs)
+
+        return _generate_wrapper
+
+
 def apply_repetition_fix(
     model: Any,
     *,
-    repetition_penalty: float = REPETITION_PENALTY,
-    stop_runaway: bool = True,
-    **criteria_kwargs: Any,
+    repetition_penalty: float = 1.0,
 ) -> Any:
-    """Monkey-patch ``model.generate`` to inject the issue#55 fix.
+    """Monkey-patch ``model.generate`` to inject the issue#55 targeted fix.
 
-    Injects ``repetition_penalty`` (soft global anti-repeat) and, unless
-    ``stop_runaway=False``, a :class:`RunawayStoppingCriteria` (bounds/catches
-    mode-② runaway). Composes with the n-gram processor that ``model.infer``
-    already adds from the ``no_repeat_ngram_size``/``ngram_window`` args.
+    Applies a HARD TOKEN CAP only (RunawayStoppingCriteria with min_distinct_ratio=0.0
+    disables the distinct-ratio check that regressed the full eval). Returns a
+    ``_RepetitionConfig`` callable that produces context managers for per-page
+    ``repetition_penalty`` switching.
 
-    Idempotent. Returns the model for chaining.
+    Usage::
+
+        config = apply_repetition_fix(model, repetition_penalty=1.0)
+        # default generation (hard cap only, penalty=1.0 no-op)
+        text = model.infer(...)
+        if is_looping_output(text):
+            with config(penalty=1.05):
+                text = model.infer(ngram=5, window=256)
+
+    Idempotent. Returns the config callable.
     """
     if getattr(model.generate, "_repetition_fix_applied", False):
-        return model
+        return _RepetitionConfig(_find_orig_generate(model), model, base_penalty=repetition_penalty)
 
     orig_generate = model.generate
 
     def _generate_with_fix(*args: Any, **kwargs: Any):  # noqa: ANN202
         kwargs.setdefault("repetition_penalty", repetition_penalty)
-        if stop_runaway:
-            # Create a FRESH criteria per generate() call so:
-            #   (a) prompt_len is captured from THIS call's input_ids (the prompt),
-            #      not leaked across pages; and
-            #   (b) thresholds apply to the GENERATED suffix only (HF passes the full
-            #      prompt+generated sequence to stopping_criteria; the vision-token-
-            #      heavy prompt would otherwise trip the distinct-ratio check and
-            #      blank every page).
-            input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+        input_ids = kwargs.get("input_ids") if "input_ids" in kwargs else (args[0] if args else None)
+        prompt_len = 0
+        try:
+            prompt_len = int(input_ids.shape[-1])
+        except Exception:  # noqa: BLE001
             prompt_len = 0
-            try:
-                prompt_len = int(input_ids.shape[-1])
-            except Exception:  # noqa: BLE001
-                prompt_len = 0
-            fresh = RunawayStoppingCriteria(prompt_len=prompt_len, **criteria_kwargs)
-            existing = list(kwargs.get("stopping_criteria") or [])
-            kwargs["stopping_criteria"] = existing + [fresh]
+        criteria = RunawayStoppingCriteria(prompt_len=prompt_len, min_distinct_ratio=0.0)
+        existing = list(kwargs.get("stopping_criteria") or [])
+        kwargs["stopping_criteria"] = existing + [criteria]
         return orig_generate(*args, **kwargs)
 
     _generate_with_fix._repetition_fix_applied = True  # type: ignore[attr-defined]
     model.generate = _generate_with_fix
-    logger.info(
-        "repetition fix applied (issue #55): repetition_penalty=%s, runaway_guard=%s",
-        repetition_penalty,
-        stop_runaway,
-    )
-    return model
+    logger.info("repetition fix applied: hard cap only (RunawayStoppingCriteria, min_distinct_ratio=0.0)")
+    return _RepetitionConfig(orig_generate, model, base_penalty=repetition_penalty)
+
+
+def _find_orig_generate(model: Any) -> Any:
+    """Recover the original generate from a previously patched model."""
+    current = model.generate
+    closure = getattr(current, "__wrapped__", None) or current
+    return getattr(closure, "__func__", closure) or current

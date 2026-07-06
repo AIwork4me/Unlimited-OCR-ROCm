@@ -5,10 +5,16 @@ ngram=5 change. See .superpowers/sdd/task-D1-brief.md.
 """
 
 import zlib
+from unittest.mock import MagicMock
 
 import torch
 
-from rocm_ocr.repetition_fix import RunawayStoppingCriteria, is_looping_output
+from rocm_ocr.repetition_fix import (
+    RunawayStoppingCriteria,
+    _RepetitionConfig,
+    apply_repetition_fix,
+    is_looping_output,
+)
 
 
 def make_criteria():
@@ -98,3 +104,21 @@ def test_is_looping_negative_dense():
     text = " ".join(words)
     assert len(text) > 5000
     assert is_looping_output(text) is False
+
+
+def test_repetition_config_enter_exit():
+    """Context manager switches and restores repetition_penalty."""
+    model = MagicMock()
+    orig_generate = MagicMock()
+    model.generate = orig_generate
+
+    cfg = _RepetitionConfig(orig_generate, model, base_penalty=1.0)
+
+    with cfg(penalty=1.05):
+        model.generate()
+        assert orig_generate.call_count == 1
+        assert orig_generate.call_args[1].get("repetition_penalty") == 1.05
+
+    model.generate()
+    assert orig_generate.call_count == 2
+    assert orig_generate.call_args[1].get("repetition_penalty") == 1.0
