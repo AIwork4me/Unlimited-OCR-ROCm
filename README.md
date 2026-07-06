@@ -69,3 +69,50 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 - **评测可信 (evaluation you can trust)** — Standard OmniDocBench v1.6 benchmark, committed manifests for every run, strict regression gate prevents silent quality drops. The original Baidu repository has none of this.
 - **AMD 原生 (AMD native)** — One command to launch on any ROCm 6.0+ GPU. 16 GB consumer Radeon handles an entire book. No NVIDIA GPU, no CUDA, no compromises.
 - **结构化输出 (structured output)** — Markdown with tables, formulas, and bounding boxes preserved — same inference API as the original.
+
+---
+
+## Quick Start
+
+### Local (3 commands)
+
+```bash
+git clone https://github.com/AIwork4me/Unlimited-OCR-ROCm.git && cd Unlimited-OCR-ROCm
+./scripts/setup_rocm.sh && source .venv/bin/activate
+unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
+```
+
+### Docker
+
+```bash
+docker compose up -d
+unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
+```
+
+### No AMD GPU?
+
+| | HuggingFace | ModelScope | AMD Radeon Cloud |
+|---|---|---|---|
+| **Cost** | Free | Free | Free trial |
+| **GPU** | Shared | Shared | Dedicated AMD GPU |
+| **Setup** | 0 (in-browser) | 0 (in-browser) | ~60 s |
+| **Best for** | Quick look | Quick look | Real workloads |
+
+**Recommended:** try the HuggingFace or ModelScope demo to see the output quality, then register at [AMD Radeon Cloud](https://radeon.anruicloud.com/) for dedicated hardware — the same GPU we benchmark on.
+
+---
+
+## Performance Tuning
+
+```bash
+# Max speed
+unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 150 --concurrency 8
+
+# Max quality
+unlimited-ocr --pdf doc.pdf --image-mode base --pdf-dpi 300 --max-length 32768
+
+# Low VRAM (16 GB GPU)
+unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
+```
+
+Full guide: [docs/TUNING.md](docs/TUNING.md)
