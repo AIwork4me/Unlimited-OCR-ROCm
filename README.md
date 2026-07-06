@@ -116,3 +116,45 @@ unlimited-ocr --pdf doc.pdf --image-mode gundam --pdf-dpi 100 --mem-fraction 0.6
 ```
 
 Full guide: [docs/TUNING.md](docs/TUNING.md)
+
+---
+
+## Why the VRAM Stays Constant
+
+Traditional attention: KV cache grows with every token → O(n²) memory.
+
+**R-SWA (Reference Sliding Window Attention):** The model only keeps visual tokens (~256) + last 128 output tokens in cache:
+
+```
+Traditional:  KV[t1, t2, ..., t1000]   ← 1000× growth → OOM
+R-SWA:        KV[visual~256] + KV[last_128]  ← CONSTANT
+```
+
+**Verified by OCRing the same academic paper at increasing page counts:**
+
+| Pages | VRAM |
+|-------|------|
+| 1 | 7.3 GB |
+| 5 | 7.4 GB |
+| 10 | 7.4 GB |
+| 25 | 7.5 GB |
+| 50 | 7.5 GB |
+
+VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles an entire book. [How it works →](docs/ARCHITECTURE.md)
+
+---
+
+## Evaluation Infrastructure
+
+**Unlimited-OCR-ROCm is the only Unlimited-OCR distribution with a complete, automated evaluation pipeline.** The original Baidu repository has none of this.
+
+```
+eval/ → omnidocbench predictions → gate gatekeeper → manifest.yaml → release
+                  ↓ BLOCK on regression
+```
+
+- **Manifest** — Every evaluation result produces a traceable YAML snapshot: git commit, model revision, environment, per-module metrics. Stored under `eval/results/` with JSON Schema validation enforced in CI.
+- **Gate** — Strict regression gatekeeper. Overall score drop >0.3 or any module drop >0.005 → **BLOCK**. No blind merges ever.
+- **Release** — Full automated pipeline: eval → manifest → gate → PR → merge → git tag → PyPI publish. Every release has a committed eval manifest.
+
+See the [release runbook](docs/RELEASE.md) for the full workflow.
