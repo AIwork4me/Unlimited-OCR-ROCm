@@ -53,7 +53,7 @@
 
 Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing — entire books, multi-page contracts, dense tables in a single forward pass. We've ported it to AMD ROCm and run the full OmniDocBench v1.6 standard evaluation (1,651 pages) to establish precision alignment.
 
-| | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
+| Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---|---|---|---|---|---|---|
 | **AMD ROCm** (this project) | **92.04** | 0.094 | 95.7 | 89.8 | 93.1 | 0.145 |
 | Baidu paper* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
