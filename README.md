@@ -54,9 +54,9 @@
 Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state-of-the-art for long-horizon document parsing — entire books, multi-page contracts, dense tables in a single forward pass. We've ported it to AMD ROCm and run the full OmniDocBench v1.6 standard evaluation (1,651 pages) to establish precision alignment.
 
 | | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
-|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|
 | **AMD ROCm** (this project) | **92.04** | 0.094 | 95.7 | 89.8 | 93.1 | 0.145 |
-| Baidu原始论文* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
+| Baidu paper* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
 *\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050). Our AMD measured score is ~1.88pt below, with known root causes: ~14 inherent looping pages (~1% drag) and inline-math LaTeX formatting style differences — not recognition errors (FormulaCDM 95.7 ≈ paper 95.79). Every evaluation result has a committed manifest with gate PASS verification.*
 
@@ -66,9 +66,9 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 
 ## Why Unlimited-OCR-ROCm
 
-- **评测可信 (evaluation you can trust)** — Standard OmniDocBench v1.6 benchmark, committed manifests for every run, strict regression gate prevents silent quality drops. The original Baidu repository has none of this.
-- **AMD 原生 (AMD native)** — One command to launch on any ROCm 6.0+ GPU. 16 GB consumer Radeon handles an entire book. No NVIDIA GPU, no CUDA, no compromises.
-- **结构化输出 (structured output)** — Markdown with tables, formulas, and bounding boxes preserved — same inference API as the original.
+- **Evaluation you can trust** — Standard OmniDocBench v1.6 benchmark, committed manifests for every run, strict regression gate prevents silent quality drops. The original Baidu repository has none of this.
+- **AMD native** — One command to launch on any ROCm 6.0+ GPU. 16 GB consumer Radeon handles an entire book. No NVIDIA GPU, no CUDA, no compromises.
+- **Structured output** — Markdown with tables, formulas, and bounding boxes preserved — same inference API as the original.
 
 ---
 
