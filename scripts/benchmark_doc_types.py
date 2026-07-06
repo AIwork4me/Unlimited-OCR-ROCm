@@ -43,6 +43,7 @@ def main():
 
     try:
         import time as _t
+
         _t.sleep(5)
 
         for config in DOC_CONFIGS:
@@ -55,16 +56,17 @@ def main():
                 print(f"SKIP {name}: {pdf_path} not found")
                 continue
 
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"Benchmark: {name} (DPI={dpi}, mode={mode})")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
             images = pdf_to_images(pdf_path, dpi=dpi)
             page1 = images[0]
 
             out_file = os.path.join(OUTPUT_DIR, f"{name}.md")
             result = infer_one(
-                page1, out_file,
+                page1,
+                out_file,
                 prompt="document parsing.",
                 image_mode=mode,
                 ngram_window=128,
@@ -75,18 +77,22 @@ def main():
             output_size = os.path.getsize(out_file) if os.path.exists(out_file) else 0
             tok_per_sec = result["tokens"] / result["decode_time"] if result["decode_time"] > 0 else 0
 
-            print(f"  {name}: {result['tokens']} tokens, {result['decode_time']:.1f}s, "
-                  f"{tok_per_sec:.0f} tok/s, output: {output_size / 1024:.1f} KB")
+            print(
+                f"  {name}: {result['tokens']} tokens, {result['decode_time']:.1f}s, "
+                f"{tok_per_sec:.0f} tok/s, output: {output_size / 1024:.1f} KB"
+            )
 
-            results.append({
-                "doc_type": name,
-                "dpi": dpi,
-                "image_mode": mode,
-                "tokens": result["tokens"],
-                "decode_time_s": round(result["decode_time"], 1),
-                "tok_per_s": round(tok_per_sec, 0),
-                "output_kb": round(output_size / 1024, 1),
-            })
+            results.append(
+                {
+                    "doc_type": name,
+                    "dpi": dpi,
+                    "image_mode": mode,
+                    "tokens": result["tokens"],
+                    "decode_time_s": round(result["decode_time"], 1),
+                    "tok_per_s": round(tok_per_sec, 0),
+                    "output_kb": round(output_size / 1024, 1),
+                }
+            )
     finally:
         stop_server(process)
 

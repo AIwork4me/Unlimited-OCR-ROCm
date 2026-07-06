@@ -123,7 +123,11 @@ class RunawayStoppingCriteria:
         if ratio < self.min_distinct_ratio:
             logger.info(
                 "runaway guard: distinct ratio %.3f < %.3f at gen=%d (distinct=%d/%d)",
-                ratio, self.min_distinct_ratio, gen, distinct, len(tail),
+                ratio,
+                self.min_distinct_ratio,
+                gen,
+                distinct,
+                len(tail),
             )
             return True
         return False

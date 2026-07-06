@@ -4,7 +4,9 @@
 Reads the OmniDocBench per-page text_block EditDist JSON and reports the
 distribution. The mean MUST reconstruct ~0.094 (sanity vs our manifest).
 """
+
 from __future__ import annotations
+
 import json
 import statistics
 import sys
@@ -47,10 +49,9 @@ def main() -> None:
         c = len(in_bin)
         contrib = sum(in_bin) / n
         rows.append(
-            {"bin": [lo, hi], "count": c, "pct": round(100 * c / n, 1),
-             "contribution_to_mean": round(contrib, 4)}
+            {"bin": [lo, hi], "count": c, "pct": round(100 * c / n, 1), "contribution_to_mean": round(contrib, 4)}
         )
-        print(f"  [{lo:.2f},{hi:.2f})  n={c:4d} ({100*c/n:5.1f}%)  contrib={contrib:.4f}")
+        print(f"  [{lo:.2f},{hi:.2f})  n={c:4d} ({100 * c / n:5.1f}%)  contrib={contrib:.4f}")
     Path("docs/parity").mkdir(parents=True, exist_ok=True)
     Path("docs/parity/editdist_bins.json").write_text(
         json.dumps({"n": n, "mean": mean, "median": median, "bins": rows}, indent=2)

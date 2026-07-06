@@ -10,9 +10,7 @@ from rocm_ocr.repetition_fix import RunawayStoppingCriteria
 
 
 def make_criteria():
-    return RunawayStoppingCriteria(
-        max_tokens=8192, window=64, min_distinct_ratio=0.25, min_tokens=16, check_every=32
-    )
+    return RunawayStoppingCriteria(max_tokens=8192, window=64, min_distinct_ratio=0.25, min_tokens=16, check_every=32)
 
 
 def test_normal_generation_not_stopped():
@@ -31,9 +29,7 @@ def test_runaway_loop_stopped():
 
 def test_hard_length_cap_stops():
     """Past max_tokens always stops (bounds all runaway)."""
-    c = RunawayStoppingCriteria(
-        max_tokens=100, window=64, min_distinct_ratio=0.25, min_tokens=16, check_every=32
-    )
+    c = RunawayStoppingCriteria(max_tokens=100, window=64, min_distinct_ratio=0.25, min_tokens=16, check_every=32)
     ids = torch.arange(101).unsqueeze(0)  # varied but over the hard cap
     assert c(ids, scores=None) is True
 
@@ -51,8 +47,12 @@ def test_prompt_does_not_trip_distinct_check():
     thresholds apply to the GENERATED suffix only (prompt_len captured). This is the
     safety invariant: blanking normal pages is the catastrophic failure mode."""
     c = RunawayStoppingCriteria(
-        max_tokens=8192, window=256, min_distinct_ratio=0.25, min_tokens=512,
-        check_every=0, prompt_len=1500,
+        max_tokens=8192,
+        window=256,
+        min_distinct_ratio=0.25,
+        min_tokens=512,
+        check_every=0,
+        prompt_len=1500,
     )
     # prompt = 1500 repeated placeholder tokens; only 200 varied tokens generated.
     prompt = torch.full((1, 1500), 7, dtype=torch.long)
@@ -65,11 +65,14 @@ def test_prompt_aware_runaway_in_generated_suffix_stops():
     """Conversely: real looping in the GENERATED suffix (past the prompt) DOES trip,
     even when the prompt is also repetitive. This is what bounds the runaway pages."""
     c = RunawayStoppingCriteria(
-        max_tokens=8192, window=256, min_distinct_ratio=0.25, min_tokens=16,
-        check_every=0, prompt_len=1500,
+        max_tokens=8192,
+        window=256,
+        min_distinct_ratio=0.25,
+        min_tokens=16,
+        check_every=0,
+        prompt_len=1500,
     )
     prompt = torch.full((1, 1500), 7, dtype=torch.long)
     runaway = torch.full((1, 64), 8, dtype=torch.long)  # gen=64, all token 8
     ids = torch.cat([prompt, runaway], dim=1)  # n=1564, gen=64, ratio 1/64
     assert c(ids, scores=None) is True
-

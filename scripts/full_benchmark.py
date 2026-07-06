@@ -4,6 +4,7 @@ Systematic benchmark: Unlimited-OCR on AMD ROCm (Transformers)
 Tests image_mode, DPI, max_length, ngram_window, batch size
 Saves results to benchmark_results.json and prints a summary table.
 """
+
 import json
 import os
 import sys
@@ -24,23 +25,30 @@ gpu_name = torch.cuda.get_device_name(0)
 vram_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
 hip_ver = getattr(torch.version, "hip", "N/A")
 
+
 def vram_used():
     return torch.cuda.memory_allocated(0) / 1e9
+
 
 # ── Load model ──
 t0 = time.time()
 tokenizer = AutoTokenizer.from_pretrained("baidu/Unlimited-OCR", trust_remote_code=True, local_files_only=True)
 model = AutoModel.from_pretrained(
-    "baidu/Unlimited-OCR", trust_remote_code=True, use_safetensors=True,
-    torch_dtype=torch.bfloat16, local_files_only=True)
+    "baidu/Unlimited-OCR",
+    trust_remote_code=True,
+    use_safetensors=True,
+    torch_dtype=torch.bfloat16,
+    local_files_only=True,
+)
 model = model.eval().to(DEVICE)
 load_time = time.time() - t0
 idle_vram = vram_used()
 
 print(
-    f"GPU: {gpu_name}  VRAM: {vram_gb:.1f}GB  HIP: {hip_ver}  "
-    f"Load: {load_time:.1f}s  IdleVRAM: {idle_vram:.1f}GB",
-    file=sys.stderr)
+    f"GPU: {gpu_name}  VRAM: {vram_gb:.1f}GB  HIP: {hip_ver}  Load: {load_time:.1f}s  IdleVRAM: {idle_vram:.1f}GB",
+    file=sys.stderr,
+)
+
 
 def run_bench(name, params):
     """Run a single-page benchmark with given params. Returns dict."""
@@ -71,9 +79,12 @@ def run_bench(name, params):
             prompt="<image>document parsing.",
             image_file=page0,
             output_path=out_path,
-            base_size=base_size, image_size=img_size, crop_mode=crop,
+            base_size=base_size,
+            image_size=img_size,
+            crop_mode=crop,
             max_length=max_len,
-            no_repeat_ngram_size=35, ngram_window=ngram_w,
+            no_repeat_ngram_size=35,
+            ngram_window=ngram_w,
             save_results=True,
         )
     except Exception:
@@ -104,10 +115,11 @@ def run_bench(name, params):
         "params": params,
     }
     print(
-        f"  {name}: {elapsed:.1f}s, ~{chars//3}tok, ~{chars/3/max(elapsed,0.01):.0f} tok/s, "
-        f"VRAM {peak:.1f}GB",
-        file=sys.stderr)
+        f"  {name}: {elapsed:.1f}s, ~{chars // 3}tok, ~{chars / 3 / max(elapsed, 0.01):.0f} tok/s, VRAM {peak:.1f}GB",
+        file=sys.stderr,
+    )
     return result
+
 
 results = []
 
@@ -116,7 +128,7 @@ results = []
 # ============================================================
 print("\n=== Test 1: image_mode (gundam vs base) ===", file=sys.stderr)
 results.append(run_bench("mode_gundam", {"mode": "gundam", "dpi": 200, "max_length": 8192, "ngram_window": 128}))
-results.append(run_bench("mode_base",   {"mode": "base",   "dpi": 200, "max_length": 8192, "ngram_window": 128}))
+results.append(run_bench("mode_base", {"mode": "base", "dpi": 200, "max_length": 8192, "ngram_window": 128}))
 
 # ============================================================
 # Test 2: DPI (100, 150, 200, 300)
@@ -157,8 +169,8 @@ for r in results:
         continue
     p = r["params"]
     ps = (
-        f"mode={p.get('mode','?')} dpi={p.get('dpi','?')} "
-        f"maxlen={p.get('max_length','?')} ngram={p.get('ngram_window','?')}"
+        f"mode={p.get('mode', '?')} dpi={p.get('dpi', '?')} "
+        f"maxlen={p.get('max_length', '?')} ngram={p.get('ngram_window', '?')}"
     )
     print(
         f"{r['name']:<22} {r['time_s']:>6.1f}s {r['tokens_est']:>6}  "
@@ -174,8 +186,11 @@ if valid:
 
 with open(OUT, "w") as f:
     hw = {
-        "gpu": gpu_name, "vram_gb": round(vram_gb, 1), "hip": hip_ver,
-        "load_time_s": load_time, "idle_vram_gb": idle_vram,
+        "gpu": gpu_name,
+        "vram_gb": round(vram_gb, 1),
+        "hip": hip_ver,
+        "load_time_s": load_time,
+        "idle_vram_gb": idle_vram,
     }
     json.dump({"hardware": hw, "results": results}, f, indent=2)
 print(f"\nResults saved to {OUT}")
