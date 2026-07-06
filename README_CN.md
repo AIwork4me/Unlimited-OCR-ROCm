@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  OmniDocBench v1.6 Overall 92.04 · gate 通过 · 16 GB 显存 · R-SWA 恒定内存
+  OmniDocBench v1.6 Overall 91.97 · gate 通过 · 16 GB 显存 · R-SWA 恒定内存
 </p>
 
 <div align="center">
@@ -41,7 +41,7 @@
 
 | OmniDocBench v1.6 | Gate | 速度 | 最低显存 |
 |---|---|---|---|
-| **92.04 Overall** ✓ | **PASS** | TODO: 评测待完成 | **16 GB** |
+| **91.97 Overall** ✓ | **PASS** | TODO: 评测待完成 | **16 GB** |
 
 </div>
 
@@ -55,10 +55,10 @@
 
 | Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| **AMD ROCm**（本项目） | **92.04** | 0.094 | 95.7 | 89.8 | 93.1 | 0.145 |
+| **AMD ROCm**（本项目） | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
 | Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*百度原始论文自报分数，来源：[arxiv:2606.23050](https://arxiv.org/abs/2606.23050)。我们的 AMD 实测分数约低 1.88pt，已知根因：~14 个固有循环页面（~1% 拖累）和内联 LaTeX 格式风格差异 — 并非识别错误（FormulaCDM 95.7 ≈ 论文 95.79）。每次评测结果均附带已提交的 manifest 和 gate 通过验证。*
+*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **91.97** 是受控、可复现的实测（已提交 manifest，gate 通过）。约 1.95pt 的差距几乎全部来自 Text EditDist（识别 / FormulaCDM 已对齐；官方 scorer 已做 LaTeX 归一化，故 0.094 是真实输出差异 —— **并非**格式伪影）。在本 gfx1100 主机上该差距**无法弥合**：SGLang（论文很可能使用的后端）在 fused-MoE 内核上页错误崩溃，定向 looping 修复又导致全量回归（已回退）。完整诊断：[docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md)。*
 
 **→ [完整精度对齐报告含模块拆解](docs/PARITY.md) · [复现方法](docs/PARITY.md#reproduction-recipe) →**
 
