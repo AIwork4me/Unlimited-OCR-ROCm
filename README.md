@@ -239,3 +239,40 @@ pip uninstall torch torchvision torchaudio -y
 pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvision torchaudio
 ```
 </details>
+
+---
+
+## Roadmap
+
+**Phase 1 — Evidence Engine:** OmniDocBench parity + credibility-first docs ✅  
+**Phase 2 — Upstream Integration:** SGLang/vLLM on ROCm, consumer Radeon first-class in AMD docs ⏳  
+**Phase 3 — Thin Integrations:** OpenAI-compatible endpoint, one-click hosted demo, RAG framework example ⏳
+
+→ [Full roadmap](ROADMAP.md)
+
+---
+
+## Community
+
+- [🐛 Report a bug](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=bug_report.md)
+- [💡 Request a feature](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues/new?template=feature_request.md)
+- [📊 Share your benchmark](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22help+wanted%22)
+- [🌍 Help translate](https://github.com/AIwork4me/Unlimited-OCR-ROCm/issues?q=label%3A%22good+first+issue%22)
+
+→ [Community benchmarks](docs/COMMUNITY_BENCHMARKS.md)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=AIwork4me/Unlimited-OCR-ROCm&type=Date)](https://star-history.com/#AIwork4me/Unlimited-OCR-ROCm&Date)
+
+---
+
+## Acknowledgement
+
+Built on [Baidu Unlimited-OCR](https://github.com/baidu/Unlimited-OCR), [DeepSeek-OCR](https://github.com/deepseek-ai/DeepSeek-OCR), [SGLang](https://github.com/sgl-project/sglang), and [AMD ROCm](https://rocm.docs.amd.com).
+
+Special thanks to AMD for compute support. Try it on [AMD Radeon Cloud](https://radeon.anruicloud.com/).
+
+---
+
+MIT License. [LICENSE](LICENSE) · [Contributing](CONTRIBUTING.md)
