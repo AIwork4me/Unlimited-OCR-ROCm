@@ -98,6 +98,8 @@ def main() -> None:
     )
     print(f"model loaded on {torch.cuda.get_device_name(0)}", flush=True)
 
+    tmp = "/tmp/odb_infer"
+    os.makedirs(tmp, exist_ok=True)
     t0 = time.time()
     done = 0
     retried = 0
@@ -109,7 +111,7 @@ def main() -> None:
         img_size = 640 if args.image_mode == "gundam" else 1024
         crop = args.image_mode == "gundam"
         try:
-            text = model.infer(
+            model.infer(
                 tok,
                 prompt=(
                     "<image>document parsing."
@@ -117,20 +119,24 @@ def main() -> None:
                     else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
                 ),
                 image_file=img,
+                output_path=tmp,
                 base_size=1024,
                 image_size=img_size,
                 crop_mode=crop,
                 max_length=args.max_length,
                 no_repeat_ngram_size=35,
                 ngram_window=128,
-                eval_mode=True,
+                save_results=True,
             )
+            result_path = os.path.join(tmp, "result.md")
+            with open(result_path, encoding="utf-8") as f:
+                text = f.read()
             if is_looping_output(text):
                 logger = __import__("logging").getLogger(__name__)
                 logger.info("retry %s", base)
                 try:
                     with repetition_config(penalty=1.05):
-                        text = model.infer(
+                        model.infer(
                             tok,
                             prompt=(
                                 "<image>document parsing."
@@ -138,14 +144,17 @@ def main() -> None:
                                 else "<image>" + CANONICAL_OMNIDOCBENCH_PROMPT
                             ),
                             image_file=img,
+                            output_path=tmp,
                             base_size=1024,
                             image_size=img_size,
                             crop_mode=crop,
                             max_length=args.max_length,
                             no_repeat_ngram_size=5,
                             ngram_window=256,
-                            eval_mode=True,
+                            save_results=True,
                         )
+                    with open(result_path, encoding="utf-8") as f:
+                        text = f.read()
                     retried += 1
                 except Exception as e:
                     msg = f"{type(e).__name__}: {e}"
