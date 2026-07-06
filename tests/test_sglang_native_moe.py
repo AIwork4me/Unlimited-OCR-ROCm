@@ -10,12 +10,19 @@ def test_override_replaces_forward(monkeypatch):
     from sglang.srt.layers.quantization.unquant import UnquantizedFusedMoEMethod
     import rocm_ocr.sglang_native_moe as m
 
+    orig_forward_hip = UnquantizedFusedMoEMethod.forward_hip
     orig_forward = UnquantizedFusedMoEMethod.forward
     try:
         m._APPLIED = False  # reset so apply() runs
         m.apply_native_moe_on_hip()
-        assert UnquantizedFusedMoEMethod.forward.__name__ == "forward_native"
+        # forward_hip is the load-bearing patch: on HIP, MultiPlatformOp
+        # resolves _forward_method -> forward_hip (dispatch_forward), so the
+        # bound instance method the model actually calls is forward_hip.
+        assert UnquantizedFusedMoEMethod.forward_hip.__name__ == "forward_hip_native"
+        # forward is also patched (belt-and-suspenders for direct forward calls).
+        assert UnquantizedFusedMoEMethod.forward.__name__ == "forward_hip_native"
     finally:
+        UnquantizedFusedMoEMethod.forward_hip = orig_forward_hip
         UnquantizedFusedMoEMethod.forward = orig_forward  # restore for other tests
 
 
