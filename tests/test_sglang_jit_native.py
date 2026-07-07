@@ -1,0 +1,60 @@
+# tests/test_sglang_jit_native.py
+import importlib
+
+import pytest
+
+sglang = pytest.importorskip("sglang")  # CI runs without sglang; skip there.
+
+
+def test_store_cache_forced_off_after_apply():
+    """apply() must force the JIT store_cache path off so SGLang's torch-native
+    KV-store fallback is used on HIP (the JIT kernel is CUDA-source and crashes
+    at runtime on ROCm). Covers both the source predicate and the name memory_pool
+    already bound at import.
+    """
+    import sglang.jit_kernel.kvcache as kv
+    import sglang.srt.mem_cache.memory_pool as mp
+
+    import rocm_ocr.sglang_jit_native as m
+
+    orig_kv = kv.can_use_store_cache
+    orig_mp = mp.can_use_store_cache
+    try:
+        m._APPLIED = False  # reset so apply() runs
+        m.apply_native_jit_on_hip()
+        # Source predicate forced False for any row size.
+        assert kv.can_use_store_cache(2560) is False
+        assert kv.can_use_store_cache(128) is False
+        # memory_pool's bound name also forced False (import-order robust).
+        assert mp.can_use_store_cache(2560) is False
+    finally:
+        kv.can_use_store_cache = orig_kv
+        mp.can_use_store_cache = orig_mp
+
+
+def test_clamp_position_routed_to_native_after_apply():
+    """apply() routes clamp_position to the torch-native fallback."""
+    from sglang.srt.model_executor import forward_batch_info as fbi
+
+    import rocm_ocr.sglang_jit_native as m
+
+    orig = fbi.clamp_position
+    try:
+        m._APPLIED = False
+        m.apply_native_jit_on_hip()
+        # The native fallback is either SGLang's own _clamp_position_native or
+        # our inlined version; both must agree with torch.clamp(seq_lens-1, min=0).
+        import torch
+
+        out = fbi.clamp_position(torch.tensor([1, 5, 10]))
+        assert torch.equal(out, torch.tensor([0, 4, 9]))
+    finally:
+        fbi.clamp_position = orig
+
+
+def test_env_gate_not_applied_when_unset(monkeypatch):
+    import rocm_ocr.sglang_jit_native as m
+
+    monkeypatch.setenv("SGLANG_NATIVE_JIT_ON_HIP", "0")
+    importlib.reload(m)
+    assert m._APPLIED is False  # must NOT patch when env unset

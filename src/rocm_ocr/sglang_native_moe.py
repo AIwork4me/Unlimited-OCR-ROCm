@@ -28,7 +28,9 @@ The SGLang serve wrapper imports this module BEFORE launch_server so the patch
 is in place before model load (and before each scheduler worker's
 `_forward_method` is bound at `UnquantizedFusedMoEMethod.__init__` time).
 """
+
 from __future__ import annotations
+
 import os
 
 _APPLIED = False
@@ -53,6 +55,7 @@ def apply_native_moe_on_hip() -> None:
     def forward_hip_native(self, layer, dispatch_output):
         from sglang.srt.layers.moe.fused_moe_native import moe_forward_native
         from sglang.srt.layers.moe.token_dispatcher import StandardCombineInput
+
         x = dispatch_output.hidden_states
         topk_output = dispatch_output.topk_output
         output = moe_forward_native(layer, x, topk_output, self.moe_runner_config)
@@ -67,8 +70,8 @@ def apply_native_moe_on_hip() -> None:
 
 # Auto-apply on import when the gate is set (the serve wrapper imports us).
 if os.environ.get("SGLANG_MOE_NATIVE_ON_HIP", "0") == "1":
-    try:
+    import contextlib
+
+    # sglang not installed in this environment -> override stays inactive.
+    with contextlib.suppress(ImportError):
         apply_native_moe_on_hip()
-    except ImportError:
-        # sglang not installed in this environment; override stays inactive.
-        pass
