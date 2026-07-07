@@ -76,6 +76,28 @@ def apply_native_jit_on_hip() -> None:
 
         mp.can_use_store_cache = kv.can_use_store_cache
 
+    # --- RMSNorm: force forward_hip -> forward_native. forward_hip uses vllm's
+    # fused rms_norm CUDA kernel (when _has_vllm_rms_norm), which miscomputes on
+    # gfx1100 -> silent corruption (degenerate logits / BOS-loop). forward_native
+    # is torch (fp32 rms_norm). Same MultiPlatformOp->native pattern as the others.
+    with contextlib.suppress(ImportError):
+        from sglang.srt.layers.layernorm import RMSNorm
+
+        if RMSNorm.forward_hip is not RMSNorm.forward_native:
+            RMSNorm.forward_hip = RMSNorm.forward_native
+
+    # --- SiluAndMul / GeluAndMul: force forward_hip -> forward_native. Their
+    # forward_cuda uses sgl_kernel.silu_and_mul / gelu_and_mul (CUDA kernels) which
+    # miscompute on gfx1100 -> silent corruption (these run in EVERY MLP/MoE layer,
+    # so a bad activation corrupts the whole forward -> BOS-loop).
+    with contextlib.suppress(ImportError):
+        from sglang.srt.layers.activation import GeluAndMul, SiluAndMul
+
+        if SiluAndMul.forward_hip is not SiluAndMul.forward_native:
+            SiluAndMul.forward_hip = SiluAndMul.forward_native
+        if GeluAndMul.forward_hip is not GeluAndMul.forward_native:
+            GeluAndMul.forward_hip = GeluAndMul.forward_native
+
     _APPLIED = True
 
 
