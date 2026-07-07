@@ -24,6 +24,17 @@ OWN native function — correct by construction; cost is speed only. Scoped to
 the unquantized BF16 method; quantized paths are unaffected (and would still
 raise loudly, as the aiter stub does). Designed to be upstreamable later.
 
+Two MoE dispatch paths exist in SGLang and BOTH must be forced native on HIP:
+  (1) the FusedMoE *layer+method* path (DeepseekV2 / V2-Lite): patched via
+      ``UnquantizedFusedMoEMethod.forward_hip`` below.
+  (2) the *function* path (DeepseekV1 / Unlimited-OCR): ``DeepseekMoE.forward``
+      calls ``fused_moe_triton.fused_moe(...)`` directly -> triton ``fused_experts``
+      (GPU-hangs on gfx1100). ``_route_fused_moe_function_to_native`` reroutes the
+      BF16-unquantized branch to SGLang's OWN ``moe_forward_native`` (per-expert
+      ``F.linear`` loop, triton-free) via a tiny shim (``w13_weight=w1,
+      w2_weight=w2``); quantized branches fall through to the original (and would
+      still fault loudly on gfx1100). Assumes ``tp_size=1``.
+
 The SGLang serve wrapper imports this module BEFORE launch_server so the patch
 is in place before model load (and before each scheduler worker's
 `_forward_method` is bound at `UnquantizedFusedMoEMethod.__init__` time).
@@ -34,6 +45,89 @@ from __future__ import annotations
 import os
 
 _APPLIED = False
+
+
+def _route_fused_moe_function_to_native() -> None:
+    """Reroute ``fused_moe_triton.fused_moe`` -> ``moe_forward_native`` on HIP.
+
+    Covers the *function* MoE dispatch path (DeepseekV1 / Unlimited-OCR), whose
+    ``DeepseekMoE.forward`` calls ``fused_moe.fused_moe(...)`` directly (srt/models/
+    deepseek.py) -> triton ``fused_experts`` (GPU-hangs on gfx1100). The BF16
+    unquantized branch is rerouted to SGLang's OWN torch-native ``moe_forward_native``
+    (per-expert F.linear loop, triton-free) via a shim exposing ``w1``/``w2`` as
+    ``w13_weight``/``w2_weight``. Quantized branches fall through to the original.
+    Idempotent; assumes tp_size=1 (``shim.num_experts = w1.shape[0]``).
+    """
+    from types import SimpleNamespace
+
+    from sglang.srt.layers.moe.fused_moe_native import moe_forward_native
+    from sglang.srt.layers.moe.fused_moe_triton import fused_moe as fm
+    from sglang.srt.layers.moe.moe_runner import MoeRunnerConfig
+
+    if getattr(fm.fused_moe, "_rocm_ocr_native", False):
+        return
+    orig = fm.fused_moe
+
+    def fused_moe_native(
+        hidden_states,
+        w1,
+        w2,
+        topk_output,
+        moe_runner_config=None,
+        b1=None,
+        b2=None,
+        use_fp8_w8a8=False,
+        use_int8_w8a8=False,
+        use_int8_w8a16=False,
+        use_int4_w4a16=False,
+        per_channel_quant=False,
+        w1_scale=None,
+        w2_scale=None,
+        w1_zp=None,
+        w2_zp=None,
+        a1_scale=None,
+        a2_scale=None,
+        block_shape=None,
+    ):
+        cfg = moe_runner_config if moe_runner_config is not None else MoeRunnerConfig()
+        quantized = (
+            use_fp8_w8a8
+            or use_int8_w8a8
+            or use_int8_w8a16
+            or use_int4_w4a16
+            or w1_scale is not None
+            or w2_scale is not None
+        )
+        if quantized:
+            # Not supported on gfx1100 either way; keep the original (loud) behavior.
+            return orig(
+                hidden_states,
+                w1,
+                w2,
+                topk_output,
+                moe_runner_config=cfg,
+                b1=b1,
+                b2=b2,
+                use_fp8_w8a8=use_fp8_w8a8,
+                use_int8_w8a8=use_int8_w8a8,
+                use_int8_w8a16=use_int8_w8a16,
+                use_int4_w4a16=use_int4_w4a16,
+                per_channel_quant=per_channel_quant,
+                w1_scale=w1_scale,
+                w2_scale=w2_scale,
+                w1_zp=w1_zp,
+                w2_zp=w2_zp,
+                a1_scale=a1_scale,
+                a2_scale=a2_scale,
+                block_shape=block_shape,
+            )
+        # BF16 unquantized: reuse SGLang's own torch-native MoE (triton-free).
+        shim = SimpleNamespace(w13_weight=w1, w2_weight=w2, num_experts=int(w1.shape[0]))
+        return moe_forward_native(shim, hidden_states, topk_output, cfg)
+
+    fused_moe_native._rocm_ocr_native = True
+    fused_moe_native._orig = orig  # handle for test restore
+    fm.fused_moe = fused_moe_native
 
 
 def apply_native_moe_on_hip() -> None:
@@ -65,6 +159,12 @@ def apply_native_moe_on_hip() -> None:
     # Belt-and-suspenders: also patch `forward` in case any call site invokes it
     # directly (bypassing MultiPlatformOp.forward). Harmless on the normal path.
     UnquantizedFusedMoEMethod.forward = forward_hip_native
+
+    # (2) Function-path MoE dispatch (DeepseekV1 / Unlimited-OCR): reroute
+    # fused_moe_triton.fused_moe -> moe_forward_native (triton fused_experts
+    # GPU-hangs on gfx1100). See _route_fused_moe_function_to_native docstring.
+    _route_fused_moe_function_to_native()
+
     _APPLIED = True
 
 
