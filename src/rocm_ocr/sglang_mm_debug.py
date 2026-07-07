@@ -113,4 +113,33 @@ async def _tok(self, *args, **kwargs):
 
 tmgr.TokenizerManager._tokenize_one_request = _tok
 
+# 6) Dump the image embeddings (projector output) the LLM receives for <image>
+#    tokens -- NaN/anomaly check (does a vision/projector kernel blow up?).
+import sglang.srt.models.unlimited_ocr as uom  # noqa: E402
+
+_orig_embed = uom.UnlimitedOCRForCausalLM._pixel_values_to_embedding
+
+
+def _embed(self, *args, **kwargs):
+    out = _orig_embed(self, *args, **kwargs)
+    try:
+        import torch as _t
+
+        ts = out if isinstance(out, (list, tuple)) else [out]
+        for i, t in enumerate(ts):
+            if isinstance(t, _t.Tensor):
+                tf = t.float()
+                _log(
+                    f"image_embed[{i}]: shape={tuple(t.shape)} dtype={t.dtype} "
+                    f"mean={tf.mean().item():.4f} std={tf.std().item():.4f} "
+                    f"min={t.min().item():.4f} max={t.max().item():.4f} "
+                    f"has_nan={_t.isnan(t).any().item()} has_inf={_t.isinf(t).any().item()}"
+                )
+    except Exception as e:  # noqa: BLE001
+        _log(f"image_embed dump failed: {e!r}")
+    return out
+
+
+uom.UnlimitedOCRForCausalLM._pixel_values_to_embedding = _embed
+
 _log("instrumentation installed")
