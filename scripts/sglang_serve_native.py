@@ -19,15 +19,23 @@ parent process has it set at the moment of the real launch. The override import
 still runs in every child (so the monkeypatch is present in each scheduler
 worker) — only the *launch* is suppressed in re-runs.
 """
+
 import os
 import sys
+
+import rocm_ocr.sglang_conv_template  # noqa: F401  (unlimited-ocr SFT template fix)
+import rocm_ocr.sglang_jit_native  # noqa: F401
 
 # Always import: applies the FusedMoE->native patch when SGLANG_MOE_NATIVE_ON_HIP=1,
 # and the JIT-micro-op->native patch when SGLANG_NATIVE_JIT_ON_HIP=1. In spawn
 # children these run during the run_path re-execution, so each scheduler worker
 # gets the patched paths before model load / batch init.
 import rocm_ocr.sglang_native_moe  # noqa: F401
-import rocm_ocr.sglang_jit_native  # noqa: F401
+
+# Optional debug: trace the multimodal image flow (where the image is lost).
+# Imported only when SGLANG_MM_DEBUG=1; no-op otherwise.
+if os.environ.get("SGLANG_MM_DEBUG", "0") == "1":
+    import rocm_ocr.sglang_mm_debug  # noqa: F401
 
 _LAUNCH_SENTINEL = "_SGLANG_SERVE_LAUNCHING"
 
