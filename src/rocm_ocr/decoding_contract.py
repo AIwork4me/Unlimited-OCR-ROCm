@@ -102,11 +102,19 @@ def build_sglang_request(
         "max_tokens": contract.max_length - SGLANG_RESERVED_INPUT_TOKENS,
         "skip_special_tokens": contract.skip_special_tokens,
         "images_config": {"image_mode": contract.image_mode},
-        # NOTE: SGLang's custom_logit_processor expects a dill-serialized JSON
-        # ({"callable": <hex>}), not a class name; sending the bare name raises
-        # orjson.JSONDecodeError. Looping is instead handled by the runner's
-        # two-pass retry (is_looping_output -> retry params). TODO: serialize the
-        # processor client-side for on-the-fly ngram parity with the PyTorch path.
+        # On-the-fly n-gram blocking during generation, matching model.infer's
+        # no_repeat_ngram_size / ngram_window (parity with the 91.97 reference).
+        # SGLang applies DeepseekOCRNoRepeatNGramLogitProcessor each decode step
+        # (bit-identical to the reference's SlidingWindowNoRepeatNgramProcessor).
+        # ngram_size/window_size are per-call so the runner's two-pass retry sends
+        # 35/128 (first pass) and 5/256 (retry) with no extra wiring. Requires the
+        # server flag --enable-custom-logit-processor (on in scripts/sglang_serve.sh).
+        "custom_logit_processor": sglang_ngram_processor_str(),
+        "custom_params": {
+            "ngram_size": ngram_size,
+            "window_size": ngram_window,
+            "whitelist_token_ids": [],  # parity: reference used no whitelist
+        },
         "repetition_penalty": repetition_penalty,
         "stream": False,
     }

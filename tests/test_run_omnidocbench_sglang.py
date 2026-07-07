@@ -15,10 +15,18 @@ def test_infer_page_uses_contract_defaults():
         out = runner.infer_page_sglang("http://x", "/tmp/a.png")
         assert out == "# hello"
         sent = p.call_args.kwargs["json"]
-        # custom_logit_processor/custom_params are NOT sent (SGLang expects a
-        # serialized callable, not a class name; looping handled by two-pass retry).
-        assert "custom_params" not in sent
-        assert "custom_logit_processor" not in sent
+        # On-the-fly n-gram blocking is sent: custom_logit_processor (dill
+        # by-reference class pickle) + per-call custom_params. infer_page_sglang's
+        # defaults are CONTRACT.no_repeat_ngram_size / CONTRACT.ngram_window.
+        from rocm_ocr.decoding_contract import sglang_ngram_processor_str
+
+        assert "custom_params" in sent
+        assert sent["custom_logit_processor"] == sglang_ngram_processor_str()
+        assert sent["custom_params"] == {
+            "ngram_size": 35,
+            "window_size": 128,
+            "whitelist_token_ids": [],
+        }
         assert sent["temperature"] == 0.0
 
 

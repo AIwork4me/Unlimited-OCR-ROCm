@@ -33,12 +33,17 @@ def test_build_sglang_request_shape():
     assert req["max_tokens"] == CONTRACT.max_length - SGLANG_RESERVED_INPUT_TOKENS
     assert req["skip_special_tokens"] is False
     assert req["images_config"] == {"image_mode": "gundam"}
-    # custom_logit_processor is NOT sent: SGLang expects a dill-serialized JSON
-    # ({"callable": <hex>}), not a class name -> bare name raises JSONDecodeError.
-    # Looping is handled by the runner's two-pass retry instead. TODO: serialize
-    # the processor client-side for on-the-fly ngram parity (eval efficiency).
-    assert "custom_logit_processor" not in req
-    assert "custom_params" not in req
+    # On-the-fly n-gram blocking (parity with model.infer's 35/128): SGLang applies
+    # DeepseekOCRNoRepeatNGramLogitProcessor each decode step. ngram/window are
+    # per-call so the runner's two-pass retry sends 35/128 then 5/256.
+    from rocm_ocr.decoding_contract import sglang_ngram_processor_str
+
+    assert req["custom_logit_processor"] == sglang_ngram_processor_str()
+    assert req["custom_params"] == {
+        "ngram_size": 35,
+        "window_size": 128,
+        "whitelist_token_ids": [],
+    }
     assert req["repetition_penalty"] == 1.0
     msg = req["messages"][0]
     assert msg["role"] == "user"
@@ -91,3 +96,15 @@ def test_fallback_constant_matches_live_when_sglang_present():
     from rocm_ocr.decoding_contract import _SGLANG_NGRAM_PROCESSOR_STR_FALLBACK
 
     assert DeepseekOCRNoRepeatNGramLogitProcessor.to_str() == _SGLANG_NGRAM_PROCESSOR_STR_FALLBACK
+
+
+def test_build_sglang_request_passes_per_call_ngram():
+    # The two-pass retry calls build_sglang_request with retry ngram params;
+    # custom_params must reflect whatever the caller passes (not hardcoded).
+    req = build_sglang_request(CONTRACT, "AAA", "image/png", 5, 256, 1.05)
+    assert req["custom_params"] == {
+        "ngram_size": 5,
+        "window_size": 256,
+        "whitelist_token_ids": [],
+    }
+    assert req["repetition_penalty"] == 1.05
