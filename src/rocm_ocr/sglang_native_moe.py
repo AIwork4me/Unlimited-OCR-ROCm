@@ -34,6 +34,9 @@ Two MoE dispatch paths exist in SGLang and BOTH must be forced native on HIP:
       ``F.linear`` loop, triton-free) via a tiny shim (``w13_weight=w1,
       w2_weight=w2``); quantized branches fall through to the original (and would
       still fault loudly on gfx1100). Assumes ``tp_size=1``.
+  (3) the TopK gating op: ``TopK.forward_cuda`` calls ``sgl_kernel.topk_softmax``
+      (page-faults on gfx1100). ``_force_topk_native_on_hip`` reroutes
+      ``TopK.forward_hip -> forward_native`` (SGLang's torch-native topk).
 
 The SGLang serve wrapper imports this module BEFORE launch_server so the patch
 is in place before model load (and before each scheduler worker's
@@ -130,6 +133,25 @@ def _route_fused_moe_function_to_native() -> None:
     fm.fused_moe = fused_moe_native
 
 
+def _force_topk_native_on_hip() -> None:
+    """Force ``TopK.forward_hip -> forward_native`` on HIP.
+
+    ``TopK`` (sglang/srt/layers/moe/topk.py) is a ``MultiPlatformOp`` whose
+    ``forward_cuda`` (STANDARD output format) calls ``sgl_kernel.topk_softmax`` —
+    a CUDA-compiled op that page-faults on gfx1100 (first hit in the first MoE
+    layer; the fault is reported asynchronously during the subsequent fused_moe,
+    which is why it looks like an MoE fault). ``forward_native`` uses SGLang's OWN
+    torch-native topk (``select_experts`` with ``torch_native=True``) and returns
+    the same ``TopKOutput`` format, so it is a drop-in. Idempotent; scoped to
+    ``TopK`` (other MultiPlatformOps keep their dispatch).
+    """
+    from sglang.srt.layers.moe.topk import TopK
+
+    if TopK.forward_hip is TopK.forward_native:
+        return  # already forced native (idempotent)
+    TopK.forward_hip = TopK.forward_native
+
+
 def apply_native_moe_on_hip() -> None:
     """Monkeypatch UnquantizedFusedMoEMethod.forward_hip -> native MoE path.
 
@@ -164,6 +186,10 @@ def apply_native_moe_on_hip() -> None:
     # fused_moe_triton.fused_moe -> moe_forward_native (triton fused_experts
     # GPU-hangs on gfx1100). See _route_fused_moe_function_to_native docstring.
     _route_fused_moe_function_to_native()
+
+    # (3) TopK gating: forward_hip -> forward_native (sgl_kernel.topk_softmax
+    # page-faults on gfx1100). See _force_topk_native_on_hip docstring.
+    _force_topk_native_on_hip()
 
     _APPLIED = True
 

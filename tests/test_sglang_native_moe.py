@@ -8,6 +8,7 @@ sglang = pytest.importorskip("sglang")  # CI runs without sglang; skip there.
 
 def test_override_replaces_forward(monkeypatch):
     from sglang.srt.layers.moe.fused_moe_triton import fused_moe as fm
+    from sglang.srt.layers.moe.topk import TopK
     from sglang.srt.layers.quantization.unquant import UnquantizedFusedMoEMethod
 
     import rocm_ocr.sglang_native_moe as m
@@ -15,6 +16,7 @@ def test_override_replaces_forward(monkeypatch):
     orig_forward_hip = UnquantizedFusedMoEMethod.forward_hip
     orig_forward = UnquantizedFusedMoEMethod.forward
     orig_fm = fm.fused_moe
+    orig_topk_hip = TopK.forward_hip
     try:
         m._APPLIED = False  # reset so apply() runs
         m.apply_native_moe_on_hip()
@@ -26,10 +28,13 @@ def test_override_replaces_forward(monkeypatch):
         assert UnquantizedFusedMoEMethod.forward.__name__ == "forward_hip_native"
         # Function-path override is also applied (DeepseekV1 / Unlimited-OCR).
         assert getattr(fm.fused_moe, "_rocm_ocr_native", False)
+        # TopK gating is also forced native.
+        assert TopK.forward_hip is TopK.forward_native
     finally:
         UnquantizedFusedMoEMethod.forward_hip = orig_forward_hip
         UnquantizedFusedMoEMethod.forward = orig_forward  # restore for other tests
         fm.fused_moe = orig_fm
+        TopK.forward_hip = orig_topk_hip
 
 
 def test_fused_moe_function_routes_to_native():
@@ -42,11 +47,13 @@ def test_fused_moe_function_routes_to_native():
     import torch
     from sglang.srt.layers.moe.fused_moe_triton import fused_moe as fm
     from sglang.srt.layers.moe.moe_runner import MoeRunnerConfig
+    from sglang.srt.layers.moe.topk import TopK
 
     import rocm_ocr.sglang_native_moe as m
 
     orig_fm = fm.fused_moe
     orig_native = fmn.moe_forward_native
+    orig_topk_hip = TopK.forward_hip
     captured = {}
 
     def fake_native(layer, x, topk_output, cfg):
@@ -77,6 +84,26 @@ def test_fused_moe_function_routes_to_native():
     finally:
         fm.fused_moe = orig_fm
         fmn.moe_forward_native = orig_native
+        TopK.forward_hip = orig_topk_hip
+
+
+def test_topk_forced_native_after_apply():
+    """apply() forces TopK.forward_hip -> TopK.forward_native (sgl_kernel.topk_softmax
+    page-faults on gfx1100). Idempotent and scoped to TopK."""
+    from sglang.srt.layers.moe.topk import TopK
+
+    import rocm_ocr.sglang_native_moe as m
+
+    orig_topk_hip = TopK.forward_hip
+    try:
+        m._APPLIED = False
+        m.apply_native_moe_on_hip()
+        assert TopK.forward_hip is TopK.forward_native
+        # idempotent: a second apply is a no-op.
+        m.apply_native_moe_on_hip()
+        assert TopK.forward_hip is TopK.forward_native
+    finally:
+        TopK.forward_hip = orig_topk_hip
 
 
 def test_env_gate_not_applied_when_unset(monkeypatch):
