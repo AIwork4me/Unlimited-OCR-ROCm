@@ -25,6 +25,17 @@ Currently patched:
   ``CUDA error: no ROCm-capable device is detected`` — reached on the first
   attention ``forward_extend`` for models that use the SWA KV pool (e.g.
   ``baidu/Unlimited-OCR``, which exposes a sliding window).
+- ``sglang.srt.layers.rotary_embedding.base.RotaryEmbedding``: the
+  ``MultiPlatformOp.forward_hip -> forward_cuda`` path runs
+  ``sgl_kernel.rotary_embedding`` (imported at init when ``_is_hip``), which
+  miscomputes on gfx1100 the same way ``sgl_kernel.silu_and_mul`` /
+  ``topk_softmax`` do. Rotary runs in EVERY attention layer (on Q and K), so a
+  bad rotary corrupts the whole forward -> degenerate logits / garbage OCR, and
+  it is byte-identical across attention backends (both receive the same corrupt
+  Q,K). Forced to SGLang's own torch-native ``forward_native``. This was the
+  remaining corrupter after the SiluAndMul fix (image OCR stayed garbage with a
+  correct prompt + verified-correct image embeddings); it is *not* the attention
+  kernel -- swapping triton <-> torch_native changed nothing.
 """
 
 from __future__ import annotations
@@ -97,6 +108,20 @@ def apply_native_jit_on_hip() -> None:
             SiluAndMul.forward_hip = SiluAndMul.forward_native
         if GeluAndMul.forward_hip is not GeluAndMul.forward_native:
             GeluAndMul.forward_hip = GeluAndMul.forward_native
+
+    # --- RotaryEmbedding: force forward_hip -> forward_native. On HIP the
+    # MultiPlatformOp default forward_hip delegates to forward_cuda, whose
+    # fallback branch runs sgl_kernel.rotary_embedding (imported at init when
+    # _is_hip) -- the SAME sgl_kernel package whose silu_and_mul / topk_softmax
+    # miscompute on gfx1100. Rotary runs in every attention layer on Q and K, so
+    # this was the remaining forward corrupter (image OCR garbage with a correct
+    # prompt + verified-correct image embeddings; byte-identical across triton vs
+    # torch_native attention). forward_native is SGLang's own pure-torch RoPE.
+    with contextlib.suppress(ImportError):
+        from sglang.srt.layers.rotary_embedding.base import RotaryEmbedding
+
+        if RotaryEmbedding.forward_hip is not RotaryEmbedding.forward_native:
+            RotaryEmbedding.forward_hip = RotaryEmbedding.forward_native
 
     _APPLIED = True
 

@@ -52,6 +52,40 @@ def test_clamp_position_routed_to_native_after_apply():
         fbi.clamp_position = orig
 
 
+def test_multiplatform_ops_forced_native_after_apply():
+    """apply() must force forward_hip -> forward_native for every MultiPlatformOp
+    whose CUDA/sgl_kernel path miscomputes on gfx1100: RMSNorm, SiluAndMul,
+    GeluAndMul, and RotaryEmbedding. Rotary is load-bearing: it runs in every
+    attention layer on Q and K, so a bad rotary corrupts the whole forward
+    (silent corruption -> garbage OCR, byte-identical across attention backends).
+    """
+    from sglang.srt.layers.activation import GeluAndMul, SiluAndMul
+    from sglang.srt.layers.layernorm import RMSNorm
+    from sglang.srt.layers.rotary_embedding.base import RotaryEmbedding
+
+    import rocm_ocr.sglang_jit_native as m
+
+    pairs = [
+        (RMSNorm, "RMSNorm"),
+        (SiluAndMul, "SiluAndMul"),
+        (GeluAndMul, "GeluAndMul"),
+        (RotaryEmbedding, "RotaryEmbedding"),
+    ]
+    try:
+        m._APPLIED = False
+        m.apply_native_jit_on_hip()
+        for cls, name in pairs:
+            assert cls.forward_hip is cls.forward_native, (
+                f"{name}.forward_hip was not routed to forward_native -- the "
+                f"sgl_kernel CUDA path would run on gfx1100 and corrupt the forward"
+            )
+    finally:
+        # forward_hip -> forward_native is idempotent and the intended production
+        # state on HIP; restoring is unnecessary, but we reset the apply flag so
+        # other tests start clean.
+        m._APPLIED = True
+
+
 def test_env_gate_not_applied_when_unset(monkeypatch):
     import rocm_ocr.sglang_jit_native as m
 
