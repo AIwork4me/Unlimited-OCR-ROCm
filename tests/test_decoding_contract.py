@@ -32,5 +32,8 @@ def test_build_sglang_request_shape():
     assert req["repetition_penalty"] == 1.0
     msg = req["messages"][0]
     assert msg["role"] == "user"
-    assert {"type": "text", "text": CONTRACT.prompt} in msg["content"]
+    # SGLang inserts the <image> token from the image_url chunk, so the text must
+    # NOT also carry the literal <image> placeholder (else two <image> for one
+    # image -> multimodal loader StopIteration). build_sglang_request strips it.
+    assert {"type": "text", "text": CONTRACT.prompt.removeprefix("<image>")} in msg["content"]
     assert msg["content"][1] == {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAA"}}

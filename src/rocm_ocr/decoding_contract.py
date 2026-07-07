@@ -4,7 +4,9 @@ PyTorch/SGLang/vLLM runners import CONTRACT so the three backends use
 bit-identical decoding (parity A/B is not confounded by param drift).
 Values verbatim from docs/superpowers/specs/2026-07-06-three-backend-sglang-vllm-parity-design.md §6.
 """
+
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 
@@ -13,10 +15,10 @@ class DecodingContract:
     model: str = "baidu/Unlimited-OCR"
     weights_revision: str = "84757cb0"
     prompt: str = "<image>document parsing."
-    image_mode: str = "gundam"          # gundam = 640px cropped tiles
+    image_mode: str = "gundam"  # gundam = 640px cropped tiles
     image_size: int = 640
     crop_mode: bool = True
-    temperature: float = 0.0            # greedy, deterministic
+    temperature: float = 0.0  # greedy, deterministic
     max_length: int = 32768
     no_repeat_ngram_size: int = 35
     ngram_window: int = 128
@@ -30,16 +32,27 @@ class DecodingContract:
 CONTRACT = DecodingContract()
 
 
-def build_sglang_request(contract: DecodingContract, image_b64: str, mime: str,
-                         ngram_size: int, ngram_window: int,
-                         repetition_penalty: float) -> dict:
+def build_sglang_request(
+    contract: DecodingContract, image_b64: str, mime: str, ngram_size: int, ngram_window: int, repetition_penalty: float
+) -> dict:
     """Build the SGLang /v1/chat/completions payload for one page image."""
+    # NOTE: SGLang's chat API inserts an <image> token for each image_url chunk,
+    # so the text must NOT also contain the literal <image> placeholder from the
+    # contract (else the prompt gets two <image> tokens for one image and the
+    # multimodal loader raises StopIteration). Strip the leading placeholder;
+    # the image_url chunk supplies it.
+    sglang_prompt = contract.prompt.removeprefix("<image>")
     return {
         "model": contract.model,
-        "messages": [{"role": "user", "content": [
-            {"type": "text", "text": contract.prompt},
-            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
-        ]}],
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": sglang_prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_b64}"}},
+                ],
+            }
+        ],
         "temperature": contract.temperature,
         "max_tokens": contract.max_length,
         "skip_special_tokens": contract.skip_special_tokens,
