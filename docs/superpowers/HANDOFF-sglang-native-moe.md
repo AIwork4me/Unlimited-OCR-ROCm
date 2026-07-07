@@ -59,10 +59,10 @@ sg render -c '.venv/bin/python scripts/run_omnidocbench_sglang.py \
 Dump/comparison tools used to pin it: `scripts/analysis/sglang_ref_embed_dump.py` (reference projector hook → `/tmp/ref_embeds.pt`); `src/rocm_ocr/sglang_mm_debug.py` (`SGLANG_MM_DEBUG=1` → `/tmp/sglang_embed.pt` + FINAL input_ids trace). Scratch repro harnesses in `/tmp`: `test_plain_template.sh`, `test_torchnative.sh`, `test_both_pages.sh`, `probe_two.py`.
 
 ## 6. After the image path is fixed
-1. `custom_logit_processor` serialization (client-side `ProcessorClass.to_str()` dill) — restore on-the-fly ngram blocking (eval efficiency; without it looping pages generate to max_tokens).
-2. Throughput gate (Task 8) — native MoE ~60-115 tok/s.
-3. Full v1.6 eval → manifest → gate → release (Task 9).
-4. Parity bar + honest docs (Task 10).
+1. **✅ RESOLVED** `custom_logit_processor` on-the-fly n-gram blocking — wired into `build_sglang_request` (`custom_logit_processor` = SGLang's `DeepseekOCRNoRepeatNGramLogitProcessor.to_str()`, `custom_params` = `{ngram_size, window_size, whitelist_token_ids:[]}` per-call; helper `sglang_ngram_processor_str()` with embedded fallback so the runner stays sglang-optional). Spec `docs/superpowers/specs/2026-07-07-sglang-on-the-fly-ngram-blocking-design.md`, plan + commits on this branch. **Verified**: the looping page `PPT_..._page_015` (was 73734 B of `7.7.7.8...`) now produces coherent EOS-terminated OCR; processor accepted (HTTP 200, no JSONDecodeError). n=35/window=128 bans 35-gram repeats (short-unit loops like `/ac/ac/` can remain — identical to the reference's blocker, so parity holds; full eval measures it).
+2. Throughput gate (Task 8) — native MoE ~66 tok/s measured (decode); publish in BENCHMARK.md.
+3. Full v1.6 eval (SGLang backend, now faithful) → manifest → gate → release (Task 9).
+4. Parity bar + honest docs (Task 10) — README/PARITY/ROADMAP headline still says "SGLang blocked / gap not closable", which the rotary fix (`3238364`) overturned; rewrite after the SGLang eval.
 
 ## 7. How to resume / reproduce
 ```bash
