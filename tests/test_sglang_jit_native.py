@@ -92,3 +92,47 @@ def test_env_gate_not_applied_when_unset(monkeypatch):
     monkeypatch.setenv("SGLANG_NATIVE_JIT_ON_HIP", "0")
     importlib.reload(m)
     assert m._APPLIED is False  # must NOT patch when env unset
+
+
+def test_rotary_import_failure_is_loud_not_swallowed(monkeypatch):
+    """A future sglang that breaks the RotaryEmbedding import (e.g. collapses
+    rotary_embedding/ package to a single module, or renames it) MUST fail serve
+    LOUDLY under the env gate, not be swallowed by suppress(ImportError) and leave
+    rotary on the corrupt sgl_kernel.rotary_embedding path -> silent garbage OCR.
+
+    We simulate the break by making BOTH rotary import paths fail, then assert
+    apply() raises RuntimeError and _APPLIED stays False (so a retry is possible).
+    """
+    import builtins
+
+    import rocm_ocr.sglang_jit_native as m
+
+    # Force the tolerant helper to fail on both layouts, as a layout change would.
+    real_import = builtins.__import__
+
+    def _block_rotary(name, *args, **kwargs):
+        if "rotary_embedding" in name and "sglang" in name:
+            raise ImportError(f"simulated layout break: cannot import {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", _block_rotary)
+
+    m._APPLIED = False  # ensure apply() runs
+    with pytest.raises(RuntimeError, match="RotaryEmbedding could not be imported"):
+        m.apply_native_jit_on_hip()
+
+    # Partial failure must NOT mark applied -- a later re-call must retry.
+    assert m._APPLIED is False
+    assert "rotary" not in m._PATCHED_OPS
+
+
+def test_rotary_import_tolerates_both_layouts():
+    """_import_rotary_embedding must resolve RotaryEmbedding whether sglang ships
+    it as a package (rotary_embedding/base.py) or a single module. Today it is a
+    package; this test pins that the helper succeeds on the installed layout.
+    """
+    import rocm_ocr.sglang_jit_native as m
+
+    rotary_cls = m._import_rotary_embedding()
+    assert hasattr(rotary_cls, "forward_native")
+    assert hasattr(rotary_cls, "forward_hip")

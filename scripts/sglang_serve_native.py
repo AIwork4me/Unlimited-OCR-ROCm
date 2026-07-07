@@ -23,6 +23,17 @@ worker) — only the *launch* is suppressed in re-runs.
 import os
 import sys
 
+# ORDERING INVARIANT: these three rocm_ocr override imports MUST run before any
+# sglang model/layer module is imported (i.e. before launch_server -> model load).
+# They patch CLASS-level forward_hip/forward_cuda dispatch on MultiPlatformOp
+# subclasses (FusedMoE, RMSNorm, SiluAndMul/GeluAndMul, RotaryEmbedding, TopK).
+# SGLang's MultiPlatformOp.__init__ binds `self._forward_method = self.dispatch_forward()`
+# (forward_hip on HIP) at INSTANCE-CREATION time, then `MultiPlatformOp.forward` calls
+# that bound `_forward_method` directly -- NOT the class `forward_hip`. So patching the
+# class fixes instances created AFTER the patch but NOT before. Patching instances
+# themselves is not done (call-time dispatch in sglang_native_moe covers the MoE case;
+# the others are fine because every model instance is created during/after load). Keep
+# these imports at the top of this file (they are), ahead of `from sglang...` below.
 import rocm_ocr.sglang_conv_template  # noqa: F401  (unlimited-ocr SFT template fix)
 import rocm_ocr.sglang_jit_native  # noqa: F401
 
@@ -50,6 +61,19 @@ def main() -> None:
     from sglang.launch_server import run_server
     from sglang.srt.server_args import prepare_server_args
     from sglang.srt.utils import kill_process_tree
+
+    # Cheap invariant check: if the JIT-native gate was set, the override MUST have
+    # applied before we reach model load. A False here means the import-time
+    # auto-apply was silently skipped (e.g. sglang layout changed) -- fail serve
+    # loudly rather than serve garbage OCR. (See ordering-invariant comment above.)
+    if os.environ.get("SGLANG_NATIVE_JIT_ON_HIP", "0") == "1":
+        from rocm_ocr.sglang_jit_native import _APPLIED as _JIT_APPLIED
+
+        assert _JIT_APPLIED, (
+            "SGLANG_NATIVE_JIT_ON_HIP=1 but rocm_ocr.sglang_jit_native did not "
+            "apply its patches at import time (sglang layout changed, or sglang is "
+            "absent). Refusing to launch: silent OCR corruption would result."
+        )
 
     server_args = prepare_server_args(sys.argv[1:])
     os.environ[_LAUNCH_SENTINEL] = "1"
