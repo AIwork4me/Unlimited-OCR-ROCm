@@ -135,6 +135,12 @@ def _embed(self, *args, **kwargs):
                     f"min={t.min().item():.4f} max={t.max().item():.4f} "
                     f"has_nan={_t.isnan(t).any().item()} has_inf={_t.isinf(t).any().item()}"
                 )
+        # save the first tensor for offline comparison vs model.infer reference
+        for t in ts:
+            if isinstance(t, _t.Tensor):
+                _t.save(t.detach().cpu(), "/tmp/sglang_embed.pt")
+                _log("saved SGLang image embeddings -> /tmp/sglang_embed.pt")
+                break
     except Exception as e:  # noqa: BLE001
         _log(f"image_embed dump failed: {e!r}")
     return out
