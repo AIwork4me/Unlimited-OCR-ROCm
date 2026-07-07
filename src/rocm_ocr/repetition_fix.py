@@ -40,6 +40,7 @@ but not ``repetition_penalty``/``stopping_criteria``, so this module monkey-patc
 from __future__ import annotations
 
 import logging
+import re
 import zlib
 from typing import Any
 
@@ -62,6 +63,26 @@ RUNAWAY_MIN_TOKENS = 512  # don't check before this (let legit content proceed)
 LOOPING_MIN_CHARS = 5000
 LOOPING_MAX_COMPRESS_RATIO = 0.05
 
+# Short-unit repetition loop (issue #55 mode ①, but SHORT — under the zlib
+# detector's LOOPING_MIN_CHARS floor): a 2-8 char unit repeated >=10x
+# consecutively, e.g. "/ac/ac/ac/ac/..." or "(8)(8)(8)...". The unit must
+# have >=2 distinct chars so single-char runs ("----", "....", runs of
+# spaces) — legitimate markdown / leaders — are NOT flagged.
+_SHORT_UNIT_REPEAT = re.compile(r"(.{2,8}?)\1{9,}", re.DOTALL)
+
+
+def _has_short_unit_loop(text: str, *, min_unit_distinct: int = 2) -> bool:
+    """True if *text* contains a short unit (2-8 chars) repeated >=10x.
+
+    Excludes single-character runs (dashes, dots, spaces) via
+    ``min_unit_distinct``. Length-agnostic — catches short looping outputs
+    that the zlib-ratio check (gated on LOOPING_MIN_CHARS) misses.
+    """
+    return any(
+        len(set(m.group(1))) >= min_unit_distinct
+        for m in _SHORT_UNIT_REPEAT.finditer(text)
+    )
+
 
 def is_looping_output(
     text: str,
@@ -71,19 +92,24 @@ def is_looping_output(
 ) -> bool:
     """Return True if *text* appears to be runaway repetition.
 
-    Detects runaway looping (mode ① from issue #55) via zlib compression
-    ratio: long texts that compress extremely well consist largely of
-    repeated content.  Dense-but-legit pages compress poorly (>0.17) and
-    are correctly excluded.
+    Two signals (either triggers True):
+      1. Short-unit loop (any length): a 2-8 char unit repeated >=10x
+         (e.g. "/ac/ac/ac/", "(8)(8)(8)") — issue #55 mode ①, short form.
+         The zlib check below misses these when they're under min_chars.
+      2. Long runaway (mode ①, long form) via zlib compression ratio: long
+         texts that compress extremely well consist largely of repeated
+         content. Dense-but-legit pages compress poorly (>0.17) and are
+         correctly excluded. Only meaningful past ``min_chars``.
 
-    This is the same signal used by :func:`release.detect_looping_pages`
+    This is the same long-runaway signal used by :func:`release.detect_looping_pages`
     but as a stateless pure function for use during per-page inference.
     """
+    if _has_short_unit_loop(text):
+        return True
     if len(text) <= min_chars:
         return False
-    raw = len(text)
     compressed = len(zlib.compress(text.encode("utf-8"), 9))
-    return (compressed / raw) < max_ratio
+    return (compressed / len(text)) < max_ratio
 
 
 class RunawayStoppingCriteria:

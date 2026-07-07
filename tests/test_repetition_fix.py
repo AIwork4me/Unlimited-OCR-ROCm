@@ -91,9 +91,52 @@ def test_is_looping_positive():
 
 
 def test_is_looping_negative_short():
-    """Short text (<5000 chars) never triggers, even if repetitive."""
-    text = "repeat\n" * 100
+    """Short CLEAN text (<5000 chars, no short-unit loop) never triggers.
+
+    NOTE: a short text that IS a short-unit loop (e.g. ``"repeat\\n" * 100`` —
+    a 7-char unit with 6 distinct chars repeated 100x) now DOES trigger under
+    the short-unit detector (issue: short looping outputs under the 5000-char
+    zlib floor were being missed). Use genuinely clean short text here instead.
+    """
+    text = "A TYPICAL PROJECT TALK OUTLINE\nTitle/author/affiliation (1 slide)\nWho am I?"
     assert is_looping_output(text) is False
+
+
+def test_is_looping_output_catches_short_unit_loop():
+    """240-char /ac/ac/ac loop (the exact SGLang smoke failure) — under the 5000 floor."""
+    from rocm_ocr.repetition_fix import is_looping_output
+
+    text = "English Pronunciation\n- http://www.uiowa.edu/" + "/ac" * 33 + "/rs/frameset.html"
+    assert is_looping_output(text) is True
+
+
+def test_is_looping_output_catches_paren_repeat():
+    """(8)(8)(8)... short-unit loop — under the floor, must trigger."""
+    from rocm_ocr.repetition_fix import is_looping_output
+
+    assert is_looping_output("(8)(8)(8)(8)(8)(8)(8)(8)(8)(8)done") is True
+
+
+def test_is_looping_output_clean_short_text_not_flagged():
+    """Genuinely clean short text must not trigger (precision)."""
+    from rocm_ocr.repetition_fix import is_looping_output
+
+    clean = "A TYPICAL PROJECT TALK OUTLINE\nTitle/author/affiliation (1 slide)\nWho am I?"
+    assert is_looping_output(clean) is False
+
+
+def test_is_looping_output_dash_run_not_flagged():
+    """Single-char unit ('--') repeated must NOT trigger (legit markdown HR / separator)."""
+    from rocm_ocr.repetition_fix import is_looping_output
+
+    assert is_looping_output("Title\n" + "-" * 40 + "\nbody") is False
+
+
+def test_is_looping_output_long_runaway_still_caught():
+    """Long zlib-compressible runaway (mode ① long form) — existing behavior preserved."""
+    from rocm_ocr.repetition_fix import is_looping_output
+
+    assert is_looping_output("畜牧兽医" * 4000) is True
 
 
 def test_is_looping_negative_dense():
