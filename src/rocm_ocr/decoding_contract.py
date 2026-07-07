@@ -31,6 +31,43 @@ class DecodingContract:
 
 CONTRACT = DecodingContract()
 
+# On-the-fly n-gram blocking during SGLang generation, matching the reference
+# (model.infer's no_repeat_ngram_size / ngram_window). SGLang ships the processor
+# (sglang.srt.sampling.custom_logit_processor.DeepseekOCRNoRepeatNGramLogitProcessor)
+# whose __call__ is bit-identical to the reference's SlidingWindowNoRepeatNgramProcessor.
+# to_str() returns a short (216-char) dill BY-REFERENCE pickle of the class -- stable
+# unless sglang renames the module/class. Prefer the live to_str() (auto-tracks the
+# installed sglang); fall back to this constant when the runner's venv has no sglang
+# (the SERVER still has sglang, so dill.loads succeeds server-side either way).
+# Regenerate:
+#   python -c "from sglang.srt.sampling.custom_logit_processor import \
+# DeepseekOCRNoRepeatNGramLogitProcessor as P; print(P.to_str())"
+_NGRAM_PROCESSOR_DILL_HEX = (
+    "80049559000000000000008c2a73676c616e672e7372742e73616d706c696e672e637573746f6d5f"
+    "6c6f6769745f70726f636573736f72948c26446565707365656b4f43524e6f5265706561744e4772"
+    "616d4c6f67697450726f636573736f729493942e"
+)
+_SGLANG_NGRAM_PROCESSOR_STR_FALLBACK = '{"callable": "' + _NGRAM_PROCESSOR_DILL_HEX + '"}'
+
+
+def sglang_ngram_processor_str() -> str:
+    """SGLang custom_logit_processor string for on-the-fly n-gram blocking.
+
+    Returns ``DeepseekOCRNoRepeatNGramLogitProcessor.to_str()`` when sglang is
+    importable, else the embedded by-reference constant. Either way the string is
+    a JSON ``{"callable": "<hex>"}`` that the SGLang server deserializes to the
+    processor class (the server always has sglang installed).
+    """
+    try:
+        from sglang.srt.sampling.custom_logit_processor import (
+            DeepseekOCRNoRepeatNGramLogitProcessor,
+        )
+
+        return DeepseekOCRNoRepeatNGramLogitProcessor.to_str()
+    except ImportError:
+        return _SGLANG_NGRAM_PROCESSOR_STR_FALLBACK
+
+
 # SGLang's max_tokens is the COMPLETION budget and must satisfy
 # input_tokens + max_tokens <= model context (CONTRACT.max_length). The image
 # input (gundam crops) consumes a chunk of the context (e.g. ~1.5k tokens for a

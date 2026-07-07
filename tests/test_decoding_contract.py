@@ -1,4 +1,6 @@
 # tests/test_decoding_contract.py
+import json
+
 from rocm_ocr.decoding_contract import (
     CONTRACT,
     SGLANG_RESERVED_INPUT_TOKENS,
@@ -45,3 +47,47 @@ def test_build_sglang_request_shape():
     # image -> multimodal loader StopIteration). build_sglang_request strips it.
     assert {"type": "text", "text": CONTRACT.prompt.removeprefix("<image>")} in msg["content"]
     assert msg["content"][1] == {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAA"}}
+
+
+def test_sglang_ngram_processor_str_is_valid_processor_json():
+    # Live to_str() when sglang present, fallback constant otherwise -- both must
+    # be a JSON object {"callable": "<non-empty hex>"}.
+    from rocm_ocr.decoding_contract import sglang_ngram_processor_str
+
+    s = sglang_ngram_processor_str()
+    obj = json.loads(s)
+    assert set(obj.keys()) == {"callable"}
+    hexstr = obj["callable"]
+    assert isinstance(hexstr, str) and len(hexstr) > 0
+    # hex string: only [0-9a-f] chars
+    assert all(c in "0123456789abcdef" for c in hexstr)
+
+
+def test_sglang_ngram_processor_str_roundtrip_when_sglang_present():
+    # When sglang is importable the string must deserialize back to the exact class.
+    pytest = __import__("pytest")
+    pytest.importorskip("sglang")
+    import dill
+
+    from rocm_ocr.decoding_contract import sglang_ngram_processor_str
+
+    obj = json.loads(sglang_ngram_processor_str())
+    cls = dill.loads(bytes.fromhex(obj["callable"]))
+    from sglang.srt.sampling.custom_logit_processor import (
+        DeepseekOCRNoRepeatNGramLogitProcessor,
+    )
+
+    assert cls is DeepseekOCRNoRepeatNGramLogitProcessor
+
+
+def test_fallback_constant_matches_live_when_sglang_present():
+    # Guards the embedded constant against sglang version drift.
+    pytest = __import__("pytest")
+    pytest.importorskip("sglang")
+    from sglang.srt.sampling.custom_logit_processor import (
+        DeepseekOCRNoRepeatNGramLogitProcessor,
+    )
+
+    from rocm_ocr.decoding_contract import _SGLANG_NGRAM_PROCESSOR_STR_FALLBACK
+
+    assert DeepseekOCRNoRepeatNGramLogitProcessor.to_str() == _SGLANG_NGRAM_PROCESSOR_STR_FALLBACK
