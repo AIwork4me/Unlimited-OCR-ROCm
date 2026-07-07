@@ -128,6 +128,34 @@ def test_filter_to_subset_passthrough_when_no_json():
     assert runner.filter_to_subset(images, "") == images
 
 
+def test_postprocess_strips_det_tags_keeps_following_text():
+    import scripts.run_omnidocbench_sglang as runner
+
+    raw = '<|det|>title [54, 142, 768, 202]<|/det|>A "TYPICAL" PROJECT TALK OUTLINE'
+    assert runner.postprocess_ocr_output(raw) == 'A "TYPICAL" PROJECT TALK OUTLINE'
+
+
+def test_postprocess_converts_image_tag_to_markdown_image():
+    import scripts.run_omnidocbench_sglang as runner
+
+    raw = '<|det|>image [10, 20, 30, 40]<|/det|>caption'
+    assert runner.postprocess_ocr_output(raw) == '![](images/0.jpg)\ncaption'
+
+
+def test_postprocess_strips_eos_and_normalizes_coloneqq_with_other_tag():
+    import scripts.run_omnidocbench_sglang as runner
+
+    # \coloneqq normalization is chained to the other-tag replace (faithful to model.infer)
+    raw = '<|det|>equation [1, 2, 3, 4]<|/det|>x \\coloneqq y<｜end▁of▁sentence｜>'
+    assert runner.postprocess_ocr_output(raw) == 'x := y'
+
+
+def test_postprocess_idempotent_on_plain_markdown():
+    import scripts.run_omnidocbench_sglang as runner
+
+    assert runner.postprocess_ocr_output('plain markdown, no tags here') == 'plain markdown, no tags here'
+
+
 def test_main_applies_subset_json(tmp_path, monkeypatch):
     import json
 
