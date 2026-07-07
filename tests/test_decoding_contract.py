@@ -1,5 +1,9 @@
 # tests/test_decoding_contract.py
-from rocm_ocr.decoding_contract import CONTRACT, build_sglang_request
+from rocm_ocr.decoding_contract import (
+    CONTRACT,
+    SGLANG_RESERVED_INPUT_TOKENS,
+    build_sglang_request,
+)
 
 
 def test_contract_values_match_spec():
@@ -24,11 +28,15 @@ def test_build_sglang_request_shape():
     req = build_sglang_request(CONTRACT, "AAA", "image/png", 35, 128, 1.0)
     assert req["model"] == CONTRACT.model
     assert req["temperature"] == 0.0
-    assert req["max_tokens"] == 32768
+    assert req["max_tokens"] == CONTRACT.max_length - SGLANG_RESERVED_INPUT_TOKENS
     assert req["skip_special_tokens"] is False
     assert req["images_config"] == {"image_mode": "gundam"}
-    assert req["custom_logit_processor"] == "DeepseekOCRNoRepeatNGramLogitProcessor"
-    assert req["custom_params"] == {"ngram_size": 35, "window_size": 128}
+    # custom_logit_processor is NOT sent: SGLang expects a dill-serialized JSON
+    # ({"callable": <hex>}), not a class name -> bare name raises JSONDecodeError.
+    # Looping is handled by the runner's two-pass retry instead. TODO: serialize
+    # the processor client-side for on-the-fly ngram parity (eval efficiency).
+    assert "custom_logit_processor" not in req
+    assert "custom_params" not in req
     assert req["repetition_penalty"] == 1.0
     msg = req["messages"][0]
     assert msg["role"] == "user"

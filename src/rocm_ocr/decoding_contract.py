@@ -31,6 +31,14 @@ class DecodingContract:
 
 CONTRACT = DecodingContract()
 
+# SGLang's max_tokens is the COMPLETION budget and must satisfy
+# input_tokens + max_tokens <= model context (CONTRACT.max_length). The image
+# input (gundam crops) consumes a chunk of the context (e.g. ~1.5k tokens for a
+# typical page), so reserve a budget for it. OCR output is always far below the
+# context cap, so this does not truncate real output. Pages whose image input
+# exceeds this reserve are rare; the full-eval runner handles them adaptively.
+SGLANG_RESERVED_INPUT_TOKENS = 8192
+
 
 def build_sglang_request(
     contract: DecodingContract, image_b64: str, mime: str, ngram_size: int, ngram_window: int, repetition_penalty: float
@@ -54,11 +62,14 @@ def build_sglang_request(
             }
         ],
         "temperature": contract.temperature,
-        "max_tokens": contract.max_length,
+        "max_tokens": contract.max_length - SGLANG_RESERVED_INPUT_TOKENS,
         "skip_special_tokens": contract.skip_special_tokens,
         "images_config": {"image_mode": contract.image_mode},
-        "custom_logit_processor": "DeepseekOCRNoRepeatNGramLogitProcessor",
-        "custom_params": {"ngram_size": ngram_size, "window_size": ngram_window},
+        # NOTE: SGLang's custom_logit_processor expects a dill-serialized JSON
+        # ({"callable": <hex>}), not a class name; sending the bare name raises
+        # orjson.JSONDecodeError. Looping is instead handled by the runner's
+        # two-pass retry (is_looping_output -> retry params). TODO: serialize the
+        # processor client-side for on-the-fly ngram parity with the PyTorch path.
         "repetition_penalty": repetition_penalty,
         "stream": False,
     }

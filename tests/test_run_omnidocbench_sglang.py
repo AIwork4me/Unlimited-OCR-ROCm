@@ -15,7 +15,10 @@ def test_infer_page_uses_contract_defaults():
         out = runner.infer_page_sglang("http://x", "/tmp/a.png")
         assert out == "# hello"
         sent = p.call_args.kwargs["json"]
-        assert sent["custom_params"] == {"ngram_size": 35, "window_size": 128}  # contract default
+        # custom_logit_processor/custom_params are NOT sent (SGLang expects a
+        # serialized callable, not a class name; looping handled by two-pass retry).
+        assert "custom_params" not in sent
+        assert "custom_logit_processor" not in sent
         assert sent["temperature"] == 0.0
 
 
