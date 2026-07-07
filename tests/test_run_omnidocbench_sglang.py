@@ -93,3 +93,62 @@ def test_main_writes_retry_failed_log(tmp_path, monkeypatch):
     log = tmp_path / "_failures.log"
     assert log.exists()
     assert "abc_page\tretry_failed\tRuntimeError: boom" in log.read_text()
+
+
+def test_filter_to_subset_restricts_by_gt_json(tmp_path):
+    import json
+
+    import scripts.run_omnidocbench_sglang as runner
+
+    subset = tmp_path / "OmniDocBench_30.json"
+    subset.write_text(
+        json.dumps([
+            {"page_info": {"image_path": "PPT_x_page_001.png"}},
+            {"page_info": {"image_path": "exam_y_page_002.png"}},
+        ]),
+        encoding="utf-8",
+    )
+    images = [
+        "/data/images/PPT_x_page_001.png",
+        "/data/images/other_page_003.png",
+        "/data/images/exam_y_page_002.png",
+    ]
+    got = runner.filter_to_subset(images, str(subset))
+    assert got == [
+        "/data/images/PPT_x_page_001.png",
+        "/data/images/exam_y_page_002.png",
+    ]  # order follows `images`; non-subset page dropped
+
+
+def test_filter_to_subset_passthrough_when_no_json():
+    import scripts.run_omnidocbench_sglang as runner
+
+    images = ["/data/images/a.png", "/data/images/b.png"]
+    assert runner.filter_to_subset(images, None) == images
+    assert runner.filter_to_subset(images, "") == images
+
+
+def test_main_applies_subset_json(tmp_path, monkeypatch):
+    import json
+
+    import scripts.run_omnidocbench_sglang as runner
+
+    subset = tmp_path / "sub.json"
+    subset.write_text(json.dumps([{"page_info": {"image_path": "want.png"}}]), encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(
+        "scripts.run_omnidocbench_sglang.iter_page_images",
+        lambda d: ["/d/images/want.png", "/d/images/skip.png"],
+    )
+    monkeypatch.setattr(
+        "scripts.run_omnidocbench_sglang.infer_with_retry",
+        # infer_with_retry returns (text, retried, retry_err); main() unpacks all three.
+        lambda base_url, img: (seen.append(img) or "ok", False, None),
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["runner", "--omnidocbench-dir", "/d", "--pred-dir", str(tmp_path),
+         "--subset-json", str(subset), "--base-url", "http://x"],
+    )
+    runner.main()
+    assert seen == ["/d/images/want.png"]  # skip.png filtered out

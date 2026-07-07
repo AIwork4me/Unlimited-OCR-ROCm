@@ -24,6 +24,24 @@ from rocm_ocr.omnidocbench import iter_page_images
 from rocm_ocr.repetition_fix import is_looping_output
 
 
+def filter_to_subset(images: list[str], subset_json: str | None) -> list[str]:
+    """Restrict ``images`` to the pages listed in an OmniDocBench GT subset JSON.
+
+    ``subset_json`` is a list of records each carrying
+    ``page_info.image_path`` (a bare filename under ``images/``). Images whose
+    basename is not in that set are dropped; order follows ``images``. Returns
+    ``images`` unchanged when ``subset_json`` is falsy (the full-run path).
+    """
+    if not subset_json:
+        return images
+    import json
+
+    with open(subset_json, encoding="utf-8") as f:
+        records = json.load(f)
+    wanted = {Path(rec["page_info"]["image_path"]).name for rec in records}
+    return [img for img in images if Path(img).name in wanted]
+
+
 def _encode_image(path: str) -> tuple[str, str]:
     mime = mimetypes.guess_type(path)[0] or "image/png"
     with open(path, "rb") as f:
@@ -76,12 +94,18 @@ def main() -> None:
     ap.add_argument("--pred-dir", required=True)
     ap.add_argument("--base-url", default="http://127.0.0.1:30000")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument(
+        "--subset-json",
+        default=None,
+        help="Path to an OmniDocBench GT subset JSON; restrict to its page_info.image_path set (smoke).",
+    )
     ap.add_argument("--shard", type=int, default=0)
     ap.add_argument("--num-shards", type=int, default=1)
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
     imgs = iter_page_images(args.omnidocbench_dir)
+    imgs = filter_to_subset(imgs, args.subset_json)
     if args.limit:
         imgs = imgs[: args.limit]
     if args.num_shards > 1:
