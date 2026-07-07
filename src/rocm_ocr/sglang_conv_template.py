@@ -1,23 +1,30 @@
-"""Override SGLang's ``unlimited-ocr`` conversation template to match Unlimited-OCR's
-actual SFT format (the model's ``deepseek`` template).
+"""NO-OP: SGLang's built-in ``unlimited-ocr`` conv template is already correct.
 
-Root cause of the BOS-loop: SGLang's built-in ``unlimited-ocr`` template registers
-``roles=("", "")`` and EMPTY separators, so the assembled prompt has NO
-``<|Assistant|>:`` turn marker. Unlimited-OCR was SFT-trained on the ``deepseek``
-format (modeling_unlimitedocr.py:format_messages -> get_conv_template("deepseek")):
+History / why this is a no-op: an earlier version of this module *overrode* the
+built-in ``unlimited-ocr`` template with a DeepSeekVL2-style template (roles
+``<|User|>``/``<|Assistant|>``, ``sep="\\n\\n"``), on the theory that the model
+was SFT-trained on the ``deepseek`` chat format and that the empty-roles built-in
+template caused the image-OCR BOS-loop. Both premises were wrong:
 
-    <｜begin▁of▁sentence｜><|User|>: <image>document parsing.\\n\\n<|Assistant|>:
+1. The BOS-loop's real root cause was a miscomputing gfx1100 compute kernel
+   (``sgl_kernel.silu_and_mul`` first, then ``sgl_kernel.rotary_embedding`` --
+   see sglang_jit_native.py / sglang_native_moe.py). The conv template had
+   nothing to do with it.
 
-The model generates AFTER ``<|Assistant|>:``. Without that marker it BOS-loops
-(emits ``<｜begin▁of▁sentence｜>`` forever) instead of producing OCR -- the same
-silent-"corruption" symptom Task 3 saw on V2-Lite.
+2. Unlimited-OCR's inference format is ``sft_format='plain'`` -- i.e. NO role
+   markers -- per ``model.infer`` (modeling_unlimitedocr.py ``format_messages(
+   ..., sft_format='plain')``), which renders exactly
+   ``<bos><image>document parsing.`` and achieves 91.97. Feeding the model the
+   deepseek format (``<bos><|User|>: <image>...\n\n<|Assistant|>:``) puts it
+   out-of-distribution for the OCR task -> hallucinated / garbage output
+   (confirmed by a controlled A/B on the reference model).
 
-Fix: re-register the template with the model's roles, SGLang's ``DeepSeekVL2``
-rendering (byte-identical to the model's ``DeepSeek`` rendering: ``role + ": " +
-message + sep``; ``role + ":"`` for the empty assistant turn), ``sep="\\n\\n"``,
-``sep2=EOS``, keeping ``image_token="<image>"`` / ``image_token_at_prefix=True``
-that the multimodal processor needs. Platform-agnostic SGLang bug; needed for
-Unlimited-OCR on any host.
+SGLang's BUILT-IN ``unlimited-ocr`` template already renders this plain format:
+``SeparatorStyle.UNLIMITED_OCR`` with ``roles=("","")``, ``sep=""``, ``sep2=""``
+produces just the message content, no markers. So the correct action is to NOT
+override it. This module is kept (and imported by the serve wrapper) purely as a
+documentation anchor; ``apply_conv_template_fix()`` is a no-op, so the env gate
+``SGLANG_CONV_TEMPLATE_FIX`` is now harmless either way.
 """
 
 from __future__ import annotations
@@ -25,40 +32,15 @@ from __future__ import annotations
 import contextlib
 import os
 
-_APPLIED = False
-
 
 def apply_conv_template_fix() -> None:
-    """Re-register the 'unlimited-ocr' conv template with the model's deepseek format."""
-    global _APPLIED
-    if _APPLIED:
-        return
-    from sglang.srt.parser.conversation import (
-        Conversation,
-        SeparatorStyle,
-        register_conv_template,
-    )
-
-    register_conv_template(
-        Conversation(
-            name="unlimited-ocr",
-            system_template="{system_message}",
-            system_message="",
-            roles=("<|User|>", "<|Assistant|>"),
-            messages=(),
-            offset=0,
-            sep_style=SeparatorStyle.DeepSeekVL2,  # == model's DeepSeek rendering
-            sep="\n\n",
-            sep2="<｜end▁of▁sentence｜>",
-            image_token="<image>",
-            image_token_at_prefix=True,
-        ),
-        override=True,
-    )
-    _APPLIED = True
+    """No-op. The built-in 'unlimited-ocr' (UNLIMITED_OCR) template is correct;
+    do NOT override it with a deepseek/chat format (see module docstring)."""
+    return None
 
 
-# Auto-apply on import when the gate is set (the serve wrapper imports us).
+# Auto-applied on import when the gate is set; now a harmless no-op so a stale
+# SGLANG_CONV_TEMPLATE_FIX=1 in the environment cannot re-introduce the bug.
 if os.environ.get("SGLANG_CONV_TEMPLATE_FIX", "0") == "1":
     with contextlib.suppress(ImportError):
         apply_conv_template_fix()
