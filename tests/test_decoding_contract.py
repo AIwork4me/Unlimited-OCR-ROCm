@@ -3,7 +3,6 @@ import json
 
 from rocm_ocr.decoding_contract import (
     CONTRACT,
-    SGLANG_RESERVED_INPUT_TOKENS,
     build_sglang_request,
 )
 
@@ -30,7 +29,12 @@ def test_build_sglang_request_shape():
     req = build_sglang_request(CONTRACT, "AAA", "image/png", 35, 128, 1.0)
     assert req["model"] == CONTRACT.model
     assert req["temperature"] == 0.0
-    assert req["max_tokens"] == CONTRACT.max_length - SGLANG_RESERVED_INPUT_TOKENS
+    # max_tokens is capped at RUNAWAY_MAX_TOKENS to match the PyTorch reference's
+    # RunawayStoppingCriteria hard cap (parity with the 91.97 reference). Bounds
+    # varied-runaway generation (mode 2) that n-gram blocking cannot catch.
+    from rocm_ocr.repetition_fix import RUNAWAY_MAX_TOKENS
+
+    assert req["max_tokens"] == RUNAWAY_MAX_TOKENS == 8192
     assert req["skip_special_tokens"] is False
     assert req["images_config"] == {"image_mode": "gundam"}
     # On-the-fly n-gram blocking (parity with model.infer's 35/128): SGLang applies

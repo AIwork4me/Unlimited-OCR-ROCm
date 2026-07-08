@@ -30,6 +30,15 @@ def test_infer_page_uses_contract_defaults():
         assert sent["temperature"] == 0.0
 
 
+def test_build_sglang_request_caps_max_tokens_at_runaway_cap():
+    from rocm_ocr.decoding_contract import CONTRACT, build_sglang_request
+    from rocm_ocr.repetition_fix import RUNAWAY_MAX_TOKENS
+
+    payload = build_sglang_request(CONTRACT, "b64", "image/png", 35, 128, 1.0)
+    # matches the PyTorch RunawayStoppingCriteria hard cap (parity)
+    assert payload["max_tokens"] == RUNAWAY_MAX_TOKENS == 8192
+
+
 def test_two_pass_retry_on_looping():
     import scripts.run_omnidocbench_sglang as runner
 

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from rocm_ocr.repetition_fix import RUNAWAY_MAX_TOKENS
+
 
 @dataclass(frozen=True)
 class DecodingContract:
@@ -99,7 +101,15 @@ def build_sglang_request(
             }
         ],
         "temperature": contract.temperature,
-        "max_tokens": contract.max_length - SGLANG_RESERVED_INPUT_TOKENS,
+        # Cap the SGLang COMPLETION budget at RUNAWAY_MAX_TOKENS (8192) to match
+        # the PyTorch reference's RunawayStoppingCriteria hard cap. This bounds
+        # "varied runaway" generation (issue #55 mode 2 -- e.g. a degenerate
+        # looping-but-not-exactly-repeating table that n-gram blocking and the
+        # short-unit loop detector cannot catch) the same way the 91.97 reference
+        # does, giving SGLang the same 8192-token output budget for a fair
+        # comparison. With input(~1.5k) + 8192 << context (32768) the old
+        # overflow-avoidance reserve is no longer needed for this value.
+        "max_tokens": RUNAWAY_MAX_TOKENS,
         "skip_special_tokens": contract.skip_special_tokens,
         "images_config": {"image_mode": contract.image_mode},
         # On-the-fly n-gram blocking during generation, matching model.infer's
