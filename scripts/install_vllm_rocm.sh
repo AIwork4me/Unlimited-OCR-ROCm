@@ -6,31 +6,77 @@ VLLM_COMMIT="${VLLM_COMMIT:-321fa2d6d1644629ac39d173f6393f37e14bf7b4}"
 VENV_PATH="${VENV_PATH:-./vllm-venv}"
 # -------------------
 
-# Ensure uv is available
-export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}"
+# --- FIXME guard ---
+if [ "${VLLM_COMMIT:-}" = "FIXME" ]; then
+    echo "ERROR: VLLM_COMMIT is set to 'FIXME'. Pin a real commit hash."
+    echo "Usage: VLLM_COMMIT=<commit_hash> bash $0"
+    echo "Example: VLLM_COMMIT=321fa2d6d1644629ac39d173f6393f37e14bf7b4 bash $0"
+    exit 1
+fi
 
+# --- Prerequisites ---
+echo "=== Checking prerequisites ==="
+
+if ! command -v python3.12 &>/dev/null; then
+    echo "ERROR: python3.12 not found. Install Python 3.12 to proceed."
+    exit 1
+fi
+echo "  python3.12: $(python3.12 --version)"
+
+if ! command -v rocm-smi &>/dev/null; then
+    echo "ERROR: rocm-smi not found. Install ROCm to proceed."
+    exit 1
+fi
+echo "  rocm-smi: found"
+
+echo ""
 echo "=== Installing vLLM ROCm nightly ==="
 echo "  commit: $VLLM_COMMIT"
-echo "  python: $(python3.12 --version)"
 echo "  target: $VENV_PATH"
 
 python3.12 -m venv "$VENV_PATH"
 source "$VENV_PATH/bin/activate"
 
-pip install --upgrade pip
+python -m pip install --upgrade pip
 
-# Resolve ROCm variant and version from the commit page
-VLLM_ROCM_VARIANT=$(curl -s "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}" | grep -oP 'rocm\d+' | head -1)
-VLLM_VERSION=$(curl -s "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}/${VLLM_ROCM_VARIANT}/vllm/" | grep -oP 'vllm-\K[^-]+' | head -1 | sed 's/%2B/+/g')
+# Resolve ROCm variant from the commit page
+echo ""
+echo "=== Resolving wheel URLs ==="
+set +e
+_VARIANT_HTML=$(curl --fail -L -sS "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}" 2>&1)
+_CURL_RC=$?
+set -e
+if [ $_CURL_RC -ne 0 ]; then
+    echo "ERROR: Failed to fetch wheels index for commit ${VLLM_COMMIT} (curl exit code: $_CURL_RC)"
+    exit 1
+fi
+VLLM_ROCM_VARIANT=$(echo "$_VARIANT_HTML" | grep -oP 'rocm\d+' | head -1)
+if [ -z "$VLLM_ROCM_VARIANT" ]; then
+    echo "ERROR: Could not determine ROCm variant from wheels index"
+    exit 1
+fi
+
+set +e
+_VERSION_HTML=$(curl --fail -L -sS "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}/${VLLM_ROCM_VARIANT}/vllm/" 2>&1)
+_CURL_RC=$?
+set -e
+if [ $_CURL_RC -ne 0 ]; then
+    echo "ERROR: Failed to fetch vllm version page (curl exit code: $_CURL_RC)"
+    exit 1
+fi
+VLLM_VERSION=$(echo "$_VERSION_HTML" | grep -oP 'vllm-\K[^-]+' | head -1 | sed 's/%2B/+/g')
+if [ -z "$VLLM_VERSION" ]; then
+    echo "ERROR: Could not determine vllm version from wheels page"
+    exit 1
+fi
 
 echo "  variant: $VLLM_ROCM_VARIANT"
 echo "  version: $VLLM_VERSION"
 
 echo ""
 echo "=== Installing vLLM (this may take a few minutes) ==="
-uv pip install "vllm==${VLLM_VERSION}" \
-    --extra-index-url "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}/${VLLM_ROCM_VARIANT}" \
-    --index-strategy unsafe-best-match
+python -m pip install "vllm==${VLLM_VERSION}" \
+    --extra-index-url "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}/${VLLM_ROCM_VARIANT}"
 
 echo ""
 echo "=== Verification ==="
