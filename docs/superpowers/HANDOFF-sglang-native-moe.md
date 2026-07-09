@@ -1,5 +1,7 @@
 # HANDOFF — SGLang native-MoE on gfx1100 (Unlimited-OCR)
 
+> **⚠️ UPDATE 2026-07-09 — read [`SUMMARY-sglang-v16-eval-2026-07-09.md`](SUMMARY-sglang-v16-eval-2026-07-09.md) first.** The full v1.6 eval ran (1651 preds, capped). Outcome: SGLang **runs** on gfx1100 (✅ "blocked" overturned) but **does NOT reach PyTorch parity** — ~12.5% of pages produce runaway degenerate output (bf16 autoregressive accumulation, ~5× PyTorch's rate, inherent), severe enough to crash the official scorer on the full set. The "coherent OCR matching model.infer" claim below held only on 2 hand-picked pages; it does **not** generalize (smoke 30-page text EditDist 0.121 vs PyTorch 0.020). PyTorch 91.97 remains the parity reference.
+
 **Date:** 2026-07-07  **Branch:** `feat/sglang-native-moe` (pushed to origin)  **Base plan:** `docs/superpowers/plans/2026-07-06-sglang-native-moe-parity.md` (#55)
 **Host:** 4× AMD gfx1100 (W7900-class), ROCm 7.2.1, torch 2.5.1+rocm6.2. See [[rocm-host-runbook]].
 

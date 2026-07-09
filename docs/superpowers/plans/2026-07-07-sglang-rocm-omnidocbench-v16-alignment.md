@@ -97,7 +97,8 @@ def test_main_applies_subset_json(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(
         "scripts.run_omnidocbench_sglang.infer_with_retry",
-        lambda base_url, img: (seen.append(img), "ok", None,)[1],
+        # infer_with_retry returns (text, retried, retry_err); main() unpacks all three.
+        lambda base_url, img: (seen.append(img) or "ok", False, None),
     )
     monkeypatch.setattr(
         "sys.argv",
