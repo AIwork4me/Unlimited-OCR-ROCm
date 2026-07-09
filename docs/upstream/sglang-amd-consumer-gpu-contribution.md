@@ -1,5 +1,7 @@
 # Upstream Contribution: SGLang AMD Consumer GPU (gfx1100/RDNA3) Support
 
+> ⚠️ **SUPERSEDED (2026-07-09).** This early draft predates the native-MoE workaround and the verified crash root cause — its "flashinfer CUDA dependency" framing is the pre-investigation misdiagnosis. The current status and the live upstream asks are in [`sglang-radeon-rdna-status-2026-07-09.md`](sglang-radeon-rdna-status-2026-07-09.md); the filed umbrella issue is [#30599](https://github.com/sgl-project/sglang/issues/30599). Kept for history.
+
 ## What to contribute to `sgl-project/sglang`
 
 ### 1. `sgl-kernel/setup_rocm.py`: allow gfx1100
