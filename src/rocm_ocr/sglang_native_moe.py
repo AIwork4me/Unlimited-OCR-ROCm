@@ -1,8 +1,12 @@
 """Force SGLang FusedMoE to the torch-native (triton-free) path on ROCm/HIP.
 
-Root cause: on gfx1100/RDNA3 the fused-MoE *triton* kernel page-faults on the
-first MoE forward (and on smaller MoEs it can run without faulting but still
-miscompute). But fused-MoE is NOT mandatory — SGLang ships a torch-native MoE
+Root cause: on gfx1100/RDNA3 the only available ``sgl_kernel`` binary is built
+for gfx942 (datacenter MI300), so its MoE-gating ops (``moe_align_block_size``,
+``topk_softmax``) emit garbage ``expert_ids`` -> the triton fused-MoE kernel's
+unmasked ``tl.load(off_experts*stride)`` reads unmapped VRAM -> page-fault on the
+first MoE forward. (The triton kernel itself is correct on gfx1100 -- cosine
+0.999992 given valid ``expert_ids``; see upstream sglang#30245.) But fused-MoE
+is NOT mandatory — SGLang ships a torch-native MoE
 forward (sglang/srt/layers/moe/fused_moe_native.py:moe_forward_native) that uses
 plain F.linear/hipBLAS. The problem is *reaching* it on HIP.
 
@@ -55,7 +59,9 @@ def _route_fused_moe_function_to_native() -> None:
 
     Covers the *function* MoE dispatch path (DeepseekV1 / Unlimited-OCR), whose
     ``DeepseekMoE.forward`` calls ``fused_moe.fused_moe(...)`` directly (srt/models/
-    deepseek.py) -> triton ``fused_experts`` (GPU-hangs on gfx1100). The BF16
+    deepseek.py) -> triton ``fused_experts`` (whose inputs are corrupted by
+    the gfx942 ``sgl_kernel`` gating ops on gfx1100, causing a GPU-hang/page-fault;
+    triton itself is correct -- see sglang#30245). The BF16
     unquantized branch is rerouted to SGLang's OWN torch-native ``moe_forward_native``
     (per-expert F.linear loop, triton-free) via a shim exposing ``w1``/``w2`` as
     ``w13_weight``/``w2_weight``. Quantized branches fall through to the original.

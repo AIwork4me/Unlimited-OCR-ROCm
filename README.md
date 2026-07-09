@@ -58,7 +58,7 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 | **AMD ROCm** (this project) | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
 | Baidu paper\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **91.97** is a controlled, reproducible measurement (committed manifest, gate PASS). The ~1.95pt gap is ~entirely Text EditDist (recognition/FormulaCDM at parity; the official scorer already normalizes LaTeX away, so 0.094 is a real output difference — **not** a formatting artifact). On this gfx1100 host the gap is **not closable**: SGLang (the paper's likely backend) page-faults on the fused-MoE kernel, and a targeted looping-fix regressed the full eval (reverted). Full diagnosis: [docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md).*
+*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **91.97** is a controlled, reproducible measurement (committed manifest, gate PASS). The ~1.95pt gap is ~entirely Text EditDist (recognition/FormulaCDM at parity; the official scorer already normalizes LaTeX away, so 0.094 is a real output difference — **not** a formatting artifact). On this gfx1100 host the gap is **inherent, not a backend block**: SGLang now serves on gfx1100 via a torch-native MoE workaround (the original crash was a gfx942-only `sgl_kernel` binary, not a triton defect — verified in [sglang#30245](https://github.com/sgl-project/sglang/issues/30245)), but does not close the gap (~12.5% bf16-driven degenerate pages vs PyTorch's 2.5%); a targeted looping-fix also regressed the full eval (reverted). PyTorch 91.97 remains the reference; consumer-RDNA support tracked in [sglang#30599](https://github.com/sgl-project/sglang/issues/30599). Full diagnosis: [docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md).*
 
 **→ [Full parity report with per-module breakdown](docs/PARITY.md) · [Reproduction recipe](docs/PARITY.md#reproduction-recipe) →**
 
@@ -245,7 +245,7 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ## Roadmap
 
 **Phase 1 — Evidence Engine:** OmniDocBench parity + credibility-first docs ✅  
-**Phase 2 — Upstream Integration:** SGLang/vLLM on ROCm, consumer Radeon first-class in AMD docs ⏳  
+**Phase 2 — Upstream Integration:** SGLang (workaround shipped; parked on [sglang#30599](https://github.com/sgl-project/sglang/issues/30599)) / **vLLM next** on ROCm, consumer Radeon first-class in AMD docs ⏳  
 **Phase 3 — Thin Integrations:** OpenAI-compatible endpoint, one-click hosted demo, RAG framework example ⏳
 
 → [Full roadmap](ROADMAP.md)

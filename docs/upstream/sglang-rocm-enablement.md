@@ -1,5 +1,20 @@
 # SGLang on ROCm — Minimal Enablement Recipe (WS-B Stage 1)
 
+> ⚠️ **CORRECTION (2026-07-09).** This doc's conclusion — that the fused-MoE
+> *triton* kernel is the blocker on gfx1100 — was a **misdiagnosis**. Verified
+> empirically (reported upstream in
+> [sglang#30245](https://github.com/sgl-project/sglang/issues/30245), reply
+> [4921132062](https://github.com/sgl-project/sglang/issues/30245#issuecomment-4921132062)):
+> **triton's fused-MoE kernel is correct on gfx1100** (cosine 0.999992 vs a
+> torch reference given valid `expert_ids`). The real crash cause is the
+> **gfx942-only `sgl_kernel` binary** — its gating ops (`moe_align_block_size`,
+> `topk_softmax`, …) emit garbage `expert_ids` → unmasked `tl.load` → page-fault.
+> SGLang now serves on gfx1100 via a torch-native MoE workaround; consumer-RDNA
+> support is tracked in [sglang#30599](https://github.com/sgl-project/sglang/issues/30599).
+> Authoritative status:
+> [sglang-radeon-rdna-status-2026-07-09.md](sglang-radeon-rdna-status-2026-07-09.md).
+> The analysis below is kept for history.
+
 > Goal: get the SGLang **core** importable on `torch 2.5.1+rocm6.2` **without** the
 > `[all_hip]` extra and **without** `torchao`, so we can skip the Stage-2 ROCm
 > driver upgrade. The documented blocker for the documented install path is

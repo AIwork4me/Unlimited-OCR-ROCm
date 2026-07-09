@@ -14,7 +14,7 @@
 | Backend | **PyTorch-direct (transformers)** — the only working backend on this host |
 | OmniDocBench v1.6 Overall | **91.97** (gundam, ~4 s/page, BF16) |
 
-> **⚠️ SGLang on consumer gfx1100: BLOCKED (2026-07-06).** SGLang core imports on `torch 2.5.1+rocm6.2` (the `[all_hip]`/`torchao` blocker is sidesteppable) and the server boots (weights + KV load, `/health` 200) — but **inference page-faults on the fused-MoE triton kernel on RDNA3** (no gfx11-viable MoE backend in this stack: flashinfer/aiter/cutlass/marlin/deep_gemm all unavailable). The throughput tables below are from an earlier/reference setup and are **not reproducible on this host today**. Re-enablement needs a gfx1100 MoE-kernel fix, a real-`aiter` backend, or a datacenter-ROCm/NVIDIA host. Full diagnosis: [upstream/sglang-rocm-enablement.md](upstream/sglang-rocm-enablement.md).
+> **ℹ️ SGLang on consumer gfx1100: workaround-shipped, parked (updated 2026-07-09).** SGLang serves `baidu/Unlimited-OCR` end-to-end on gfx1100 via a torch-native MoE workaround — the original crash was a **gfx942-only `sgl_kernel` binary**, not a triton defect (verified in [sglang#30245](https://github.com/sgl-project/sglang/issues/30245)). It is correct but slower than fused triton and does not reach PyTorch parity (inherent bf16 divergence), so the throughput tables below remain from the **PyTorch-direct** path (the production backend on this host). The fast triton path + parity are gated on official consumer-RDNA support — tracked in [sglang#30599](https://github.com/sgl-project/sglang/issues/30599). Full status: [upstream/sglang-radeon-rdna-status-2026-07-09.md](upstream/sglang-radeon-rdna-status-2026-07-09.md).
 
 ## Document-Type Throughput
 

@@ -58,7 +58,7 @@
 | **AMD ROCm**（本项目） | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
 | Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **91.97** 是受控、可复现的实测（已提交 manifest，gate 通过）。约 1.95pt 的差距几乎全部来自 Text EditDist（识别 / FormulaCDM 已对齐；官方 scorer 已做 LaTeX 归一化，故 0.094 是真实输出差异 —— **并非**格式伪影）。在本 gfx1100 主机上该差距**无法弥合**：SGLang（论文很可能使用的后端）在 fused-MoE 内核上页错误崩溃，定向 looping 修复又导致全量回归（已回退）。完整诊断：[docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md)。*
+*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **91.97** 是受控、可复现的实测（已提交 manifest，gate 通过）。约 1.95pt 的差距几乎全部来自 Text EditDist（识别 / FormulaCDM 已对齐；官方 scorer 已做 LaTeX 归一化，故 0.094 是真实输出差异 —— **并非**格式伪影）。在本 gfx1100 主机上该差距是**固有的，并非后端被阻断**：SGLang 已能通过 torch-native MoE 绕过在 gfx1100 上 serve（最初的崩溃是 gfx942-only 的 `sgl_kernel` 二进制所致，与 triton 无关 —— 已在 [sglang#30245](https://github.com/sgl-project/sglang/issues/30245) 实测验证），但并不能弥合差距（~12.5% 的页面因 bf16 发生退化，PyTorch 为 2.5%）；定向 looping 修复又导致全量回归（已回退）。PyTorch 91.97 仍为基准；消费级 RDNA 支持追踪于 [sglang#30599](https://github.com/sgl-project/sglang/issues/30599)。完整诊断：[docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md)。*
 
 **→ [完整精度对齐报告含模块拆解](docs/PARITY.md) · [复现方法](docs/PARITY.md#reproduction-recipe) →**
 
@@ -245,7 +245,7 @@ pip install --index-url https://download.pytorch.org/whl/rocm6.2 torch torchvisi
 ## Roadmap
 
 **Phase 1 — 证据引擎：** OmniDocBench 精度对齐 + 可信文档 ✅  
-**Phase 2 — 上游整合：** SGLang/vLLM on ROCm，消费级 Radeon 进入 AMD 官方文档 ⏳  
+**Phase 2 — 上游整合：** SGLang（绕过方案已落地，挂起于 [sglang#30599](https://github.com/sgl-project/sglang/issues/30599)）/ **下一步 vLLM** on ROCm，消费级 Radeon 进入 AMD 官方文档 ⏳  
 **Phase 3 — 轻量集成：** OpenAI 兼容端点，一键托管 Demo，RAG 框架示例 ⏳
 
 → [完整 Roadmap](ROADMAP.md)
