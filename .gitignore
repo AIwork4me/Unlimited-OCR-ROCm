@@ -67,3 +67,4 @@ docker-out/
 build_logs/
 *.deb
 .claude/
+.worktrees/
