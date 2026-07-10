@@ -1,0 +1,1 @@
+{% for m in messages %}{% for c in m['content'] %}{% if c['type'] in ('image','image_url') %}<image>{% endif %}{% endfor %}{% for c in m['content'] %}{% if c['type']=='text' %}{{ c['text'] }}{% endif %}{% endfor %}{% endfor %}
