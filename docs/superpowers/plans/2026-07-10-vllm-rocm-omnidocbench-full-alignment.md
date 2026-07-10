@@ -98,7 +98,8 @@ def test_postprocess_converts_image_ref_tag() -> None:
     raw = "see<|ref|>image<|/ref|><|det|>image [[0,0,100,100]]<|/det|> here"
     out = postprocess_ocr_output(raw)
     assert "![](images/0.jpg)" in out
-    assert "<|ref|>" not in out and "<|det|>" in out or "<|det|>image" not in out
+    assert "<|ref|>" not in out
+    assert "<|det|>" not in out
 
 
 def test_postprocess_strips_other_det_tag() -> None:
@@ -1358,7 +1359,7 @@ def test_empty_page_analysis_flags_vllm_only_empties(tmp_path: Path) -> None:
     assert res["dir_a_empty"] == 2   # p2 (1B), p3 (0B)
     assert res["dir_b_empty"] == 1   # p3 only
     assert res["a_empty_b_not"] == ["p2"]
-    assert res["a_empty_b_not_pct"] == 100.0  # 1 of 1 non-empty-b where a is empty
+    assert res["a_empty_b_not_pct"] == 50.0  # 1 of 2 non-empty-b pages where a is empty
 
 
 def test_empty_page_analysis_no_empties(tmp_path: Path) -> None:
