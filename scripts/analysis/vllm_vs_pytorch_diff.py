@@ -66,6 +66,48 @@ def compare_dirs(dir_a: str, dir_b: str, stems: list[str] | None = None) -> dict
     }
 
 
+def empty_page_analysis(dir_a: str, dir_b: str, stems: list[str] | None = None, threshold: int = 50) -> dict:
+    """Count near-empty (<threshold bytes) pages in each dir + the asymmetric set.
+
+    The EOS signal: pages where vLLM (dir_a) is near-empty but the PyTorch
+    reference (dir_b) produced real content. PyTorch's reference rate is ~0.6%
+    (10/1648); vLLM exceeding that signals a backend regression to debug.
+    """
+    a, b = Path(dir_a), Path(dir_b)
+    if stems is None:
+        sa = {p.stem for p in a.glob("*.md")}
+        sb = {p.stem for p in b.glob("*.md")}
+        stems = sorted(sa & sb)
+    a_empty = b_empty = 0
+    a_empty_b_not: list[str] = []
+    b_nonempty_total = 0
+    for stem in stems:
+        fa, fb = a / f"{stem}.md", b / f"{stem}.md"
+        if not (fa.is_file() and fb.is_file()):
+            continue
+        ta = fa.read_text(encoding="utf-8")
+        tb = fb.read_text(encoding="utf-8")
+        a_is_empty = len(ta) < threshold
+        b_is_empty = len(tb) < threshold
+        if a_is_empty:
+            a_empty += 1
+        if b_is_empty:
+            b_empty += 1
+        if not b_is_empty:
+            b_nonempty_total += 1
+            if a_is_empty:
+                a_empty_b_not.append(stem)
+    return {
+        "compared": len(stems),
+        "dir_a_empty": a_empty,
+        "dir_b_empty": b_empty,
+        "dir_a_empty_pct": (100.0 * a_empty / len(stems)) if stems else 0.0,
+        "dir_b_empty_pct": (100.0 * b_empty / len(stems)) if stems else 0.0,
+        "a_empty_b_not": a_empty_b_not,
+        "a_empty_b_not_pct": (100.0 * len(a_empty_b_not) / b_nonempty_total) if b_nonempty_total else 0.0,
+    }
+
+
 def _stems_from_subset(path: str) -> list[str]:
     with open(path, encoding="utf-8") as f:
         return [Path(r["page_info"]["image_path"]).stem for r in json.load(f)]
@@ -82,6 +124,8 @@ def main() -> None:
     print(json.dumps({k: v for k, v in res.items() if k != "per_page"}, indent=2))
     worst = sorted(res["per_page"], key=lambda p: p["edit"], reverse=True)[:10]
     print("top-10 divergent pages:", json.dumps(worst, indent=2))
+    eos = empty_page_analysis(args.dir_a, args.dir_b, stems)
+    print("eos analysis:", json.dumps({k: v for k, v in eos.items()}, indent=2))
 
 
 if __name__ == "__main__":
