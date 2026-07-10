@@ -68,6 +68,21 @@ def _ensure_line_before(text: str, find: str, insert: str, label: str) -> str:
     return text[:idx] + insert + text[idx:]
 
 
+def _arch_fix_correctly_placed(text: str) -> bool:
+    """True iff the arch fix line is present AND positioned before super().__init__.
+
+    The arch fix must run before ``super().__init__``: super() recursively loads
+    the text backbone via ``init_vllm_registered_model`` (which reads
+    ``text_config.architectures``); setting it to DeepseekV2ForCausalLM before
+    super() prevents a recursive DeepseekOCR load that raises a vision_config
+    AttributeError on DeepseekVLV2TextConfig. A presence-only check would accept
+    a wrongly-placed (after-super) arch fix and leave the server unable to start.
+    """
+    arch_idx = text.find(ARCH_FIX_DONE)
+    super_idx = text.find(ARCH_FIX_FIND)
+    return arch_idx != -1 and super_idx != -1 and arch_idx < super_idx
+
+
 def apply_edits(site_dir: Path, patches_dir: Path) -> list[str]:
     """Apply the 5 edits to *site_dir* (the vllm/ package dir). Idempotent.
 
@@ -79,10 +94,11 @@ def apply_edits(site_dir: Path, patches_dir: Path) -> list[str]:
     # --- Edit 1: copy 3 upstream-identical patch files + registry line ---
     # configs/ + processors/ unlimited_ocr.py are never mutated after copy, so
     # an unconditional copy is idempotent. The model unlimited_ocr.py is mutated
-    # by edit 4 (arch fix); skip re-copying it when the arch fix is already in
-    # place, otherwise we would clobber edit 4 and force it to re-apply.
+    # Re-copy the model file when the arch fix is absent OR wrongly placed
+    # (after super().__init__). A presence-only check would skip a broken
+    # (wrong-placement) file and leave the server unable to start.
     uo_model_dest = site / "model_executor" / "models" / "unlimited_ocr.py"
-    if not uo_model_dest.exists() or ARCH_FIX_DONE not in uo_model_dest.read_text(encoding="utf-8"):
+    if not uo_model_dest.exists() or not _arch_fix_correctly_placed(uo_model_dest.read_text(encoding="utf-8")):
         shutil.copy2(
             patches_dir / "vllm" / "unlimited_ocr.py",
             uo_model_dest,
@@ -145,10 +161,12 @@ def apply_edits(site_dir: Path, patches_dir: Path) -> list[str]:
         applied.append("deepseek_max_crops")
 
     # --- Edit 4: arch fix in the copied unlimited_ocr.py ---
+    # MUST be before super().__init__ (see _arch_fix_correctly_placed): super()
+    # recursively loads the text backbone, which reads text_config.architectures.
     uo_path = site / "model_executor" / "models" / "unlimited_ocr.py"
     uo = uo_path.read_text(encoding="utf-8")
-    if ARCH_FIX_DONE not in uo:
-        uo = _insert_after(uo, ARCH_FIX_FIND, ARCH_FIX_LINE, "arch_fix")
+    if not _arch_fix_correctly_placed(uo):
+        uo = _ensure_line_before(uo, ARCH_FIX_FIND, ARCH_FIX_LINE, "arch_fix")
         uo_path.write_text(uo, encoding="utf-8")
         applied.append("arch_fix")
 

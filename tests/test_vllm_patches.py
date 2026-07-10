@@ -84,6 +84,32 @@ def test_apply_edits_applies_all_five(tmp_path: Path) -> None:
     assert "max_num=self.max_crops" in ds
     uo = (site / "model_executor" / "models" / "unlimited_ocr.py").read_text()
     assert 'text_config.architectures = ["DeepseekV2ForCausalLM"]' in uo
+    # The arch fix MUST precede super().__init__: super() recursively loads the
+    # text backbone (init_vllm_registered_model reads text_config.architectures);
+    # setting it to DeepseekV2ForCausalLM before super() avoids a recursive
+    # DeepseekOCR load that hits a vision_config AttributeError on DeepseekVLV2TextConfig.
+    arch_idx = uo.index('text_config.architectures = ["DeepseekV2ForCausalLM"]')
+    super_idx = uo.index("super().__init__(vllm_config=vllm_config, prefix=prefix)")
+    assert arch_idx < super_idx
+
+
+def test_apply_edits_repositions_wrongly_placed_arch_fix(tmp_path: Path) -> None:
+    # Regression: arch fix present but AFTER super().__init__ (the bug that
+    # crashed the server) -> patcher must re-copy upstream + re-insert BEFORE super.
+    site, patches = _make_fake_tree(tmp_path)
+    uo_path = site / "model_executor" / "models" / "unlimited_ocr.py"
+    uo_path.write_text(
+        'class UnlimitedOCRForCausalLM(DeepseekOCRForCausalLM):\n'
+        '    def __init__(self, *, vllm_config, prefix: str = ""):\n'
+        '        super().__init__(vllm_config=vllm_config, prefix=prefix)\n'
+        '        vllm_config.model_config.hf_config.text_config.architectures = ["DeepseekV2ForCausalLM"]  # noqa: E501\n'
+    )
+    applied = apply_edits(site, patches)
+    assert "arch_fix" in applied  # re-applied because placement was wrong
+    uo = uo_path.read_text()
+    arch_idx = uo.index('text_config.architectures = ["DeepseekV2ForCausalLM"]')
+    super_idx = uo.index("super().__init__(vllm_config=vllm_config, prefix=prefix)")
+    assert arch_idx < super_idx
 
 
 def test_apply_edits_is_idempotent(tmp_path: Path) -> None:
