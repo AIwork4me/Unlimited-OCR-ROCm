@@ -20,7 +20,7 @@ from pathlib import Path
 import yaml
 
 from rocm_ocr import eval_manifest as em
-from rocm_ocr.eval_manifest import build_manifest, manifest_filename, write_manifest
+from rocm_ocr.eval_manifest import build_manifest, write_manifest
 from rocm_ocr.gate import evaluate
 from rocm_ocr.omnidocbench import parse_run_summary, run_scorer, write_eval_config
 

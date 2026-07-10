@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply the 4 Unlimited-OCR integration patches to an installed vLLM venv.
+# Apply the 5 Unlimited-OCR integration edits to an installed vLLM venv.
 # Idempotent. Usage: bash scripts/apply_patches.sh [vllm_venv_path]
 set -euo pipefail
 

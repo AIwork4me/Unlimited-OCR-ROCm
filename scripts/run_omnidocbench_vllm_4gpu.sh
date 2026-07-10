@@ -31,7 +31,7 @@ cleanup() {
   echo "  Waiting for VRAM to drain..."
   for gpu in $(seq 0 $((NUM_GPUS - 1))); do
     for i in $(seq 1 20); do
-      vram=$(rocm-smi --showmeminfo vram --json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin)['card'$gpu' VRAM']['Used'])" 2>/dev/null || echo "?")
+      vram=$(export VLLM_GPU_ID="$gpu"; rocm-smi --showmeminfo vram --json 2>/dev/null | "$PY" -c "import os,sys,json; gpu=os.environ['VLLM_GPU_ID']; print(json.load(sys.stdin)[f'card{gpu}']['VRAM Total Used Memory (B)'])" 2>/dev/null || echo "?")
       echo "    GPU $gpu VRAM used: $vram"
       break  # one sample per gpu is enough for the log; full drain verified below
     done

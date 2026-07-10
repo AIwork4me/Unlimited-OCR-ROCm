@@ -81,7 +81,7 @@ python -m pip install "vllm==${VLLM_VERSION}" \
 echo ""
 echo "=== Pinning triton-rocm (must NOT be replaced by upstream triton) ==="
 python -m pip install "triton-rocm==3.6.0"
-python -c "import triton; print(f'tritron-rocm OK: {triton.__version__}')"
+python -c "import triton; print(f'triton-rocm OK: {triton.__version__}')"
 
 echo ""
 echo "=== Installing remaining runtime deps ==="
