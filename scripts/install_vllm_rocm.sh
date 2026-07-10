@@ -79,6 +79,20 @@ python -m pip install "vllm==${VLLM_VERSION}" \
     --extra-index-url "https://wheels.vllm.ai/rocm/${VLLM_COMMIT}/${VLLM_ROCM_VARIANT}"
 
 echo ""
+echo "=== Pinning triton-rocm (must NOT be replaced by upstream triton) ==="
+python -m pip install "triton-rocm==3.6.0"
+python -c "import triton; print(f'tritron-rocm OK: {triton.__version__}')"
+
+echo ""
+echo "=== Installing remaining runtime deps ==="
+python -m pip install uvloop opencv-python-headless requests tqdm pyyaml
+
+echo ""
+echo "=== Applying Unlimited-OCR patches ==="
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/apply_patches.sh" "$VENV_PATH"
+
+echo ""
 echo "=== Verification ==="
 python -c "
 import vllm
