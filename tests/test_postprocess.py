@@ -23,7 +23,7 @@ def test_decode_bpe_mixed_ascii_chinese() -> None:
 
 
 def test_postprocess_strips_eos_and_det_tags() -> None:
-    raw = "ĠHeadingĠtext<│end▁of▁sentence│>"
+    raw = "ĠHeadingĠtext<｜end▁of▁sentence｜>"
     assert postprocess_ocr_output(raw) == "Heading text"
 
 
@@ -32,6 +32,16 @@ def test_postprocess_converts_image_ref_tag() -> None:
     out = postprocess_ocr_output(raw)
     assert "![](images/0.jpg)" in out
     assert "<|ref|>" not in out
+    assert "<|det|>" not in out
+
+
+def test_postprocess_converts_det_only_image_tag() -> None:
+    # A det-only image tag (label "image", no <|ref|> wrapper) is classified by
+    # its label — matching the reference re_match (a[1].strip() == "image").
+    raw = "see<|det|>image [0,0,100,100]<|/det|> here"
+    out = postprocess_ocr_output(raw)
+    assert out.startswith("see![](images/0.jpg)")
+    assert out.endswith(" here")
     assert "<|det|>" not in out
 
 
