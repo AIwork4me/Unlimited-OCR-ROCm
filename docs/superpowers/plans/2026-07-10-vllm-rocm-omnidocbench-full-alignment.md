@@ -103,14 +103,18 @@ def test_postprocess_converts_image_ref_tag() -> None:
 
 
 def test_postprocess_strips_other_det_tag() -> None:
-    raw = "x<|det|>table [[1,2,3,4]]<|/det|>y"
+    raw = "x<|det|>table [1,2,3,4]<|/det|>y"
     out = postprocess_ocr_output(raw)
     assert out == "xy"
 
 
 def test_postprocess_coloneqq_replacement() -> None:
-    raw = "a\\coloneqq b"
-    assert postprocess_ocr_output(raw) == "a:= b"
+    # The := replacement is chained inside the "other det tag" loop, so it only
+    # fires when an other-tag span is present (parity with the reference
+    # modeling_unlimitedocr.py:1085-1089).
+    raw = "a<|det|>table [1,2,3]<|/det|>b\\coloneqq c"
+    out = postprocess_ocr_output(raw)
+    assert out == "ab:= c"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
