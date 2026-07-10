@@ -2,11 +2,11 @@
 # scripts/run_omnidocbench_vllm.py
 """OmniDocBench predictions via a vLLM OpenAI-compatible endpoint.
 
-Mirrors scripts/run_omnidocbench_direct.py: iterate page images, call the vLLM
-OpenAI-compatible chat completions endpoint with the FROZEN decoding contract,
-write one {basename}.md per page, resumable, sharded, with the same two-pass
-looping retry as the PyTorch path (so the A/B is not confounded by decoding
-drift). Then score with the official OmniDocBench scorer as usual.
+Uses the FROZEN decoding contract (rocm_ocr.decoding_contract.CONTRACT) and the
+shared post-processor (rocm_ocr.postprocess) so the only variable vs the
+PyTorch reference is the backend. Two-pass looping retry matches
+scripts/run_omnidocbench_direct.py (ngram=35 first; on is_looping_output,
+retry ngram=5/window=256/penalty=1.05). Resumable, sharded.
 """
 
 from __future__ import annotations
@@ -15,7 +15,6 @@ import argparse
 import base64
 import mimetypes
 import os
-import re
 import time
 from pathlib import Path
 
@@ -24,55 +23,19 @@ from tqdm import tqdm
 
 from rocm_ocr.decoding_contract import CONTRACT
 from rocm_ocr.omnidocbench import iter_page_images
+from rocm_ocr.postprocess import postprocess_ocr_output
 from rocm_ocr.repetition_fix import RUNAWAY_MAX_TOKENS, is_looping_output
 
-
-def _re_match(text: str) -> tuple[list[tuple[str, str, str]], list[str], list[str]]:
-    """Port of ``re_match`` from ``modeling_unlimitedocr.py:44-59`` (verbatim logic).
-
-    Returns ``(matches, matches_image, matches_other)`` where the lists hold the
-    full matched tag spans (``a_match[0]``). ``matches`` is the raw regex tuples
-    (kept for parity; unused by the text post-processing path).
-    """
-    ref_pattern = r"(<\|ref\|>(.*?)<\|/ref\|><\|det\|>(.*?)<\|/det\|>)"
-    matches = re.findall(ref_pattern, text, re.DOTALL)
-    det_pattern = r"(<\|det\|>\s*([A-Za-z_][\w-]*)\s*(\[[^\]]+\])\s*<\|/det\|>)"
-    for full_match, label, box in re.findall(det_pattern, text, re.DOTALL):
-        matches.append((full_match, label, box))
-    mathes_image: list[str] = []  # noqa: F841
-    mathes_other: list[str] = []
-    for a_match in matches:
-        if a_match[1].strip() == "image" or "<|ref|>image<|/ref|>" in a_match[0]:
-            mathes_image.append(a_match[0])
-        else:
-            mathes_other.append(a_match[0])
-    return matches, mathes_image, mathes_other
-
-
-def postprocess_ocr_output(outputs: str) -> str:
-    """Apply ``model.infer``'s output post-processing to raw vLLM generation.
-
-    Faithful port of ``modeling_unlimitedocr.py:1069-1089`` (the text transforms
-    that produce the ``result.md`` body). vLLM's ``/v1/chat/completions``
-    returns the *raw* model generation, which carries
-    ``<|det|>category [bbox]<|/det|>`` detection tags; ``model.infer`` strips
-    these (and converts image tags to ``![](images/{idx}.jpg)``) before writing
-    results. Without this, vLLM predictions do not match the PyTorch reference.
-    """
-    stop_str = "<\u2502end\u2581of\u2581sentence\u2502>"
-    if outputs.endswith(stop_str):
-        outputs = outputs[: -len(stop_str)]
-    outputs = outputs.strip()
-    _matches_ref, matches_images, mathes_other = _re_match(outputs)
-    for idx, a_match_image in enumerate(matches_images):
-        outputs = outputs.replace(a_match_image, "![](images/" + str(idx) + ".jpg)\n")
-    for _idx, a_match_other in enumerate(mathes_other):
-        outputs = (
-            outputs.replace(a_match_other, "")
-            .replace("\\coloneqq", ":=")
-            .replace("\\eqqcolon", "=:")
-        )
-    return outputs
+# Image-first chat template: emit <image> for each image content part, then the
+# text. Matches the verified /workspace/chat_template.jinja. Passed per-request
+# AND the server is launched with --chat-template + --trust-request-chat-template.
+IMAGE_FIRST_CHAT_TEMPLATE = (
+    "{% for m in messages %}{% for c in m['content'] %}"
+    "{% if c['type'] in ('image','image_url') %}<image>{% endif %}"
+    "{% endfor %}{% for c in m['content'] %}"
+    "{% if c['type']=='text' %}{{ c['text'] }}{% endif %}"
+    "{% endfor %}{% endfor %}"
+)
 
 
 def _encode_image(path: str) -> tuple[str, str]:
@@ -88,7 +51,12 @@ def _build_vllm_request(
     ngram_window: int,
     repetition_penalty: float,
 ) -> dict:
-    """Build the vLLM /v1/chat/completions payload for one page image."""
+    """Build the vLLM /v1/chat/completions payload for one page image.
+
+    NGramPerReqLogitsProcessor reads extra_args['ngram_size']/['window_size']
+    via the ``vllm_xargs`` field (NOT extra_body). The server is launched with
+    --served-model-name baidu/Unlimited-OCR so CONTRACT.model resolves.
+    """
     prompt = CONTRACT.prompt.removeprefix("<image>")
     return {
         "model": CONTRACT.model,
@@ -106,9 +74,8 @@ def _build_vllm_request(
         "repetition_penalty": repetition_penalty,
         "skip_special_tokens": CONTRACT.skip_special_tokens,
         "stream": False,
-        "extra_body": {
-            "no_repeat_ngram_size": ngram_size,
-        },
+        "chat_template": IMAGE_FIRST_CHAT_TEMPLATE,
+        "vllm_xargs": {"ngram_size": ngram_size, "window_size": ngram_window},
     }
 
 
@@ -133,13 +100,7 @@ def infer_with_retry(
     base_url: str,
     img_path: str,
 ) -> tuple[str, bool, str | None]:
-    """Two-pass: default ngram=35; on looping, retry ngram=5/window=256/penalty=1.05.
-
-    Returns (text, retried, retry_err):
-      - clean first pass        -> (text, False, None)
-      - retry succeeded         -> (text, True,  None)
-      - retry raised            -> (first_pass_text, False, "<Type: msg>")
-    """
+    """Two-pass: default ngram=35; on looping, retry ngram=5/window=256/penalty=1.05."""
     text = infer_page_vllm(client, base_url, img_path)
     if is_looping_output(text):
         try:
@@ -167,20 +128,16 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--shard", type=int, default=0)
     ap.add_argument("--num-shards", type=int, default=1)
-    ap.add_argument(
-        "--retry-failed",
-        action="store_true",
-        help="Re-generate pages even if {page_id}.md already exists.",
-    )
-    ap.add_argument(
-        "--no-retry",
-        action="store_true",
-        help="Disable two-pass retry: single-pass ngram=35 only (control run).",
-    )
+    ap.add_argument("--pages", default="", help="comma-separated page basenames to run ONLY.")
+    ap.add_argument("--retry-failed", action="store_true", help="Re-generate pages even if .md exists.")
+    ap.add_argument("--no-retry", action="store_true", help="Disable two-pass retry (control run).")
     args = ap.parse_args()
 
     os.makedirs(args.output_dir, exist_ok=True)
     imgs = iter_page_images(args.omnidocbench_dir)
+    if args.pages:
+        wanted = {p.strip() for p in args.pages.split(",") if p.strip()}
+        imgs = [im for im in imgs if Path(im).stem in wanted]
     if args.limit:
         imgs = imgs[: args.limit]
     if args.num_shards > 1:
@@ -203,7 +160,6 @@ def main() -> None:
             else:
                 text, retried_flag, retry_err = infer_with_retry(client, args.base_url, img)
                 if retry_err:
-                    print(f"[shard {args.shard}] RETRY FAILED {base}: {retry_err}", flush=True)
                     with open(os.path.join(args.output_dir, "_failures.log"), "a") as f:
                         f.write(f"{base}\tretry_failed\t{retry_err}\n")
                 Path(out_md).write_text(text, encoding="utf-8")
@@ -215,10 +171,7 @@ def main() -> None:
             with open(os.path.join(args.output_dir, "_failures.log"), "a") as f:
                 f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
-    print(
-        f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried",
-        flush=True,
-    )
+    print(f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried", flush=True)
 
 
 if __name__ == "__main__":
