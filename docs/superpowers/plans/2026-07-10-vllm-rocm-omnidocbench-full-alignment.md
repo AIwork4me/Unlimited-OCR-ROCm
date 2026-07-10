@@ -90,7 +90,7 @@ def test_decode_bpe_mixed_ascii_chinese() -> None:
 
 
 def test_postprocess_strips_eos_and_det_tags() -> None:
-    raw = "ĠHeadingĠtext<│end▁of▁sentence│>"
+    raw = "ĠHeadingĠtext<\uff5cend\u2581of\u2581sentence\uff5c>"
     assert postprocess_ocr_output(raw) == "Heading text"
 
 
@@ -99,6 +99,16 @@ def test_postprocess_converts_image_ref_tag() -> None:
     out = postprocess_ocr_output(raw)
     assert "![](images/0.jpg)" in out
     assert "<|ref|>" not in out
+    assert "<|det|>" not in out
+
+
+def test_postprocess_converts_det_only_image_tag() -> None:
+    # A det-only image tag (label "image", no <|ref|> wrapper) is classified by
+    # its label — matching the reference re_match (a[1].strip() == "image").
+    raw = "see<|det|>image [0,0,100,100]<|/det|> here"
+    out = postprocess_ocr_output(raw)
+    assert out.startswith("see![](images/0.jpg)")
+    assert out.endswith(" here")
     assert "<|det|>" not in out
 
 
@@ -142,8 +152,10 @@ from __future__ import annotations
 
 import re
 
-# The model's end-of-sentence marker, as it appears in raw vLLM output.
-EOS_STOP = "<│end▁of▁sentence│>"  # <│end▁of▁sentence│>
+# The model's end-of-sentence marker (token id 1), as it appears in raw vLLM
+# output with skip_special_tokens=False. Uses U+FF5C (FULLWIDTH VERTICAL LINE),
+# NOT U+2502 — verified against modeling_unlimitedocr.py:1071 + the tokenizer.
+EOS_STOP = "<\uff5cend\u2581of\u2581sentence\uff5c>"
 
 _REF_PATTERN = r"(<\|ref\|>(.*?)<\|/ref\|><\|det\|>(.*?)<\|/det\|>)"
 _DET_PATTERN = r"(<\|det\|>\s*([A-Za-z_][\w-]*)\s*(\[[^\]]+\])\s*<\|/det\|>)"
@@ -185,19 +197,24 @@ def decode_bpe(text: str) -> str:
 
 
 def _re_match(text: str) -> tuple[list[str], list[str]]:
-    """Return (image_tag_spans, other_tag_spans) from detection tags."""
-    spans: list[str] = []
-    for full, _label, _box in re.findall(_REF_PATTERN, text, re.DOTALL):
-        spans.append(full)
-    for full, _label, _box in re.findall(_DET_PATTERN, text, re.DOTALL):
-        spans.append(full)
+    """Return (image_tag_spans, other_tag_spans) from detection tags.
+
+    Classifies by the tag's LABEL (capture group 2), matching the reference
+    ``modeling_unlimitedocr.py`` ``re_match`` — NOT by the full span. A
+    det-only ``<|det|>image [box]<|/det|>`` (label "image") is an image tag.
+    """
+    matches: list[tuple[str, str]] = []  # (full_span, label)
+    for full, label, _box in re.findall(_REF_PATTERN, text, re.DOTALL):
+        matches.append((full, label))
+    for full, label, _box in re.findall(_DET_PATTERN, text, re.DOTALL):
+        matches.append((full, label))
     images: list[str] = []
     others: list[str] = []
-    for span in spans:
-        if span.strip() == "image" or "<|ref|>image<|/ref|>" in span:
-            images.append(span)
+    for full, label in matches:
+        if label.strip() == "image" or "<|ref|>image<|/ref|>" in full:
+            images.append(full)
         else:
-            others.append(span)
+            others.append(full)
     return images, others
 
 
