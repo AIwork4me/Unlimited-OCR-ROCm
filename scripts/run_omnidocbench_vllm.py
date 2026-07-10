@@ -50,12 +50,16 @@ def _build_vllm_request(
     ngram_size: int,
     ngram_window: int,
     repetition_penalty: float,
+    max_tokens: int = RUNAWAY_MAX_TOKENS,
 ) -> dict:
     """Build the vLLM /v1/chat/completions payload for one page image.
 
     NGramPerReqLogitsProcessor reads extra_args['ngram_size']/['window_size']
     via the ``vllm_xargs`` field (NOT extra_body). The server is launched with
     --served-model-name baidu/Unlimited-OCR so CONTRACT.model resolves.
+    ``max_tokens`` defaults to the runaway hard cap (8192) matching the PyTorch
+    first-pass/retry path; the --no-retry control path overrides it with
+    CONTRACT.max_length (32768) to match the PyTorch --no-retry path.
     """
     prompt = CONTRACT.prompt.removeprefix("<image>")
     return {
@@ -70,7 +74,7 @@ def _build_vllm_request(
             }
         ],
         "temperature": CONTRACT.temperature,
-        "max_tokens": RUNAWAY_MAX_TOKENS,
+        "max_tokens": max_tokens,
         "repetition_penalty": repetition_penalty,
         "skip_special_tokens": CONTRACT.skip_special_tokens,
         "stream": False,
@@ -86,9 +90,10 @@ def infer_page_vllm(
     ngram: int = CONTRACT.no_repeat_ngram_size,
     window: int = CONTRACT.ngram_window,
     penalty: float = 1.0,
+    max_tokens: int = RUNAWAY_MAX_TOKENS,
 ) -> str:
     b64, mime = _encode_image(img_path)
-    payload = _build_vllm_request(b64, mime, ngram, window, penalty)
+    payload = _build_vllm_request(b64, mime, ngram, window, penalty, max_tokens)
     r = client.post(f"{base_url}/v1/chat/completions", json=payload, timeout=3600)
     r.raise_for_status()
     text = r.json()["choices"][0]["message"]["content"]
@@ -154,7 +159,7 @@ def main() -> None:
             continue
         try:
             if args.no_retry:
-                text = infer_page_vllm(client, args.base_url, img)
+                text = infer_page_vllm(client, args.base_url, img, max_tokens=CONTRACT.max_length)
                 Path(out_md).write_text(text, encoding="utf-8")
                 done += 1
             else:

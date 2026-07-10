@@ -46,3 +46,14 @@ def test_request_model_matches_contract_and_decoding_params() -> None:
 def test_postprocess_is_the_shared_one() -> None:
     mod = _load_runner_module()
     assert mod.postprocess_ocr_output.__module__ == "rocm_ocr.postprocess"
+
+
+def test_no_retry_control_path_uses_max_length() -> None:
+    # The --no-retry control path must use CONTRACT.max_length (32768), matching
+    # the PyTorch --no-retry path (no 8192 runaway cap). The default path keeps
+    # the 8192 hard cap (RUNAWAY_MAX_TOKENS).
+    mod = _load_runner_module()
+    req_default = mod._build_vllm_request("QUJD", "image/png", 35, 128, 1.0)
+    assert req_default["max_tokens"] == mod.RUNAWAY_MAX_TOKENS
+    req_noretry = mod._build_vllm_request("QUJD", "image/png", 35, 128, 1.0, max_tokens=CONTRACT.max_length)
+    assert req_noretry["max_tokens"] == CONTRACT.max_length == 32768
