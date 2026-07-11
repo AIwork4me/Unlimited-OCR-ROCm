@@ -12,9 +12,9 @@
 | transformers | 4.57.1 |
 | Model | baidu/Unlimited-OCR (BF16, weights rev `84757cb0`) |
 | Backend | **PyTorch-direct (transformers)** — the only working backend on this host |
-| OmniDocBench v1.6 Overall | **92.337** (fast path, pinned weights, gundam, BF16) |
+| OmniDocBench v1.6 Overall | **92.436** (fast path, pinned weights, gundam, BF16) |
 
-> **Two backends, honestly:** The **PyTorch-direct backend** is the path measured here (Overall 92.337, gate PASS). The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`docs/parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md). **SGLang** (the paper's likely backend) is blocked on gfx1100 — inference page-faults on the fused-MoE triton kernel on RDNA3 (no gfx11-viable MoE backend). Neither serving path is shipped here.
+> **Two backends, honestly:** The **PyTorch-direct backend** is the path measured here (Overall 92.436, gate PASS). The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`docs/parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md). **SGLang** (the paper's likely backend) is blocked on gfx1100 — inference page-faults on the fused-MoE triton kernel on RDNA3 (no gfx11-viable MoE backend). Neither serving path is shipped here.
 
 ---
 
@@ -41,7 +41,7 @@ Same 30 varied-length pages, same single GPU (`HIP_VISIBLE_DEVICES=0`), same sco
 | Fast batched (`run_omnidocbench_fast.py --batch-size 8`) | 77 s | 0.392 |
 | **Speedup** | | **1.88×** |
 
-Crucially, the identity gate ran on the same 30 pages: fast-vs-direct **Overall Δ = 0.0009** (4/30 pages differ by a single accented char each — bf16 batching numerics), **gate PASS**. So the 1.88× is **lossless** within the gate's tolerance. Full gate detail: [`sdd/task-8-report.md`](.superpowers/sdd/task-8-report.md).
+Crucially, the identity gate ran on the same 30 pages: fast-vs-direct **Overall Δ = 0.0 exact** post-`decode_bpe`-fix (**gate PASS**). The earlier apparent 4/30-page single-accented-char divergence was the `decode_bpe` postprocess bug (now fixed), **not** bf16 batching numerics as previously stated — the only residual byte-differences are trailing newlines, with zero EditDist impact. So the 1.88× is **lossless**. Full gate detail: [`sdd/task-8-report.md`](.superpowers/sdd/task-8-report.md).
 
 > Caveat on the 1.88×: it was measured on a small, varied-length page set where most length-buckets have size 1–2 (minimal batching). The real batching benefit shows on the full 1,651-page run where buckets fill to `batch_size=8`. Treat 1.88× as a real, controlled, lossless floor signal — not a peak.
 
@@ -50,10 +50,10 @@ Crucially, the identity gate ran on the same 30 pages: fast-vs-direct **Overall 
 ```
 4× AMD gfx1100 · torch 2.10.0+rocm7.0 · pinned weights 84757cb0 · gundam · BF16
 bucketed batching (batch_size=8) · chunked (chunk_size=64) · 4-GPU balanced shards
-wall_s = 7840 (slowest of 4 shards) · pages_per_sec = 0.2106 · Overall = 92.337 (gate PASS)
+wall_s = 7840 (slowest of 4 shards) · pages_per_sec = 0.2106 · Overall = 92.436 (gate PASS)
 ```
 
-Manifest: [`eval/results/pytorch-v1.6-fast__953dcb16b5__2026-07-11.yaml`](../eval/results/pytorch-v1.6-fast__953dcb16b5__2026-07-11.yaml). The 0.21 pp/s is **aggregate across 4 GPUs** (1,651 pages / 7,840 s). Per-GPU it is ~0.053 pp/s. The full-run **direct** baseline was **not** re-measured on this env (not worth ~2× GPU-hours to re-establish a Δ when the controlled 30-page gate already gives the apples-to-apples 1.88×), so the full-run number stands alone as throughput, not as a speedup ratio.
+Manifest: [`eval/results/pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml`](../eval/results/pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml). The 0.21 pp/s is **aggregate across 4 GPUs** (1,651 pages / 7,840 s). Per-GPU it is ~0.053 pp/s. The full-run **direct** baseline was **not** re-measured on this env (not worth ~2× GPU-hours to re-establish a Δ when the controlled 30-page gate already gives the apples-to-apples 1.88×), so the full-run number stands alone as throughput, not as a speedup ratio.
 
 ### Why it's decode-bound (the per-stage reality)
 
@@ -63,7 +63,7 @@ Unlimited-OCR is an autoregressive VLM. Per page, the pipeline is: **preprocess 
 - **Decode** generates the output token-by-token (R-SWA keeps the KV cache constant, but each step is still a sequential forward). For a typical 1–4 KB markdown page that is hundreds of decode steps — this is where the wall time goes.
 - **Preprocess** (image load + tile) is CPU work; the async-preprocess overlap (Task 6) hides it behind GPU decode.
 
-The bucketed-batching speedup works because it **fills GPU idle time during decode**: pages of similar output length are batched together, so each decode step processes `batch_size` sequences in one forward pass instead of one. This does not speed up a single sequence's latency; it raises **aggregate throughput** by keeping the GPU fed. It is lossless (identity-gated to Δ=0.0009) because batching only changes which bf16 logits get argmax'd at the margin — within the gate tolerance.
+The bucketed-batching speedup works because it **fills GPU idle time during decode**: pages of similar output length are batched together, so each decode step processes `batch_size` sequences in one forward pass instead of one. This does not speed up a single sequence's latency; it raises **aggregate throughput** by keeping the GPU fed. It is lossless (identity-gated to Δ=0.0 exact post-fix) because batching produces byte-identical output to the direct path — the only residual differences are trailing newlines, with zero EditDist impact.
 
 ### Timing methodology
 
@@ -80,7 +80,7 @@ Three levers were investigated during this work. One shipped; two were dropped a
 
 | Lever | Status | Result on gfx1100 | Why |
 |---|---|---|---|
-| **Bucketed batching** | ✅ **Shipped** (the speedup source) | **1.88× lossless** (gate Δ=0.0009) | Fills GPU idle time during decode by batching same-length pages. Identity-gated to confirm no quality loss. |
+| **Bucketed batching** | ✅ **Shipped** (the speedup source) | **1.88× lossless** (gate Δ=0.0 exact post-fix) | Fills GPU idle time during decode by batching same-length pages. Identity-gated to confirm no quality loss. |
 | **torch.compile** | ❌ **Dropped** | **3.5× slower** + token flips | `torch.compile` (Inductor ROCm backend) on this model regressed throughput ~3.5× on gfx1100 and caused argmax token flips on a fraction of pages (gate would BLOCK). Gated experiment in [`sdd/task-9-report.md`](.superpowers/sdd/task-9-report.md). The `--compile` flag remains in `run_omnidocbench_fast.py` as an opt-in for future torch/ROCm stacks, but it is off by default and not recommended on gfx1100 today. |
 | **Decode CUDA-graph** (`reduce_generation_overhead`) | ❌ **Dropped** | Fails to capture | `transformers 4.57.1` does not expose `reduce_generation_overhead` (the flag that enables CUDA-graph capture in `generate`), and the model's own static-cache path is commented out upstream. With no capture mechanism available, the lever is a no-op. Gated experiment in [`sdd/task-10-report.md`](.superpowers/sdd/task-10-report.md). The `--reduce-overhead` flag remains opt-in for a future transformers build. |
 
@@ -187,7 +187,7 @@ Every eval run emits a YAML manifest under `eval/results/` (schema: [`eval/resul
 | `speedup_vs_baseline` | number | ratio vs a recorded baseline, when applicable |
 | `note` | string | free-text provenance (e.g. "4-GPU balanced, chunked bucketed batching; wall = slowest shard") |
 
-The fast full-run manifest (`pytorch-v1.6-fast__953dcb16b5__2026-07-11.yaml`) records `wall_s: 7840`, `pages_per_sec: 0.2106`, and the `note` above; the per-stage means are absent (the chunked loop records wall + per-chunk progress prints, not the stage timer).
+The fast full-run manifest (`pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml`) records `wall_s: 7840`, `pages_per_sec: 0.2106`, and the `note` above; the per-stage means are absent (the chunked loop records wall + per-chunk progress prints, not the stage timer).
 
 ## Raw Data
 

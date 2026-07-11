@@ -12,9 +12,10 @@
   `scripts/run_identity_gate.py`) for frozen-accuracy enforcement of the speed core.
 
 ### Changed
-- OmniDocBench v1.6 Overall **~92.3** (fast path, pinned weights `84757cb0`,
-  `torch 2.10.0+rocm7.0`, gundam, BF16, 4× gfx1100). Pre-`decode_bpe`-fix number;
-  a re-run is in progress after the accuracy fix below lands.
+- OmniDocBench v1.6 Overall **92.436** (fast path, pinned weights `84757cb0`,
+  `torch 2.10.0+rocm7.0`, gundam, BF16, 4× gfx1100; +0.465 vs the 91.97 baseline,
+  gate PASS). Post-`decode_bpe`-fix final number (the fix recovered +0.099 Overall
+  by correcting accent/symbol corruption on 390/1,651 pages).
 - Engine decode path now uses `postprocess_tags` (no `decode_bpe`) — HF
   `tokenizer.decode` already yields correct UTF-8.
 
@@ -24,7 +25,7 @@
   already-UTF-8-decoded text, corrupting the Latin-1 supplement (`café` → `caf�`).
   Split into `postprocess_tags` (PyTorch path, no `decode_bpe`) and
   `postprocess_ocr_output` (vLLM path, `decode_bpe` then tags). This had depressed
-  Overall on ~24% of pages with accented/symbol characters.
+  Overall on 390/1,651 pages (~24%) with accented/symbol characters.
 
 ## [1.2.0] - 2026-06-24
 
