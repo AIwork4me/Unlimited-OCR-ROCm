@@ -14,7 +14,7 @@ Python API::
 
 from __future__ import annotations
 
-__version__: str = "1.2.0"
+__version__: str = "1.3.0"
 __author__: str = "aiwork4me"
 
 from rocm_ocr.gpu import assert_rocm, detect_rocm, gpu_info

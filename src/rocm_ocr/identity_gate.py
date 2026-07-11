@@ -36,8 +36,7 @@ def gate_page_set(omnidocbench_dir: str, *, size: int = 200, seed: int = 0) -> l
 
     Groups images by filename prefix before the first ``_`` (a proxy for the
     OmniDocBench page type), then samples proportionally so the gate set spans
-    text / table / formula / reading / newspaper / exam pages. Always includes
-    the known looping/failure pages when their names are passed via ``always``.
+    text / table / formula / reading / newspaper / exam pages.
     """
     from rocm_ocr.omnidocbench import iter_page_images  # noqa: PLC0415
 

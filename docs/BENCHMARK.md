@@ -156,13 +156,13 @@ HIP_VISIBLE_DEVICES=0 scripts/run_omnidocbench_fast.py \
 
 ```bash
 # 1. Build 4 cost-balanced shards (one file per GPU)
-python -c "from rocm_ocr.scheduler import build_balanced_shards; build_balanced_shards('./OmniDocBench_data', n=4, out_dir='./shards')"
+python -c "from rocm_ocr.omnidocbench import iter_page_images; from rocm_ocr.scheduler import balance_shards, write_shard_files; write_shard_files(balance_shards(iter_page_images('./OmniDocBench_data'), num_shards=4), './shards')"
 
 # 2. Launch one fast shard per GPU
 for i in 0 1 2 3; do
   HIP_VISIBLE_DEVICES=$i python scripts/run_omnidocbench_fast.py \
     --omnidocbench-dir ./OmniDocBench_data --pred-dir ./eval_predictions_fast \
-    --shard-file ./shards/shard_${i}.txt --batch-size 8 \
+    --shard-file ./shards/shard_0${i}.txt --batch-size 8 \
     --manifest-out ./manifests/shard_${i}.yaml > log/shard${i}.log 2>&1 &
 done
 wait

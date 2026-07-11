@@ -25,8 +25,9 @@ Mean per-page EditDist = **0.0879** (reconstructs the manifest exactly — sanit
 | format (table)       |    62 |   4.0 % |       11.5077 |           8.4 % |
 | failure_tail (>=0.5) |    48 |   3.1 % |       33.5829 |          24.6 % |
 
-The gap is concentrated in the **moderate + failure tails**: 312 pages (20%) hold
-**93.2 %** of the EditDist mass. The 977 "good" pages contribute only 6.8 %.
+The gap is concentrated in the **moderate + failure tails**: the 580 non-good
+pages (37%) hold **93.2 %** of the EditDist mass. The 977 "good" pages (62.8%)
+contribute only 6.8 %.
 
 ## Example pages per category
 

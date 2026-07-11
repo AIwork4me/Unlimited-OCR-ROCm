@@ -76,15 +76,38 @@ def _re_match(text: str) -> tuple[list[str], list[str]]:
     return images, others
 
 
-def postprocess_ocr_output(outputs: str) -> str:
-    """Decode BPE + apply ``model.infer``'s output transforms to raw vLLM text."""
-    outputs = decode_bpe(outputs)
-    if outputs.endswith(EOS_STOP):
-        outputs = outputs[: -len(EOS_STOP)]
-    outputs = outputs.strip()
-    images, others = _re_match(outputs)
+def postprocess_tags(text: str) -> str:
+    """Apply ``model.infer``'s output transforms to *already-UTF-8* text.
+
+    Strips the trailing EOS-stop marker and converts detection tags (image tags →
+    ``![](images/N.jpg)``, other det tags removed) + the ``\\coloneqq``/``\\eqqcolon``
+    replacements. Does **not** call :func:`decode_bpe` — the input is already real
+    UTF-8 text (e.g. HF tokenizer ``decode`` output on the PyTorch path). Running
+    ``decode_bpe`` on already-UTF-8 text corrupts the entire Latin-1 supplement
+    (``café`` → ``caf�``, ``Österreich`` → ``�sterreich``).
+
+    This is the PyTorch-engine path; :func:`postprocess_ocr_output` (which also
+    runs ``decode_bpe`` first) remains for the raw-vLLM-GPT-2-byte-char path.
+    """
+    if text.endswith(EOS_STOP):
+        text = text[: -len(EOS_STOP)]
+    text = text.strip()
+    images, others = _re_match(text)
     for idx, span in enumerate(images):
-        outputs = outputs.replace(span, f"![](images/{idx}.jpg)\n")
+        text = text.replace(span, f"![](images/{idx}.jpg)\n")
     for span in others:
-        outputs = outputs.replace(span, "").replace("\\coloneqq", ":=").replace("\\eqqcolon", "=:")
-    return outputs
+        text = text.replace(span, "").replace("\\coloneqq", ":=").replace("\\eqqcolon", "=:")
+    return text
+
+
+def postprocess_ocr_output(outputs: str) -> str:
+    """Decode BPE + apply ``model.infer``'s output transforms to raw vLLM text.
+
+    vLLM returns raw GPT-2 BPE byte-chars; :func:`decode_bpe` converts them to
+    UTF-8, then :func:`postprocess_tags` applies the tag transforms. Used by the
+    vLLM serving path. The PyTorch (HF ``model.generate``) path uses
+    :func:`postprocess_tags` directly, since HF ``tokenizer.decode`` already yields
+    correct UTF-8 and ``decode_bpe`` would corrupt accented/symbol chars.
+    """
+    outputs = decode_bpe(outputs)
+    return postprocess_tags(outputs)

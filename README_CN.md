@@ -61,7 +61,7 @@
 
 *\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **92.337**（PyTorch 快速路径，固定权重 `84757cb0`，torch 2.10+rocm7.0）是受控、可复现的实测（已提交 manifest，gate 通过），较前 91.97 基线提升 **+0.365**，所有模块均 ≥ 基线。该增益来自环境+权重，而非 batching 运气 —— Task-8 identity gate 在同一环境下确认 fast ≈ direct（Δ=0.0009）。*
 
-**诚实的精度定位。** 与百度 93.92 的 ~1.58pt 差距**几乎全部来自 Text EditDist**，无损逐页分解（[`docs/parity/moderate-tail-attribution-2026-07-11.md`](docs/parity/moderate-tail-attribution-2026-07-11.md)）表明现实无损上限约为 **~92.5–93.0** —— 我们的 92.337 距其仅 ~0.2–0.7。差距构成约 35% 行内数学 LaTeX 风格（模型输出语义正确的 `\(...\)`、`\sin`，而 GT 用 `$...$`、`\operatorname{s i n}`；CDM 0.959 证实数学正确 —— 字符级 EditDist 惩罚的是分隔符/间距差异）+ ~25% 真实识别上限 + ~25% 密集版面分歧（书籍索引/报纸）+ ~15% 格式/间距。无损可弥合部分仅 ~+0.5 pts。20% 的页面占据 93.2% 的 EditDist 总量；62.8% 的页面为"良好"（EditDist <0.05）。完整诊断：[docs/PARITY.md](docs/PARITY.md)。
+**诚实的精度定位。** 与百度 93.92 的 ~1.58pt 差距**几乎全部来自 Text EditDist**，无损逐页分解（[`docs/parity/moderate-tail-attribution-2026-07-11.md`](docs/parity/moderate-tail-attribution-2026-07-11.md)）表明现实无损上限约为 **~92.5–93.0** —— 我们的 92.337 距其仅 ~0.2–0.7。差距构成约 35% 行内数学 LaTeX 风格（模型输出语义正确的 `\(...\)`、`\sin`，而 GT 用 `$...$`、`\operatorname{s i n}`；CDM 0.959 证实数学正确 —— 字符级 EditDist 惩罚的是分隔符/间距差异）+ ~25% 真实识别上限 + ~25% 密集版面分歧（书籍索引/报纸）+ ~15% 格式/间距。无损可弥合部分仅 ~+0.5 pts。37% 的页面占据 93.2% 的 EditDist 总量；62.8% 的页面为"良好"（EditDist <0.05）。完整诊断：[docs/PARITY.md](docs/PARITY.md)。
 
 **速度。** 快速路径（分桶 batching）在受控 30 页 gate 上比直接逐页路径快 **1.88× 无损**（同环境、同 scorer，Overall Δ=0.0009），全量 1,651 页运行在 4× gfx1100 上达到 **~0.21 pages/s 聚合**（墙钟 ~7,840 s）。[基准测试 →](docs/BENCHMARK.md)*
 

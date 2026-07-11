@@ -15,7 +15,7 @@ import torch
 
 from rocm_ocr.batching import BatchedInputBuilder, BatchedInputs, PageInputs, build_page_inputs
 from rocm_ocr.logging import get_logger
-from rocm_ocr.postprocess import postprocess_ocr_output
+from rocm_ocr.postprocess import postprocess_tags
 
 logger = get_logger(__name__)
 
@@ -64,7 +64,9 @@ def _generate_batch(
 
     ``reduce_overhead`` opts into HF generate's ``reduce_generation_overhead``
     (CUDA graphs for the decode step) — gated by the identity gate (Task 10);
-    may fail to capture or flip tokens on gfx1100, so default-off.
+    may fail to capture or flip tokens on gfx1100, so default-off. If the installed
+    transformers rejects the kwarg (e.g. 4.57.1 raises ``ValueError``), it is
+    dropped with a clear log line and the batch is retried without it.
     """
     model_module = sys_model_module(model)
     input_ids = batch.input_ids.cuda()
@@ -83,7 +85,21 @@ def _generate_batch(
     if reduce_overhead:
         gen_kwargs["reduce_generation_overhead"] = True
     with torch.autocast("cuda", dtype=torch.bfloat16), torch.no_grad(), _ring_window_toggle(model):
-        out = model.generate(**gen_kwargs)
+        try:
+            out = model.generate(**gen_kwargs)
+        except ValueError as exc:
+            if not reduce_overhead:
+                raise
+            # transformers 4.57.1 rejects reduce_generation_overhead with
+            # ValueError; retry once without it so --reduce-overhead degrades to
+            # a no-op instead of crashing the whole run.
+            logger.warning(
+                "--reduce-overhead not supported in transformers 4.57.1 on this host "
+                "(%s); continuing without CUDA-graph decode acceleration.",
+                exc,
+            )
+            gen_kwargs.pop("reduce_generation_overhead", None)
+            out = model.generate(**gen_kwargs)
     return out
 
 
@@ -121,24 +137,32 @@ def _generate_bucketed(
     results: list[str | None] = [None] * len(indexed_pages)
     for items in buckets.values():
         for start in range(0, len(items), batch_size):
-            chunk = items[start:start + batch_size]
+            chunk = items[start : start + batch_size]
             batch = BatchedInputBuilder.batch([page for _, page in chunk], pad_token_id=pad_token_id)
             prompt_len = batch.input_ids.shape[1]
-            out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
-                                  ngram_window=ngram_window, max_length=max_length,
-                                  reduce_overhead=reduce_overhead)
+            out = _generate_batch(
+                model,
+                tokenizer,
+                batch,
+                no_repeat_ngram_size=no_repeat_ngram_size,
+                ngram_window=ngram_window,
+                max_length=max_length,
+                reduce_overhead=reduce_overhead,
+            )
             for j, (orig_idx, _page) in enumerate(chunk):
                 gen_ids = out[j][prompt_len:]
                 # Truncate at first EOS (model.infer stops there via streamer;
                 # batched generate pads shorter sequences with EOS). Decode with
                 # skip_special_tokens=False so detection tags (<|det|>) survive
-                # for postprocess_ocr_output to strip as full spans (label+box),
-                # matching model.infer's re_match cleanup.
+                # for postprocess_tags to strip as full spans (label+box),
+                # matching model.infer's re_match cleanup. Use postprocess_tags
+                # (NOT postprocess_ocr_output): HF tokenizer.decode already yields
+                # correct UTF-8, and decode_bpe would corrupt accented/symbol chars.
                 eos_id = tokenizer.eos_token_id
                 eos_pos = (gen_ids == eos_id).nonzero(as_tuple=True)[0]
                 if len(eos_pos):
                     gen_ids = gen_ids[: eos_pos[0]]
-                text = postprocess_ocr_output(tokenizer.decode(gen_ids, skip_special_tokens=False))
+                text = postprocess_tags(tokenizer.decode(gen_ids, skip_special_tokens=False))
                 results[orig_idx] = text.strip()
     return results
 
@@ -165,9 +189,16 @@ def infer_batch(
         for i, p in enumerate(image_paths)
     ]
     results = _generate_bucketed(
-        model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
-        no_repeat_ngram_size=no_repeat_ngram_size, ngram_window=ngram_window, max_length=max_length,
-        reduce_overhead=reduce_overhead)
+        model,
+        tokenizer,
+        indexed_pages,
+        batch_size=batch_size,
+        pad_token_id=pad_token_id,
+        no_repeat_ngram_size=no_repeat_ngram_size,
+        ngram_window=ngram_window,
+        max_length=max_length,
+        reduce_overhead=reduce_overhead,
+    )
     return [r or "" for r in results]
 
 
@@ -194,18 +225,22 @@ def infer_batch_async(
 
     def build_one(i_path: tuple[int, str]) -> tuple[int, PageInputs]:
         i, p = i_path
-        return i, build_page_inputs(model, tokenizer, p, prompt=prompt,
-                                    base_size=base_size, image_size=image_size)
+        return i, build_page_inputs(model, tokenizer, p, prompt=prompt, base_size=base_size, image_size=image_size)
 
     with ThreadPoolExecutor(max_workers=n_workers) as pool:
         indexed_pages = list(pool.map(build_one, list(enumerate(image_paths))))
     pad_token_id = getattr(tokenizer, "pad_token_id", None) or 0
     results = _generate_bucketed(
-        model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
+        model,
+        tokenizer,
+        indexed_pages,
+        batch_size=batch_size,
+        pad_token_id=pad_token_id,
         no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 35),
         ngram_window=kwargs.get("ngram_window", 128),
         max_length=kwargs.get("max_length", 32768),
-        reduce_overhead=kwargs.get("reduce_overhead", False))
+        reduce_overhead=kwargs.get("reduce_overhead", False),
+    )
     return [r or "" for r in results]
 
 

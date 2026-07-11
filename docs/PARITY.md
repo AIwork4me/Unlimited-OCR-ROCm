@@ -34,7 +34,7 @@ A lossless ceiling analysis ([`parity/moderate-tail-attribution-2026-07-11.md`](
 
 The closable portion totals **~+0.5 Overall pts** — not enough to reach 93.92. The gap is overwhelmingly the inline-math LaTeX style + dense-page divergence, which are inherent to this model-vs-metric pairing, not a regression to chase. See the full per-page decomposition + category examples in [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
 
-**Concentration:** 20% of pages (312/1,557) hold **93.2% of the EditDist mass**; **62.8% of pages (977) are "good"** (EditDist < 0.05) and contribute only 6.8% of the mass. The model is correct on the large majority of pages; the gap lives in the tail.
+**Concentration:** 37% of pages (580/1,557, the non-good set) hold **93.2% of the EditDist mass**; **62.8% of pages (977) are "good"** (EditDist < 0.05) and contribute only 6.8% of the mass. The model is correct on the large majority of pages; the gap lives in the tail.
 
 ### Levers attempted on gfx1100
 
@@ -134,13 +134,13 @@ _Source: official OmniDocBench v1.6 leaderboard._
 3. **Generate predictions via the fast core (4-GPU balanced shards).** Build 4 cost-balanced shards, then run the fast path — one shard per GPU:
    ```bash
    # Build 4 cost-balanced shards (cost-estimated load balancing; see src/rocm_ocr/scheduler.py)
-   python -c "from rocm_ocr.scheduler import build_balanced_shards; build_balanced_shards('./OmniDocBench_data', n=4, out_dir='./shards')"
+   python -c "from rocm_ocr.omnidocbench import iter_page_images; from rocm_ocr.scheduler import balance_shards, write_shard_files; write_shard_files(balance_shards(iter_page_images('./OmniDocBench_data'), num_shards=4), './shards')"
 
    # Launch one fast shard per GPU (chunked + bucketed batching; ~0.21 pp/s aggregate on 4× gfx1100)
    for i in 0 1 2 3; do
      HIP_VISIBLE_DEVICES=$i python scripts/run_omnidocbench_fast.py \
        --omnidocbench-dir ./OmniDocBench_data --pred-dir ./eval_predictions_fast \
-       --shard-file ./shards/shard_${i}.txt --batch-size 8 \
+       --shard-file ./shards/shard_0${i}.txt --batch-size 8 \
        --manifest-out ./manifests/shard_${i}.yaml > log/shard${i}.log 2>&1 &
    done
    wait
@@ -196,4 +196,4 @@ OmniDocBench v1.5 (1,355 pages) — predictions reused from the v1.6 gundam run 
 | failure_tail (EditDist ≥0.5) | 48 (3.1%) — 24.6% of mass; **only 1 of 48 is pure looping** |
 | Formula CDM | **95.90% vs paper 95.79%** — model recognizes math correctly |
 
-**Conclusion:** The model is correct on 62.8% of pages; the gap lives in the 20% tail (93.2% of the EditDist mass) and is ~35% inherent inline-math LaTeX style + ~25% genuine recognition limits + ~25% dense-layout divergence + ~15% format/spacing. The closable portion is ~+0.5 Overall pts, putting **92.337 within ~0.2–0.7 of the realistic ~92.5–93.0 ceiling**. Full per-page decomposition + category examples: [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
+**Conclusion:** The model is correct on 62.8% of pages; the gap lives in the 37% non-good tail (93.2% of the EditDist mass) and is ~35% inherent inline-math LaTeX style + ~25% genuine recognition limits + ~25% dense-layout divergence + ~15% format/spacing. The closable portion is ~+0.5 Overall pts, putting **92.337 within ~0.2–0.7 of the realistic ~92.5–93.0 ceiling**. Full per-page decomposition + category examples: [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
