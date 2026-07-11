@@ -127,6 +127,8 @@ def _generate_bucketed(
                 if len(eos_pos):
                     gen_ids = gen_ids[: eos_pos[0]]
                 text = tokenizer.decode(gen_ids, skip_special_tokens=False)
+                if text.endswith(EOS_STOP):
+                    text = text[: -len(EOS_STOP)]
                 results[orig_idx] = text.strip()
     return results
 
