@@ -1,0 +1,87 @@
+schema: unlimited-ocr-rocm/eval-manifest/v1
+backend: pytorch-batched
+timestamp: '2026-07-11T22:49:24+00:00'
+started_at: '2026-07-11T22:49:24+00:00'
+ended_at: '2026-07-11T22:49:24+00:00'
+run_by: aiwork4me
+git:
+  commit: f35837745032f92e47608d7db88ac07a4f26e20d
+  short: f358377450
+  dirty: true
+  branch: feat/pytorch-accuracy-speed
+  tag: null
+model:
+  id: baidu/Unlimited-OCR
+  weights_revision: 84757cb0
+  dtype: bfloat16
+  image_mode: gundam
+  no_repeat_ngram_size: 35
+  ngram_window: 128
+  max_length: 32768
+dataset:
+  version: v1.6
+env:
+  python: 3.12.3
+  platform: Linux-6.8.0-79-generic-x86_64-with-glibc2.39
+  host: u-20-8d823edc
+  torch: 2.10.0+rocm7.0
+  hip: 7.0.51831
+  gpus:
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+hardware_fingerprint: AMDx4
+metrics:
+  overall: 92.43632982104525
+  text_edit_dist: 0.08683691050279922
+  formula_cdm: 0.9583064662061438
+  table_teds: 0.9016203389280126
+  table_teds_s: 0.9330455880857805
+  reading_order_edit: 0.1442138430342486
+  page_count: 1651
+timing:
+  backend: pytorch-batched
+  page_count: 1651
+  wall_s: 7840
+  pages_per_sec: 0.2106
+  tok_per_sec: null
+  note: 4-GPU balanced chunked bucketed batching; wall=slowest shard. Post-decode_bpe-fix
+    re-score (workers=4).
+predictions_ref: local:///root/eval_predictions_fast
+gate:
+  verdict: PASS
+  checks:
+  - name: overall
+    curr: 92.43632982104525
+    prev: 91.97171139881544
+    delta: 0.46461842222980465
+    passed: true
+  - name: text_edit_dist
+    curr: 0.08683691050279922
+    prev: 0.0938606221753525
+    delta: 0.007023711672553279
+    passed: true
+  - name: formula_cdm
+    curr: 0.9583064662061438
+    prev: 0.9572245449538669
+    delta: 0.0010819212522769073
+    passed: true
+  - name: table_teds
+    curr: 0.9016203389280126
+    prev: 0.8957874191859493
+    delta: 0.005832919742063347
+    passed: true
+  - name: table_teds_s
+    curr: 0.9330455880857805
+    prev: 0.9283311905634493
+    delta: 0.004714397522331271
+    passed: true
+  - name: reading_order_edit
+    curr: 0.1442138430342486
+    prev: 0.14491684234152113
+    delta: 0.0007029993072725227
+    passed: true
+compared_against: pytorch-v1.6-142da29774 (Overall 91.97, torch 2.5.1+rocm6.2)
+note: decode_bpe postprocess bug fixed (was corrupting Latin-1 supplement on 390/1651
+  pages); +0.099 Overall vs pre-fix 92.337.
