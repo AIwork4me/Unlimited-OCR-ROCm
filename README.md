@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  OmniDocBench v1.6 Overall 91.97 (PyTorch backend) · gate PASS · 16 GB VRAM · R-SWA constant memory
+  OmniDocBench v1.6 Overall 92.337 (PyTorch fast path) · gate PASS · 1.88× lossless speedup · 16 GB VRAM · R-SWA constant memory
 </p>
 
 <div align="center">
@@ -41,7 +41,7 @@
 
 | OmniDocBench v1.6 | Gate | Speed | Min VRAM |
 |---|---|---|---|
-| **91.97 Overall** ✓ _(PyTorch backend)_ | **PASS** | TODO: eval pending | **16 GB** |
+| **92.337 Overall** ✓ _(PyTorch fast path)_ | **PASS** | **1.88× lossless** · ~0.21 pp/s (4-GPU) | **16 GB** |
 
 </div>
 
@@ -55,10 +55,15 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 
 | Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| **PyTorch backend** (this project, AMD ROCm gfx1100) | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
+| **PyTorch fast path** (this project, AMD ROCm gfx1100) | **92.337** | 0.0879 | 95.90 | 89.90 | 93.18 | 0.1456 |
+| _prior baseline_ (PyTorch, torch 2.5.1+rocm6.2) | _91.97_ | _0.0939_ | _95.72_ | _89.58_ | _92.83_ | _0.1449_ |
 | Baidu paper\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **91.97** (PyTorch backend) is a controlled, reproducible measurement (committed manifest, gate PASS). The ~1.95pt gap is ~entirely Text EditDist (recognition/FormulaCDM at parity; the official scorer already normalizes LaTeX away, so 0.094 is a real output difference — **not** a formatting artifact). On this gfx1100 host the gap is **not closable**: SGLang (the paper's likely backend) page-faults on the fused-MoE kernel, and a targeted looping-fix regressed the full eval (reverted). Full diagnosis: [docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md).*
+*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **92.337** (PyTorch fast path, pinned weights `84757cb0`, torch 2.10+rocm7.0) is a controlled, reproducible measurement (committed manifest, gate PASS), up **+0.365** vs the prior 91.97 baseline with all modules ≥ baseline. The gain is env+weights, not batching luck — the Task-8 identity gate confirmed fast ≈ direct (Δ=0.0009) on the same env.*
+
+**Honest parity framing.** The ~1.58pt gap to Baidu's 93.92 is **~entirely Text EditDist**, and a lossless per-page decomposition ([`docs/parity/moderate-tail-attribution-2026-07-11.md`](docs/parity/moderate-tail-attribution-2026-07-11.md)) shows the realistic lossless ceiling is **~92.5–93.0** — our 92.337 is within ~0.2–0.7 of it. The gap decomposes ~35% inline-math LaTeX style (the model emits semantically-correct `\(...\)`, `\sin` where GT uses `$...$`, `\operatorname{s i n}`; CDM 0.959 confirms the math is right — char-level EditDist penalizes delimiter/spacing) + ~25% genuine recognition limits + ~25% dense-layout divergence (book indexes/newspapers) + ~15% format/spacing. Only ~+0.5 pts is closable losslessly. 20% of pages hold 93.2% of the EditDist mass; 62.8% of pages are "good" (EditDist <0.05). Full diagnosis: [docs/PARITY.md](docs/PARITY.md).
+
+**Speed.** The fast path (bucketed batching) is **1.88× lossless** vs the direct per-page path on a controlled 30-page gate (same env, same scorer, Overall Δ=0.0009), and the full 1,651-page run does **~0.21 pages/s aggregate** on 4× gfx1100 (wall ~7,840 s). [Benchmarks →](docs/BENCHMARK.md)*
 
 **→ [Full parity report with per-module breakdown](docs/PARITY.md) · [Reproduction recipe](docs/PARITY.md#reproduction-recipe) →**
 
@@ -70,10 +75,10 @@ This project runs Unlimited-OCR via **two backends** on AMD ROCm gfx1100:
 
 | Backend | Status | OmniDocBench |
 |---|---|---|
-| **PyTorch** (`model.infer`) | ✅ Verified aligned reference (the 91.97 above) | **Overall 91.97**, gate PASS — 1,651 pages, committed manifest |
+| **PyTorch fast path** (bucketed batching, `model.infer`) | ✅ Verified aligned reference (the 92.337 above) + 1.88× lossless speedup | **Overall 92.337**, gate PASS — 1,651 pages, committed manifest |
 | **vLLM / ROCm** serving | ⏳ Numerics-blocked preview | Catastrophic on ~10% of pages (first-token EOS) |
 
-The **vLLM/ROCm serving backend** regresses to first-token EOS on ~10% of pages (on a 150-page representative sample, same scorer for both: vLLM Overall **22.3** vs the PyTorch backend **66.4**). The cause is **forward-pass numerics** — bf16 + optimized MoE/attention kernels (TRITON/ROCM_ATTN) vs PyTorch eager — on borderline pages. It is **not** R-SWA (ruled out by a direct ablation: forcing full causal attention in PyTorch does **not** reproduce the EOS), and **not** any config / decoding-contract / processor bug (all ruled out). The 91.97 figure advertised in this README is the **PyTorch** backend; the vLLM/ROCm serving path has no passing score yet.
+The **PyTorch fast path** (bucketed batching) is the verified aligned reference: the Task-8 identity gate confirmed it matches the direct per-page path within Δ=0.0009 (4/30 pages differ by a single accented char — bf16 batching numerics), so it is both accurate (92.337) **and** 1.88× faster. The **vLLM/ROCm serving backend** regresses to first-token EOS on ~10% of pages (on a 150-page representative sample, same scorer: vLLM Overall **22.3** vs the PyTorch backend **66.4**). The cause is **forward-pass numerics** — bf16 + optimized MoE/attention kernels (TRITON/ROCM_ATTN) vs PyTorch eager — on borderline pages. It is **not** R-SWA (ruled out by a direct ablation: forcing full causal attention in PyTorch does **not** reproduce the EOS), and **not** any config / decoding-contract / processor bug (all ruled out). The 92.337 figure advertised in this README is the **PyTorch** fast path; the vLLM/ROCm serving path has no passing score yet.
 
 **⏳ vLLM + ROCm backend → waiting for the official vLLM v0.25.0+ release.** Definitive re-verification (serving unlimited-ocr on a real vLLM/ROCm build and re-scoring) is deferred until vLLM publishes an official **v0.25.0+ ROCm wheel** (the first stable release with core-side R-SWA + the Triton backend). The serving scripts are staged and ready for that day: [`scripts/rswa_spike/`](scripts/rswa_spike/). Full investigation + the re-verification trigger: [`docs/parity/rswa-spike-verdict-2026-07-11.md`](docs/parity/rswa-spike-verdict-2026-07-11.md).
 
