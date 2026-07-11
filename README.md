@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  OmniDocBench v1.6 Overall 91.97 · gate PASS · 16 GB VRAM · R-SWA constant memory
+  OmniDocBench v1.6 Overall 91.97 (PyTorch backend) · gate PASS · 16 GB VRAM · R-SWA constant memory
 </p>
 
 <div align="center">
@@ -41,7 +41,7 @@
 
 | OmniDocBench v1.6 | Gate | Speed | Min VRAM |
 |---|---|---|---|
-| **91.97 Overall** ✓ | **PASS** | TODO: eval pending | **16 GB** |
+| **91.97 Overall** ✓ _(PyTorch backend)_ | **PASS** | TODO: eval pending | **16 GB** |
 
 </div>
 
@@ -55,12 +55,27 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 
 | Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| **AMD ROCm** (this project) | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
+| **PyTorch backend** (this project, AMD ROCm gfx1100) | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
 | Baidu paper\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **91.97** is a controlled, reproducible measurement (committed manifest, gate PASS). The ~1.95pt gap is ~entirely Text EditDist (recognition/FormulaCDM at parity; the official scorer already normalizes LaTeX away, so 0.094 is a real output difference — **not** a formatting artifact). On this gfx1100 host the gap is **not closable**: SGLang (the paper's likely backend) page-faults on the fused-MoE kernel, and a targeted looping-fix regressed the full eval (reverted). Full diagnosis: [docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md).*
+*\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **91.97** (PyTorch backend) is a controlled, reproducible measurement (committed manifest, gate PASS). The ~1.95pt gap is ~entirely Text EditDist (recognition/FormulaCDM at parity; the official scorer already normalizes LaTeX away, so 0.094 is a real output difference — **not** a formatting artifact). On this gfx1100 host the gap is **not closable**: SGLang (the paper's likely backend) page-faults on the fused-MoE kernel, and a targeted looping-fix regressed the full eval (reverted). Full diagnosis: [docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md).*
 
 **→ [Full parity report with per-module breakdown](docs/PARITY.md) · [Reproduction recipe](docs/PARITY.md#reproduction-recipe) →**
+
+---
+
+## Backend status (two paths, honestly)
+
+This project runs Unlimited-OCR via **two backends** on AMD ROCm gfx1100:
+
+| Backend | Status | OmniDocBench |
+|---|---|---|
+| **PyTorch** (`model.infer`) | ✅ Verified aligned reference (the 91.97 above) | **Overall 91.97**, gate PASS — 1,651 pages, committed manifest |
+| **vLLM / ROCm** serving | ⏳ Numerics-blocked preview | Catastrophic on ~10% of pages (first-token EOS) |
+
+The **vLLM/ROCm serving backend** regresses to first-token EOS on ~10% of pages (on a 150-page representative sample, same scorer for both: vLLM Overall **22.3** vs the PyTorch backend **66.4**). The cause is **forward-pass numerics** — bf16 + optimized MoE/attention kernels (TRITON/ROCM_ATTN) vs PyTorch eager — on borderline pages. It is **not** R-SWA (ruled out by a direct ablation: forcing full causal attention in PyTorch does **not** reproduce the EOS), and **not** any config / decoding-contract / processor bug (all ruled out). The 91.97 figure advertised in this README is the **PyTorch** backend; the vLLM/ROCm serving path has no passing score yet.
+
+**⏳ vLLM + ROCm backend → waiting for the official vLLM v0.25.0+ release.** Definitive re-verification (serving unlimited-ocr on a real vLLM/ROCm build and re-scoring) is deferred until vLLM publishes an official **v0.25.0+ ROCm wheel** (the first stable release with core-side R-SWA + the Triton backend). The serving scripts are staged and ready for that day: [`scripts/rswa_spike/`](scripts/rswa_spike/). Full investigation + the re-verification trigger: [`docs/parity/rswa-spike-verdict-2026-07-11.md`](docs/parity/rswa-spike-verdict-2026-07-11.md).
 
 ---
 
