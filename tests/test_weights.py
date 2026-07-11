@@ -1,4 +1,5 @@
 """Weights revision pinning — removes checkpoint drift from accuracy A/B."""
+
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -27,9 +28,7 @@ def test_load_model_pinned_passes_revision():
     with patch("rocm_ocr.weights.AutoModel") as am, patch("rocm_ocr.weights.AutoTokenizer") as tok:
         am.from_pretrained.return_value = MagicMock(name="model")
         tok.from_pretrained.return_value = MagicMock(name="tok")
-        model, tokenizer = weights.load_model_pinned(
-            "baidu/Unlimited-OCR", "abc123", dtype="bfloat16", device="cuda"
-        )
+        model, tokenizer = weights.load_model_pinned("baidu/Unlimited-OCR", "abc123", dtype="bfloat16", device="cuda")
         am.from_pretrained.assert_called_once()
         kwargs = am.from_pretrained.call_args.kwargs
         assert kwargs["revision"] == "abc123"

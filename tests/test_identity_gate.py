@@ -1,4 +1,5 @@
 """Identity gate — Overall Δ ≤ 0.05 between reference and candidate paths."""
+
 from rocm_ocr import identity_gate as ig
 
 

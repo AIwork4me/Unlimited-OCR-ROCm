@@ -51,9 +51,7 @@ def load_model_pinned(
     ``revision=None`` loads the default (latest) revision — only use for a fresh
     baseline; pin the result via :func:`write_pinned_revision`.
     """
-    model = AutoModel.from_pretrained(
-        model_ref, revision=revision, trust_remote_code=True, torch_dtype=dtype
-    ).eval()
+    model = AutoModel.from_pretrained(model_ref, revision=revision, trust_remote_code=True, torch_dtype=dtype).eval()
     if device:
         model = model.to(device)
     tokenizer = AutoTokenizer.from_pretrained(model_ref, revision=revision, trust_remote_code=True)

@@ -31,9 +31,9 @@ def runner():
 
 def test_select_todo_skips_existing(tmp_path, runner) -> None:
     (tmp_path / "a.md").write_text("x")
-    assert runner.select_todo_images(
-        [str(tmp_path / "a.png"), str(tmp_path / "b.png")], str(tmp_path)
-    ) == [str(tmp_path / "b.png")]
+    assert runner.select_todo_images([str(tmp_path / "a.png"), str(tmp_path / "b.png")], str(tmp_path)) == [
+        str(tmp_path / "b.png")
+    ]
 
 
 def test_select_todo_returns_all_when_none_done(tmp_path, runner) -> None:

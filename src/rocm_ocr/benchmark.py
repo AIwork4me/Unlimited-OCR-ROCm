@@ -63,9 +63,14 @@ def measure_run(
         "mean_decode_ms": mean(t.decode_ms for t in timings) if timings else 0.0,
         "mean_postprocess_ms": mean(t.postprocess_ms for t in timings) if timings else 0.0,
     }
-    total_mean = mean(t.total_ms or sum([t.load_ms, t.preprocess_ms, t.vision_prefill_ms,
-                                         t.decode_ms, t.postprocess_ms]) for t in timings
-                     ) if timings else 0.0
+    total_mean = (
+        mean(
+            t.total_ms or sum([t.load_ms, t.preprocess_ms, t.vision_prefill_ms, t.decode_ms, t.postprocess_ms])
+            for t in timings
+        )
+        if timings
+        else 0.0
+    )
     safe_wall = wall_s if wall_s > 0 else 0.0
     return {
         "backend": "pytorch",

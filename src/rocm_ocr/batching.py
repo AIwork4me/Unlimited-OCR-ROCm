@@ -27,19 +27,19 @@ class PageInputs:
 
     input_ids: list[int]
     images_seq_mask: list[bool]
-    patches: torch.Tensor            # [n_local_crops, 3, image_size, image_size]
-    image_ori: torch.Tensor          # [n_global_views, 3, base_size, base_size]
-    spatial_crop: torch.Tensor       # [n_global_views, 2]
+    patches: torch.Tensor  # [n_local_crops, 3, image_size, image_size]
+    image_ori: torch.Tensor  # [n_global_views, 3, base_size, base_size]
+    spatial_crop: torch.Tensor  # [n_global_views, 2]
 
 
 @dataclass
 class BatchedInputs:
     """N pages left-padded into one generate() call."""
 
-    input_ids: torch.Tensor           # [N, L_max]
-    attention_mask: torch.Tensor      # [N, L_max]
+    input_ids: torch.Tensor  # [N, L_max]
+    attention_mask: torch.Tensor  # [N, L_max]
     images: list[tuple[torch.Tensor, torch.Tensor]]  # N x (patches, image_ori)
-    images_seq_mask: torch.Tensor     # [N, L_max]
+    images_seq_mask: torch.Tensor  # [N, L_max]
     images_spatial_crop: list[torch.Tensor]  # N x [n_views, 2]
 
 
@@ -107,8 +107,7 @@ def build_page_inputs(
 
     from PIL import ImageOps  # noqa: PLC0415
 
-    global_view = ImageOps.pad(image, (base_size, base_size),
-                               color=tuple(int(x * 255) for x in image_transform.mean))
+    global_view = ImageOps.pad(image, (base_size, base_size), color=tuple(int(x * 255) for x in image_transform.mean))
     images_list.append(image_transform(global_view).to(torch.bfloat16))
     images_spatial_crop.append(crop_ratio)
     for crop in images_crop_raw:
@@ -133,14 +132,14 @@ def build_page_inputs(
     images_seq_mask = [False] + images_seq_mask
 
     image_ori = torch.stack(images_list, dim=0) if images_list else torch.zeros((1, 3, base_size, base_size))
-    patches = (torch.stack(images_crop_list, dim=0) if images_crop_list
-               else torch.zeros((1, 3, image_size, image_size)))
+    patches = torch.stack(images_crop_list, dim=0) if images_crop_list else torch.zeros((1, 3, image_size, image_size))
     return PageInputs(
         input_ids=tokenized_str,
         images_seq_mask=images_seq_mask,
         patches=patches,
         image_ori=image_ori,
-        spatial_crop=torch.tensor(images_spatial_crop, dtype=torch.long) if images_spatial_crop
+        spatial_crop=torch.tensor(images_spatial_crop, dtype=torch.long)
+        if images_spatial_crop
         else torch.zeros((1, 2), dtype=torch.long),
     )
 
@@ -158,9 +157,9 @@ class BatchedInputBuilder:
         for i, p in enumerate(pages):
             length = len(p.input_ids)
             # left-pad: real tokens at the right end
-            input_ids[i, max_len - length:] = torch.tensor(p.input_ids, dtype=torch.long)
-            attention_mask[i, max_len - length:] = 1
-            images_seq_mask[i, max_len - length:] = torch.tensor(p.images_seq_mask, dtype=torch.bool)
+            input_ids[i, max_len - length :] = torch.tensor(p.input_ids, dtype=torch.long)
+            attention_mask[i, max_len - length :] = 1
+            images_seq_mask[i, max_len - length :] = torch.tensor(p.images_seq_mask, dtype=torch.bool)
         images = [(p.patches, p.image_ori) for p in pages]
         # Flatten each page's spatial_crop to a 1-D [w, h] tensor. The model's
         # forward (modeling_unlimitedocr.py:487,523) iterates ``zip(images,

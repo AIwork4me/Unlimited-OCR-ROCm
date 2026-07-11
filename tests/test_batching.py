@@ -1,5 +1,6 @@
 # tests/test_batching.py
 """BatchedInputBuilder — left-padding + mask alignment (CPU-only logic)."""
+
 import torch
 
 from rocm_ocr.batching import BatchedInputBuilder, PageInputs
