@@ -13,12 +13,24 @@ from pages import (  # noqa: E402
 )
 
 
+def _sample_present() -> bool:
+    """True only when the local 150-sample dir is readable.
+
+    On CI the runner is non-root, so /root raises PermissionError (not False) —
+    guard with try/except so collection doesn't blow up.
+    """
+    try:
+        return VLLM_SAMPLE_DIR.exists()
+    except OSError:
+        return False
+
+
 def test_eos_pages_count():
     assert len(EOS_PAGES) == 15
 
 
 @pytest.mark.skipif(
-    not VLLM_SAMPLE_DIR.exists(),
+    not _sample_present(),
     reason="needs local /root/ocr-eval/predictions/vllm-sample-150 (not present on CI)",
 )
 def test_control_pages_exclude_eos():

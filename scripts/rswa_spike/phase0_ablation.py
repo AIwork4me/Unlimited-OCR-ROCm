@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pages import EOS_PAGES, control_pages, resolve_image  # noqa: E402
 
 MODEL = "/root/models/Unlimited-OCR"
-OUT = Path("/root/ocr-eval/rswa_spike"); OUT.mkdir(parents=True, exist_ok=True)
+OUT = Path("/root/ocr-eval/rswa_spike")  # created lazily below — import must stay side-effect-free (CI collects test_verdict)
 PROMPT = "<image>document parsing."
 MAXLEN = 4096
 TOPK = 5
@@ -124,6 +124,7 @@ def smoke(m, tok, cap):
 def full(m, tok, cap):
     import json
     from collections import Counter
+    OUT.mkdir(parents=True, exist_ok=True)
     rows = []
     for pid in EOS_PAGES:
         img = resolve_image(pid)
