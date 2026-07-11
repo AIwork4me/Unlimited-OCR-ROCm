@@ -761,14 +761,20 @@ def build_page_inputs(
     """
     import math  # noqa: PLC0415
 
-    # The model's remote-code helpers (same objects model.infer uses).
-    from modeling_unlimitedocr import (  # type: ignore[import-not-found]
-        BasicImageTransform,
-        dynamic_preprocess,
-        format_messages,
-        load_pil_images,
-        text_encode,
-    )
+    # The model's remote-code helpers (same objects model.infer uses). The model is
+    # a trust_remote_code PACKAGE whose modules use relative imports
+    # (``from .modeling_deepseekv2 import ...``), so it CANNOT be imported as a bare
+    # module. Resolve the helpers from the loaded model's own defining module
+    # (modeling_unlimitedocr.py — all six helpers are defined there). This is the
+    # single robust access path and guarantees byte-identical preprocessing.
+    import sys  # noqa: PLC0415
+
+    _mod = sys.modules[model.__class__.__module__]
+    BasicImageTransform = _mod.BasicImageTransform
+    dynamic_preprocess = _mod.dynamic_preprocess
+    format_messages = _mod.format_messages
+    load_pil_images = _mod.load_pil_images
+    text_encode = _mod.text_encode
 
     patch_size, downsample_ratio = 16, 4
     conversation = [
@@ -895,14 +901,16 @@ def gen_single(page):
     # capture via a direct generate instead — see note below
 
 # Batched path:
+import sys  # resolve the ngram processor from the loaded model's module (NOT a bare import)
+_proc_cls = sys.modules[model.__class__.__module__].SlidingWindowNoRepeatNgramProcessor
 pages = [build_page_inputs(model, tok, im, prompt=PROMPT) for im in imgs]
 b = BatchedInputBuilder.batch(pages, pad_token_id=tok.pad_token_id or 0)
 with torch.autocast("cuda", dtype=torch.bfloat16), torch.no_grad():
     out = model.generate(input_ids=b.input_ids.cuda(), attention_mask=b.attention_mask.cuda(),
-        images=[(p.cuda(), o.cuda()) for (p, o) in [(pg.patches, pg.image_ori) for pg in pages]],
+        images=[(pg.patches.cuda(), pg.image_ori.cuda()) for pg in pages],
         images_seq_mask=b.images_seq_mask.cuda(), images_spatial_crop=b.images_spatial_crop,
         max_length=32768, do_sample=False, eos_token_id=tok.eos_token_id,
-        logits_processor=[__import__("modeling_unlimitedocr").SlidingWindowNoRepeatNgramProcessor(35, 128)],
+        logits_processor=[_proc_cls(35, 128)],
         use_cache=True)
 for i in range(2):
     print(i, tok.decode(out[i][b.input_ids.shape[1]:], skip_special_tokens=False)[:200])
@@ -1103,13 +1111,11 @@ def sys_model_module(model: Any):
 
 
 def sys_module_of(cls: Any):
-    import importlib  # noqa: PLC0415
+    """Return the model's defining module via sys.modules (robust to relative imports)."""
+    import sys  # noqa: PLC0415
 
     mod = getattr(cls, "__module__", "")
-    try:
-        return importlib.import_module(mod)
-    except Exception:  # noqa: BLE001
-        return None
+    return sys.modules.get(mod)
 
 
 def infer_batch(
@@ -1578,7 +1584,7 @@ HIP_VISIBLE_DEVICES=0 /root/vllm-venv/bin/python scripts/run_omnidocbench_fast.p
 
 /root/vllm-venv/bin/python scripts/run_identity_gate.py \
   --reference-pred-dir /tmp/gate_reference --candidate-pred-dir /tmp/gate_candidate \
-  --gt-json /workspace/OmniDocBench_data/dataset.json \
+  --gt-json /workspace/OmniDocBench_data/OmniDocBench.json \
   --omnidocbench-repo /root/ocr-eval/OmniDocBench \
   --scorer-python /root/ocr-eval/OmniDocBench/.venv/bin/python --work-dir /tmp/gate_run
 ```
@@ -1678,7 +1684,7 @@ out = infer_batch_async(m, t, imgs, batch_size=8)
 import pathlib; [pathlib.Path('/tmp/gate_candidate_compile', f'{pathlib.Path(p).stem}.md').write_text(x) for p,x in zip(imgs,out)]
 "
 /root/vllm-venv/bin/python scripts/run_identity_gate.py --reference-pred-dir /tmp/gate_reference \
-  --candidate-pred-dir /tmp/gate_candidate_compile --gt-json /workspace/OmniDocBench_data/dataset.json \
+  --candidate-pred-dir /tmp/gate_candidate_compile --gt-json /workspace/OmniDocBench_data/OmniDocBench.json \
   --omnidocbench-repo /root/ocr-eval/OmniDocBench --scorer-python /root/ocr-eval/OmniDocBench/.venv/bin/python --work-dir /tmp/gate_compile
 ```
 **Decision:** `verdict == PASS` AND throughput improves → default `enabled=True` in `run_omnidocbench_fast.py`, document the speedup. Else keep `enabled=False` (opt-in flag only) and record the Δ/failure in `docs/BENCHMARK.md`.
@@ -1801,7 +1807,7 @@ done; wait
 ```bash
 /root/vllm-venv/bin/python -m rocm_ocr.omnidocbench \
   --omnidocbench-dir /workspace/OmniDocBench_data \
-  --gt-json /workspace/OmniDocBench_data/dataset.json \
+  --gt-json /workspace/OmniDocBench_data/OmniDocBench.json \
   --pred-dir /workspace/eval_predictions_fast --run-scorer \
   --omnidocbench-repo /root/ocr-eval/OmniDocBench --result-dir /workspace/result_fast
 ```
@@ -2021,7 +2027,7 @@ if __name__ == "__main__":
 
 ```bash
 /root/vllm-venv/bin/python scripts/analysis/moderate_tail_decomp.py \
-  --pred-dir /workspace/eval_predictions_fast --gt-json /workspace/OmniDocBench_data/dataset.json \
+  --pred-dir /workspace/eval_predictions_fast --gt-json /workspace/OmniDocBench_data/OmniDocBench.json \
   --out /tmp/moderate_tail_decomp.json
 ```
 
