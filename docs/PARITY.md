@@ -1,6 +1,8 @@
 # Accuracy Parity (OmniDocBench)
 
 > Accuracy parity of Unlimited-OCR-ROCm vs the **NVIDIA reference** run of Baidu Unlimited-OCR on the OmniDocBench standard benchmark, scored on both **v1.5** and **v1.6**.
+>
+> **Backend note (updated 2026-07-11):** The 91.97 figure throughout this report is the **PyTorch (`model.infer`) backend** — the verified aligned reference. The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md).
 
 ## Headline — honest, controlled measurement (updated 2026-07-06)
 

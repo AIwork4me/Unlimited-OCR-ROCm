@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  OmniDocBench v1.6 Overall 91.97 · gate 通过 · 16 GB 显存 · R-SWA 恒定内存
+  OmniDocBench v1.6 Overall 91.97（PyTorch 后端） · gate 通过 · 16 GB 显存 · R-SWA 恒定内存
 </p>
 
 <div align="center">
@@ -41,7 +41,7 @@
 
 | OmniDocBench v1.6 | Gate | 速度 | 最低显存 |
 |---|---|---|---|
-| **91.97 Overall** ✓ | **PASS** | TODO: 评测待完成 | **16 GB** |
+| **91.97 Overall** ✓ _（PyTorch 后端）_ | **PASS** | TODO: 评测待完成 | **16 GB** |
 
 </div>
 
@@ -55,12 +55,27 @@
 
 | Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| **AMD ROCm**（本项目） | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
+| **PyTorch 后端**（本项目，AMD ROCm gfx1100） | **91.97** | 0.094 | 95.7 | 89.6 | 92.8 | 0.145 |
 | Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **91.97** 是受控、可复现的实测（已提交 manifest，gate 通过）。约 1.95pt 的差距几乎全部来自 Text EditDist（识别 / FormulaCDM 已对齐；官方 scorer 已做 LaTeX 归一化，故 0.094 是真实输出差异 —— **并非**格式伪影）。在本 gfx1100 主机上该差距**无法弥合**：SGLang（论文很可能使用的后端）在 fused-MoE 内核上页错误崩溃，定向 looping 修复又导致全量回归（已回退）。完整诊断：[docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md)。*
+*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **91.97**（PyTorch 后端）是受控、可复现的实测（已提交 manifest，gate 通过）。约 1.95pt 的差距几乎全部来自 Text EditDist（识别 / FormulaCDM 已对齐；官方 scorer 已做 LaTeX 归一化，故 0.094 是真实输出差异 —— **并非**格式伪影）。在本 gfx1100 主机上该差距**无法弥合**：SGLang（论文很可能使用的后端）在 fused-MoE 内核上页错误崩溃，定向 looping 修复又导致全量回归（已回退）。完整诊断：[docs/PARITY.md](docs/PARITY.md) + [docs/parity/attribution-2026-07-05.md](docs/parity/attribution-2026-07-05.md)。*
 
 **→ [完整精度对齐报告含模块拆解](docs/PARITY.md) · [复现方法](docs/PARITY.md#reproduction-recipe) →**
+
+---
+
+## 后端状态（两条路径，实话实说）
+
+本项目在 AMD ROCm gfx1100 上通过**两种后端**运行 Unlimited-OCR：
+
+| 后端 | 状态 | OmniDocBench |
+|---|---|---|
+| **PyTorch**（`model.infer`） | ✅ 已验证的对齐参考（即上面的 91.97） | **Overall 91.97**，gate 通过 —— 1,651 页，已提交 manifest |
+| **vLLM / ROCm** 服务 | ⏳ 受数值发散阻塞的预览 | 约 10% 页面灾难性退化（首 token 即 EOS） |
+
+**vLLM/ROCm 服务后端**在约 10% 的页面上出现首-token EOS 回归（150 页代表性样本、同一 scorer：vLLM Overall **22.3** vs PyTorch 后端 **66.4**）。原因是**前向数值发散** —— bf16 + 优化 MoE/注意力 kernel（TRITON/ROCM_ATTN）相对 PyTorch eager —— 发生在边界页上。**不是** R-SWA（已用直接消融排除：在 PyTorch 中强制全因果注意力**不能**复现该 EOS），也**不是**任何 config / 解码契约 / processor bug（均已排除）。本 README 宣传的 91.97 是 **PyTorch** 后端；vLLM/ROCm 服务路径目前没有通过的分数。
+
+**⏳ vLLM + ROCm 后端 → 等官方发布 v0.25.0+。** 定论性复验（在真实 vLLM/ROCm 构建上 serve unlimited-ocr 并重新评分）推迟到 vLLM 发布官方 **v0.25.0+ ROCm wheel**（第一个含核心侧 R-SWA + Triton 后端的稳定版）。服务脚本已就绪：[`scripts/rswa_spike/`](scripts/rswa_spike/)。完整调查 + 复验触发条件：[`docs/parity/rswa-spike-verdict-2026-07-11.md`](docs/parity/rswa-spike-verdict-2026-07-11.md)。
 
 ---
 

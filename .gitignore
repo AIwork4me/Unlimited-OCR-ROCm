@@ -61,9 +61,11 @@ releases/
 sglang-src/
 sglang-*-venv/
 vllm-*-venv/
+vllm-venv/
 *-rocm-venv/
 docker-out/
 .rocm_cache/
 build_logs/
 *.deb
 .claude/
+.worktrees/
