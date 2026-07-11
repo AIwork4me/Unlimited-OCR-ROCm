@@ -68,13 +68,19 @@ def _generate_batch(
     transformers rejects the kwarg (e.g. 4.57.1 raises ``ValueError``), it is
     dropped with a clear log line and the batch is retried without it.
     """
+    import contextlib  # noqa: PLC0415
+
     model_module = sys_model_module(model)
-    input_ids = batch.input_ids.cuda()
+    # CUDA-conditional so the engine is unit-testable on CPU-only CI (production
+    # runs on a GPU host where torch.cuda.is_available() is True — same path).
+    _cuda = torch.cuda.is_available()
+    _dev = "cuda" if _cuda else "cpu"
+    input_ids = batch.input_ids.to(_dev)
     gen_kwargs = {
         "input_ids": input_ids,
-        "attention_mask": batch.attention_mask.cuda(),
-        "images": [(p.cuda(), o.cuda()) for (p, o) in batch.images],
-        "images_seq_mask": batch.images_seq_mask.cuda(),
+        "attention_mask": batch.attention_mask.to(_dev),
+        "images": [(p.to(_dev), o.to(_dev)) for (p, o) in batch.images],
+        "images_seq_mask": batch.images_seq_mask.to(_dev),
         "images_spatial_crop": batch.images_spatial_crop,
         "do_sample": False,
         "eos_token_id": tokenizer.eos_token_id,
@@ -84,7 +90,8 @@ def _generate_batch(
     }
     if reduce_overhead:
         gen_kwargs["reduce_generation_overhead"] = True
-    with torch.autocast("cuda", dtype=torch.bfloat16), torch.no_grad(), _ring_window_toggle(model):
+    _autocast = torch.autocast(_dev, dtype=torch.bfloat16) if _cuda else contextlib.nullcontext()
+    with _autocast, torch.no_grad(), _ring_window_toggle(model):
         try:
             out = model.generate(**gen_kwargs)
         except ValueError as exc:
