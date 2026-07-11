@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-10
 - **Status:** Approved (brainstorming session 2026-07-10)
+- **Update 2026-07-11:** The vLLM gate-PASS target (§2) is **OVERTAKEN** — vLLM 0.20.2rc1 (the only ROCm wheel) lacks R-SWA, root-caused as the blocker. vLLM Overall ≈ 22 vs PyTorch ≈ 66 on a 150-page sample (Δ −44). See [`docs/parity/vllm-rocm-rswa-blocker-2026-07-11.md`](../../parity/vllm-rocm-rswa-blocker-2026-07-11.md). Decision (accept PyTorch vs R-SWA backport) pending.
 - **Author:** AIwork4me
 - **Scope:** vLLM only. Get the *shipped* Unlimited-OCR-ROCm backend (vLLM on AMD gfx1100) to a real, scored, reproducible OmniDocBench v1.6 number that aligns with the PyTorch reference, and make the project's public accuracy claims honest and data-backed.
 - **Approach chosen:** A — "validate-then-scale" (de-risk on A/B + 150-page sample, then full 1651-page run).
