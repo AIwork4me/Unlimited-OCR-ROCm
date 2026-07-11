@@ -957,64 +957,49 @@ import torch
 from rocm_ocr import engine
 
 
-def _fake_tokenizer():
-    tok = MagicMock()
-    tok.pad_token_id = 0
-    tok.eos_token_id = 1
-    tok.decode.side_effect = lambda ids, skip_special_tokens=False: "".join(chr(int(i) + 65) for i in ids)
-    return tok
+def _fake_page(n: int):
+    """A real PageInputs of input length n (so bucketing's len(page.input_ids) works)."""
+    from rocm_ocr.batching import PageInputs
+
+    return PageInputs(input_ids=list(range(n)), images_seq_mask=[False] * n,
+                      patches=torch.zeros(1, 3, 640, 640), image_ori=torch.zeros(1, 3, 1024, 1024),
+                      spatial_crop=torch.tensor([1, 1]))
 
 
-def test_infer_batch_decodes_per_page_after_prompt():
-    """infer_batch returns one decoded string per page, stripping the prompt prefix."""
+def test_infer_batch_buckets_by_length_and_preserves_order(monkeypatch):
+    """infer_batch groups pages by input length (same-length zero-pad batching only —
+    Task 4 de-risk) and preserves input order."""
+    lengths = {"a.png": 3, "b.png": 3, "c.png": 4}  # two length-3 pages, one length-4
+    monkeypatch.setattr(engine, "build_page_inputs",
+                        lambda model, tok, p, **kw: _fake_page(lengths[p]))
+    seen_shapes: list[tuple[int, int]] = []
     model = MagicMock()
-    # generate returns [N, L_prompt + gen_len]; gen tokens are distinguishable.
-    model.generate.return_value = torch.tensor([[10, 11, 1, 2, 3], [10, 11, 4, 5, 6]])
+
+    def fake_generate(**kw):
+        seen_shapes.append(tuple(kw["input_ids"].shape))
+        n, L = kw["input_ids"].shape
+        return torch.arange(n * (L + 2)).reshape(n, L + 2)  # distinct suffix per row
+
+    model.generate.side_effect = fake_generate
     model.config = MagicMock(sliding_window_size=128, sliding_window=128)
-
-    # Monkeypatch the heavy builder to return a minimal BatchedInputs.
-    fake_batch = MagicMock()
-    fake_batch.input_ids = torch.tensor([[10, 11]])
-    fake_batch.attention_mask = torch.tensor([[1, 1]])
-    fake_batch.images_seq_mask = torch.tensor([[False, True]])
-    fake_batch.images = [(torch.zeros(1, 3, 640, 640), torch.zeros(1, 3, 1024, 1024))]
-    fake_batch.images_spatial_crop = [torch.tensor([[1, 1]])]
-    fake_batch.attention_mask.cuda.return_value = torch.tensor([[1, 1]])
-    fake_batch.input_ids.cuda.return_value = torch.tensor([[10, 11]])
-    fake_batch.input_ids.shape = (1, 2)
-    fake_batch.images_seq_mask.cuda.return_value = torch.tensor([[False, True]])
-    engine.BatchedInputBuilder.batch = MagicMock(return_value=fake_batch)
-    engine.build_page_inputs = MagicMock()
-
-    out = engine.infer_batch(model, _fake_tokenizer(), ["a.png"], batch_size=1)
-    assert len(out) == 1
-    # decode was called with the suffix (3 tokens after prompt len 2) → "CDE"
-    assert out[0] == "CDE"
+    tok = MagicMock(pad_token_id=0, eos_token_id=1)
+    tok.decode.side_effect = lambda ids, skip_special_tokens=False: ",".join(str(int(i)) for i in ids)
+    out = engine.infer_batch(model, tok, ["a.png", "b.png", "c.png"], batch_size=8)
+    assert len(out) == 3
+    # length-3 bucket → one batch of shape (2,3); length-4 bucket → one batch of shape (1,4).
+    assert (2, 3) in seen_shapes and (1, 4) in seen_shapes
 
 
-def test_infer_batch_strips_eos():
+def test_infer_batch_strips_eos(monkeypatch):
     """The EOS stop string is stripped from each page's output."""
+    monkeypatch.setattr(engine, "build_page_inputs", lambda model, tok, p, **kw: _fake_page(3))
     model = MagicMock()
-    model.generate.return_value = torch.tensor([[10, 11, 1, 2, 1]])  # last token = eos id 1
+    model.generate.return_value = torch.tensor([[0, 1, 2, 5, 6]])  # prompt_len 3, suffix [5,6]
     model.config = MagicMock(sliding_window_size=128, sliding_window=128)
-    fake_batch = MagicMock()
-    fake_batch.input_ids = torch.tensor([[10, 11]])
-    fake_batch.input_ids.cuda.return_value = torch.tensor([[10, 11]])
-    fake_batch.input_ids.shape = (1, 2)
-    fake_batch.attention_mask.cuda.return_value = torch.tensor([[1, 1]])
-    fake_batch.images_seq_mask.cuda.return_value = torch.tensor([[False, True]])
-    fake_batch.images = [(torch.zeros(1, 3, 640, 640), torch.zeros(1, 3, 1024, 1024))]
-    fake_batch.images_spatial_crop = [torch.tensor([[1, 1]])]
-    engine.BatchedInputBuilder.batch = MagicMock(return_value=fake_batch)
-    engine.build_page_inputs = MagicMock()
-
-    tok = MagicMock()
-    tok.pad_token_id = 0
-    tok.eos_token_id = 1
-    # decode returns text ending in the EOS marker string
-    tok.decode.return_value = "ABC<｜end▁of▁sentence｜>"
+    tok = MagicMock(pad_token_id=0, eos_token_id=1)
+    tok.decode.return_value = "hello<｜end▁of▁sentence｜>"
     out = engine.infer_batch(model, tok, ["a.png"], batch_size=1)
-    assert out[0] == "ABC"
+    assert out == ["hello"]
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1041,7 +1026,7 @@ from typing import Any
 
 import torch
 
-from rocm_ocr.batching import BatchedInputBuilder, BatchedInputs, build_page_inputs
+from rocm_ocr.batching import BatchedInputBuilder, BatchedInputs, PageInputs, build_page_inputs
 from rocm_ocr.logging import get_logger
 
 logger = get_logger(__name__)
@@ -1131,22 +1116,32 @@ def infer_batch(
     ngram_window: int = 128,
     max_length: int = 32768,
 ) -> list[str]:
-    """Run OCR over ``image_paths`` in batched chunks; return decoded text per page."""
+    """Run OCR over ``image_paths``; return decoded text per page (input order).
+
+    Batches pages within SAME-INPUT-LENGTH buckets only (Task 4 de-risk: arbitrary
+    left-padded batching corrupts the padded row via the ring-attention KV-cache;
+    same-length zero-pad batching is byte-identical). Crop-mode input lengths
+    cluster by aspect ratio, so each bucket still batches many pages. Order preserved.
+    """
     pad_token_id = getattr(tokenizer, "pad_token_id", None) or 0
+    buckets: dict[int, list[tuple[int, PageInputs]]] = {}
+    for i, image_path in enumerate(image_paths):
+        page = build_page_inputs(model, tokenizer, image_path, prompt=prompt,
+                                 base_size=base_size, image_size=image_size)
+        buckets.setdefault(len(page.input_ids), []).append((i, page))
     results: list[str | None] = [None] * len(image_paths)
-    for start in range(0, len(image_paths), batch_size):
-        chunk = image_paths[start:start + batch_size]
-        pages = [build_page_inputs(model, tokenizer, im, prompt=prompt,
-                                   base_size=base_size, image_size=image_size) for im in chunk]
-        batch = BatchedInputBuilder.batch(pages, pad_token_id=pad_token_id)
-        prompt_len = batch.input_ids.shape[1]
-        out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
-                              ngram_window=ngram_window, max_length=max_length)
-        for i in range(len(chunk)):
-            text = tokenizer.decode(out[i][prompt_len:], skip_special_tokens=False)
-            if text.endswith(EOS_STOP):
-                text = text[: -len(EOS_STOP)]
-            results[start + i] = text.strip()
+    for items in buckets.values():
+        for start in range(0, len(items), batch_size):
+            chunk = items[start:start + batch_size]
+            batch = BatchedInputBuilder.batch([page for _, page in chunk], pad_token_id=pad_token_id)
+            prompt_len = batch.input_ids.shape[1]
+            out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
+                                  ngram_window=ngram_window, max_length=max_length)
+            for j, (orig_idx, _page) in enumerate(chunk):
+                text = tokenizer.decode(out[j][prompt_len:], skip_special_tokens=False)
+                if text.endswith(EOS_STOP):
+                    text = text[: -len(EOS_STOP)]
+                results[orig_idx] = text.strip()
     return [r or "" for r in results]
 
 
