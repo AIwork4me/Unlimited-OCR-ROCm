@@ -58,23 +58,32 @@ def _generate_batch(
     no_repeat_ngram_size: int,
     ngram_window: int,
     max_length: int,
+    reduce_overhead: bool = False,
 ) -> torch.Tensor:
-    """Run one batched generate(); returns output_ids [N, L_prompt + gen]."""
+    """Run one batched generate(); returns output_ids [N, L_prompt + gen].
+
+    ``reduce_overhead`` opts into HF generate's ``reduce_generation_overhead``
+    (CUDA graphs for the decode step) — gated by the identity gate (Task 10);
+    may fail to capture or flip tokens on gfx1100, so default-off.
+    """
     model_module = sys_model_module(model)
     input_ids = batch.input_ids.cuda()
+    gen_kwargs = {
+        "input_ids": input_ids,
+        "attention_mask": batch.attention_mask.cuda(),
+        "images": [(p.cuda(), o.cuda()) for (p, o) in batch.images],
+        "images_seq_mask": batch.images_seq_mask.cuda(),
+        "images_spatial_crop": batch.images_spatial_crop,
+        "do_sample": False,
+        "eos_token_id": tokenizer.eos_token_id,
+        "max_length": max_length,
+        "logits_processor": _ngram_processor(model_module, no_repeat_ngram_size, ngram_window),
+        "use_cache": True,
+    }
+    if reduce_overhead:
+        gen_kwargs["reduce_generation_overhead"] = True
     with torch.autocast("cuda", dtype=torch.bfloat16), torch.no_grad(), _ring_window_toggle(model):
-        out = model.generate(
-            input_ids=input_ids,
-            attention_mask=batch.attention_mask.cuda(),
-            images=[(p.cuda(), o.cuda()) for (p, o) in batch.images],
-            images_seq_mask=batch.images_seq_mask.cuda(),
-            images_spatial_crop=batch.images_spatial_crop,
-            do_sample=False,
-            eos_token_id=tokenizer.eos_token_id,
-            max_length=max_length,
-            logits_processor=_ngram_processor(model_module, no_repeat_ngram_size, ngram_window),
-            use_cache=True,
-        )
+        out = model.generate(**gen_kwargs)
     return out
 
 
@@ -101,6 +110,7 @@ def _generate_bucketed(
     no_repeat_ngram_size: int,
     ngram_window: int,
     max_length: int,
+    reduce_overhead: bool = False,
 ) -> list[str | None]:
     """Shared bucketed generate: group (orig_idx, page) by len(page.input_ids),
     batch within each bucket (same-length zero-pad — Task 4 de-risk), generate,
@@ -115,7 +125,8 @@ def _generate_bucketed(
             batch = BatchedInputBuilder.batch([page for _, page in chunk], pad_token_id=pad_token_id)
             prompt_len = batch.input_ids.shape[1]
             out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
-                                  ngram_window=ngram_window, max_length=max_length)
+                                  ngram_window=ngram_window, max_length=max_length,
+                                  reduce_overhead=reduce_overhead)
             for j, (orig_idx, _page) in enumerate(chunk):
                 gen_ids = out[j][prompt_len:]
                 # Truncate at first EOS (model.infer stops there via streamer;
@@ -144,6 +155,7 @@ def infer_batch(
     no_repeat_ngram_size: int = 35,
     ngram_window: int = 128,
     max_length: int = 32768,
+    reduce_overhead: bool = False,
 ) -> list[str]:
     """Run OCR over image_paths; return decoded text per page (input order).
     Builds pages serially, then bucketed-generates (same-length zero-pad batching only)."""
@@ -154,7 +166,8 @@ def infer_batch(
     ]
     results = _generate_bucketed(
         model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
-        no_repeat_ngram_size=no_repeat_ngram_size, ngram_window=ngram_window, max_length=max_length)
+        no_repeat_ngram_size=no_repeat_ngram_size, ngram_window=ngram_window, max_length=max_length,
+        reduce_overhead=reduce_overhead)
     return [r or "" for r in results]
 
 
@@ -191,7 +204,8 @@ def infer_batch_async(
         model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
         no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 35),
         ngram_window=kwargs.get("ngram_window", 128),
-        max_length=kwargs.get("max_length", 32768))
+        max_length=kwargs.get("max_length", 32768),
+        reduce_overhead=kwargs.get("reduce_overhead", False))
     return [r or "" for r in results]
 
 

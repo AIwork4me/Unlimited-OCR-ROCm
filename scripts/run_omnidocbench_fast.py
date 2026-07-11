@@ -34,6 +34,12 @@ def main() -> None:
         action="store_true",
         help="opt-in: torch.compile the model's forward (identity-gated; may fail or flip tokens on gfx1100)",
     )
+    ap.add_argument(
+        "--reduce-overhead",
+        action="store_true",
+        help="opt-in: pass reduce_generation_overhead=True to generate (CUDA graphs for decode; "
+        "identity-gated; likely fails to capture or flips tokens on gfx1100)",
+    )
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
@@ -54,7 +60,10 @@ def main() -> None:
 
     reset_vram_counter()
     t0 = time.time()
-    texts = infer_batch_async(model, tok, imgs, batch_size=args.batch_size, n_workers=args.n_workers)
+    texts = infer_batch_async(
+        model, tok, imgs, batch_size=args.batch_size, n_workers=args.n_workers,
+        reduce_overhead=args.reduce_overhead,
+    )
     wall = time.time() - t0
 
     for img, text in zip(imgs, texts, strict=True):

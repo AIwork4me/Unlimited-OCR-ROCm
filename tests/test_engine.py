@@ -106,3 +106,48 @@ def test_compile_enabled_attempts_compile(monkeypatch):
     monkeypatch.setattr(engine.torch, "compile", lambda fn, **kw: called.setdefault("compiled", fn) or fn)
     engine.compile_for_inference(real_model, enabled=True, mode="default")
     assert "compiled" in called
+
+
+def test_reduce_overhead_flag_plumbed():
+    """reduce_overhead=True sets generation config reduce_generation_overhead."""
+    from rocm_ocr import engine
+
+    captured = {}
+    model = MagicMock()
+    model.generate.side_effect = lambda **kw: captured.update(kw) or torch.tensor([[1, 2, 3]])
+    model.config = MagicMock(sliding_window_size=128, sliding_window=128)
+    fake_batch = MagicMock()
+    fake_batch.input_ids.cuda.return_value = torch.tensor([[1]])
+    fake_batch.input_ids.shape = (1, 1)
+    fake_batch.attention_mask.cuda.return_value = torch.tensor([[1]])
+    fake_batch.images_seq_mask.cuda.return_value = torch.tensor([[False]])
+    fake_batch.images = [(torch.zeros(1, 3, 640, 640), torch.zeros(1, 3, 1024, 1024))]
+    fake_batch.images_spatial_crop = [torch.tensor([[1, 1]])]
+    engine._generate_batch(
+        model, MagicMock(eos_token_id=1), fake_batch,
+        no_repeat_ngram_size=35, ngram_window=128, max_length=32768,
+        reduce_overhead=True,
+    )
+    assert captured.get("reduce_generation_overhead") is True
+
+
+def test_reduce_overhead_default_does_not_set_kwarg():
+    """reduce_overhead=False (default) does not pass reduce_generation_overhead."""
+    from rocm_ocr import engine
+
+    captured = {}
+    model = MagicMock()
+    model.generate.side_effect = lambda **kw: captured.update(kw) or torch.tensor([[1, 2, 3]])
+    model.config = MagicMock(sliding_window_size=128, sliding_window=128)
+    fake_batch = MagicMock()
+    fake_batch.input_ids.cuda.return_value = torch.tensor([[1]])
+    fake_batch.input_ids.shape = (1, 1)
+    fake_batch.attention_mask.cuda.return_value = torch.tensor([[1]])
+    fake_batch.images_seq_mask.cuda.return_value = torch.tensor([[False]])
+    fake_batch.images = [(torch.zeros(1, 3, 640, 640), torch.zeros(1, 3, 1024, 1024))]
+    fake_batch.images_spatial_crop = [torch.tensor([[1, 1]])]
+    engine._generate_batch(
+        model, MagicMock(eos_token_id=1), fake_batch,
+        no_repeat_ngram_size=35, ngram_window=128, max_length=32768,
+    )
+    assert "reduce_generation_overhead" not in captured
