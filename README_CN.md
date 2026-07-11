@@ -59,7 +59,7 @@
 | _前基线_（PyTorch，torch 2.5.1+rocm6.2） | _91.97_ | _0.0939_ | _95.72_ | _89.58_ | _92.83_ | _0.1449_ |
 | Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-> **Overall 采用官方排行榜口径**（`generate_result_tables.ipynb` cell 2）：三列先四舍五入到 3 位小数，再计算 Overall = ((1−Text)×100 + CDM + TEDS)/3；scorer 的原始 overall_notebook 为 92.436。
+> **按官方榜单口径统数和计算**，参考 [`generate_result_tables.ipynb`](https://github.com/opendatalab/OmniDocBench/blob/main/tools/generate_result_tables.ipynb)（cell 2：三列——Text EditDist、Formula CDM×100、Table TEDS×100——先 round(3)，再算 `Overall = ((1−Text)×100 + CDM + TEDS)/3`；CDM/TEDS 取自 `display_formula.page.CDM.ALL` / `table.page.TEDS.ALL` × 100，非样本级 `.all.*.all`。scorer 的原始 overall_notebook 为 92.436。）
 
 *\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **92.431**（PyTorch 快速路径，固定权重 `84757cb0`，torch 2.10+rocm7.0）是受控、可复现的实测（已提交 manifest，gate 通过），较前 91.97 基线提升 **+0.465**，所有模块均 ≥ 基线。该增益来自环境+权重 + decode_bpe 后处理修复，而非 batching 运气 —— Task-8 identity gate 在同一环境下确认 fast ≈ direct（修复后 Δ=0.0 精确一致）。*
 

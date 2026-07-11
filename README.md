@@ -59,7 +59,7 @@ Baidu's [Unlimited-OCR](https://github.com/baidu/Unlimited-OCR) is the new state
 | _prior baseline_ (PyTorch, torch 2.5.1+rocm6.2) | _91.97_ | _0.0939_ | _95.72_ | _89.58_ | _92.83_ | _0.1449_ |
 | Baidu paper\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-> **Overall follows the official leaderboard 口径** (`generate_result_tables.ipynb` cell 2): the three columns are rounded to 3 decimals before Overall = ((1−Text)×100 + CDM + TEDS)/3; the scorer's raw overall_notebook is 92.436.
+> _Scored and computed per the official OmniDocBench leaderboard methodology_ — see [`generate_result_tables.ipynb`](https://github.com/opendatalab/OmniDocBench/blob/main/tools/generate_result_tables.ipynb) (cell 2: the three columns — Text EditDist, Formula CDM×100, Table TEDS×100 — are rounded to 3 decimals before `Overall = ((1−Text)×100 + CDM + TEDS)/3`; CDM/TEDS are read from `display_formula.page.CDM.ALL` / `table.page.TEDS.ALL` × 100, not the sample-level `.all.*.all`. The scorer's raw `overall_notebook` is 92.436.)
 
 *\*Baidu self-report from [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) — **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. Our **92.431** (PyTorch fast path, pinned weights `84757cb0`, torch 2.10+rocm7.0) is a controlled, reproducible measurement (committed manifest, gate PASS), up **+0.465** vs the prior 91.97 baseline with all modules ≥ baseline. The gain is env+weights + the decode_bpe postprocess fix, not batching luck — the Task-8 identity gate confirmed fast ≈ direct (Δ=0.0 exact post-fix) on the same env.*
 
