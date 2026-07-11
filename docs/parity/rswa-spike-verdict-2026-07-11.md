@@ -3,6 +3,16 @@
 - **Spec:** [`docs/superpowers/specs/2026-07-11-vllm-main-rswa-spike-design.md`](../superpowers/specs/2026-07-11-vllm-main-rswa-spike-design.md)
 - **Plan:** [`docs/superpowers/plans/2026-07-11-vllm-main-rswa-spike.md`](../superpowers/plans/2026-07-11-vllm-main-rswa-spike.md)
 
+## Spike conclusion (terminal node)
+
+**Verdict: `R_SWA_NOT_CAUSAL` — spike COMPLETE at Phase 0; Phase 1/2 cancelled by gate.**
+
+A direct PyTorch ablation (ring-window → 8192 so the ring never evicts = standard full causal attention, the exact regime vLLM 0.20.2rc1 runs) did **not** reproduce vLLM's first-token EOS on any of 15 EOS pages (min ablated output 239 chars vs vLLM's 1-token collapse; 4/15 pages genuinely diverged in length, confirming the mechanism engaged). **R-SWA absence is therefore not the cause of the EOS regression.** This **overturns** the earlier root-cause conclusion in [`vllm-rocm-rswa-blocker-2026-07-11.md`](vllm-rocm-rswa-blocker-2026-07-11.md) §3 ("R-SWA absent = the cause") — that was a hypothesis from grep+docstring reasoning; Phase 0 tested it directly and falsified it.
+
+Implications: building vLLM `main` for core-side R-SWA (the would-be Phase 1) would **not** fix the EOS regression. The proximate cause is forward-pass numerics (bf16 + optimized MoE/attention kernels vs PyTorch eager) — i.e. the *earlier* "inherent bf16 divergence" finding (which the R-SWA hypothesis had displaced) is the one that stands. **Recommend: ship the PyTorch path (Overall 91.97) as the aligned backend; if vLLM is still pursued, investigate vLLM's first-token logits numerics directly (not R-SWA).** The ablation script + evidence live in `scripts/rswa_spike/` and `/root/ocr-eval/rswa_spike/`.
+
+*Residual caveat (does not undermine the STOP):* Phase 0 rules out the *simple* hypothesis (R-SWA absence → wrong attention regime → EOS). It does not rule out a *separate* vLLM-specific R-SWA bug; there is no evidence for one, and chasing it would exceed the spike's bounded scope.
+
 ## Phase 0 — PyTorch ablation
 _Status: DONE — verdict `R_SWA_NOT_CAUSAL` (run 2026-07-11, two runs; run 2 authoritative)._
 
@@ -33,7 +43,7 @@ Representative per-page lines (run 2):
 Artifacts: `/root/ocr-eval/rswa_spike/phase0_results.json` (run 2, authoritative — full per-page baseline/ablated/verdict + controls), `/root/ocr-eval/rswa_spike/phase0_run2_fixed.log` (raw run 2), `phase0_results_run1_inert.json` / `phase0_run1_inert.log` (run 1, inert, kept for traceability).
 
 ## Phase 1 — gfx1100 build of main @ 1f486d96a1
-_Status: gated on Phase 0 = R_SWA_CAUSAL|R_SWA_PARTIAL._
+_Status: CANCELLED — Phase 0 verdict `R_SWA_NOT_CAUSAL` gates it off by design (would not fix the EOS)._
 
 ## Phase 2 — serve + EOS test
-_Status: gated on Phase 1 build OK._
+_Status: CANCELLED — Phase 0 gates it off._
