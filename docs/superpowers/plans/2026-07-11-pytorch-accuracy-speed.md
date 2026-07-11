@@ -1177,26 +1177,44 @@ Hides CPU `dynamic_preprocess` (PIL tiling) behind GPU inference: a producer thr
 - Test: `tests/test_engine.py`
 
 **Interfaces:**
-- Produces: `infer_batch_async(model, tokenizer, image_paths, *, batch_size, n_workers, **kwargs) -> list[str]` — same return contract as `infer_batch`.
+- Produces: `infer_batch_async(model, tokenizer, image_paths, *, batch_size, n_workers, **kwargs) -> list[str]` — same return contract as `infer_batch`. Also refactors `infer_batch` (Task 5) to share a new `_generate_bucketed(model, tokenizer, indexed_pages, *, batch_size, pad_token_id, no_repeat_ngram_size, ngram_window, max_length) -> list[str | None]` helper (DRY: the bucket→batch→generate→decode loop is identical; only the page-build stage differs — serial in `infer_batch`, parallel in `infer_batch_async`).
 
 - [ ] **Step 1: Write the failing test**
 
 ```python
 # append to tests/test_engine.py
-def test_infer_batch_async_preserves_order(monkeypatch):
-    """Async pipelining returns pages in input order despite concurrent preprocessing."""
-    from rocm_ocr import engine
+def test_infer_batch_async_parallel_preprocess(monkeypatch):
+    """infer_batch_async builds pages in a thread pool then runs the shared bucketed
+    generate; every page is preprocessed and one output per page is returned."""
+    import torch
+    from rocm_ocr.batching import PageInputs
 
-    call_order: list[int] = []
-    def fake_infer(model, tokenizer, paths, **kwargs):
-        call_order.append(len(paths))
-        return [f"out:{p}" for p in paths]
-    monkeypatch.setattr(engine, "infer_batch", fake_infer)
+    lengths = {f"p{i}.png": 3 + (i % 2) for i in range(6)}  # two length buckets
+    built: list[str] = []
 
-    # build_page_inputs is the parallelized stage; stub it so no GPU needed.
+    def fake_build(model, tok, p, **kw):
+        built.append(p)
+        n = lengths[p]
+        return PageInputs(input_ids=list(range(n)), images_seq_mask=[False] * n,
+                          patches=torch.zeros(1, 3, 640, 640), image_ori=torch.zeros(1, 3, 1024, 1024),
+                          spatial_crop=torch.tensor([1, 1]))
+
+    monkeypatch.setattr(engine, "build_page_inputs", fake_build)
+
+    def fake_gen(model, tok, batch, **kw):
+        n, L = batch.input_ids.shape
+        return torch.arange(n * (L + 2)).reshape(n, L + 2)
+
+    monkeypatch.setattr(engine, "_generate_batch", fake_gen)
+    model = MagicMock()
+    model.config = MagicMock(sliding_window_size=128, sliding_window=128)
+    tok = MagicMock(pad_token_id=0, eos_token_id=1)
+    tok.decode.side_effect = lambda ids, skip_special_tokens=False: ",".join(str(int(i)) for i in ids)
     paths = [f"p{i}.png" for i in range(6)]
-    out = engine.infer_batch_async(MagicMock(), MagicMock(), paths, batch_size=2, n_workers=2)
-    assert out == [f"out:{p}" for p in paths]  # order preserved
+    out = engine.infer_batch_async(model, tok, paths, batch_size=8, n_workers=3)
+    assert len(out) == 6                 # one output per page
+    assert set(built) == set(paths)      # every page preprocessed (in parallel)
+    assert all(r is not None for r in out)
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1206,9 +1224,69 @@ Expected: FAIL with `AttributeError: ... infer_batch_async`.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Append to `src/rocm_ocr/engine.py`:
+Refactor `src/rocm_ocr/engine.py`: extract the bucketed-generate loop into a shared `_generate_bucketed` helper, refactor `infer_batch` (Task 5) to build pages serially then delegate, and add `infer_batch_async` (parallel CPU preprocess + the same helper). Apply all three:
 
 ```python
+def _generate_bucketed(
+    model: Any,
+    tokenizer: Any,
+    indexed_pages: list[tuple[int, PageInputs]],
+    *,
+    batch_size: int,
+    pad_token_id: int,
+    no_repeat_ngram_size: int,
+    ngram_window: int,
+    max_length: int,
+) -> list[str | None]:
+    """Shared bucketed generate: group (orig_idx, page) by len(page.input_ids),
+    batch within each bucket (same-length zero-pad — Task 4 de-risk), generate,
+    decode, strip EOS. Writes results[orig_idx]; returns the results list."""
+    buckets: dict[int, list[tuple[int, PageInputs]]] = {}
+    for idx, page in indexed_pages:
+        buckets.setdefault(len(page.input_ids), []).append((idx, page))
+    results: list[str | None] = [None] * len(indexed_pages)
+    for items in buckets.values():
+        for start in range(0, len(items), batch_size):
+            chunk = items[start:start + batch_size]
+            batch = BatchedInputBuilder.batch([page for _, page in chunk], pad_token_id=pad_token_id)
+            prompt_len = batch.input_ids.shape[1]
+            out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
+                                  ngram_window=ngram_window, max_length=max_length)
+            for j, (orig_idx, _page) in enumerate(chunk):
+                text = tokenizer.decode(out[j][prompt_len:], skip_special_tokens=False)
+                if text.endswith(EOS_STOP):
+                    text = text[: -len(EOS_STOP)]
+                results[orig_idx] = text.strip()
+    return results
+
+
+# Refactor the existing infer_batch body (keep its signature + docstring) to:
+def infer_batch(
+    model: Any,
+    tokenizer: Any,
+    image_paths: list[str],
+    *,
+    batch_size: int = 4,
+    prompt: str = DEFAULT_PROMPT,
+    base_size: int = 1024,
+    image_size: int = 640,
+    no_repeat_ngram_size: int = 35,
+    ngram_window: int = 128,
+    max_length: int = 32768,
+) -> list[str]:
+    """Run OCR over image_paths; return decoded text per page (input order).
+    Builds pages serially, then bucketed-generates (same-length zero-pad batching only)."""
+    pad_token_id = getattr(tokenizer, "pad_token_id", None) or 0
+    indexed_pages = [
+        (i, build_page_inputs(model, tokenizer, p, prompt=prompt, base_size=base_size, image_size=image_size))
+        for i, p in enumerate(image_paths)
+    ]
+    results = _generate_bucketed(
+        model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
+        no_repeat_ngram_size=no_repeat_ngram_size, ngram_window=ngram_window, max_length=max_length)
+    return [r or "" for r in results]
+
+
 def infer_batch_async(
     model: Any,
     tokenizer: Any,
@@ -1218,43 +1296,31 @@ def infer_batch_async(
     n_workers: int = 2,
     **kwargs: Any,
 ) -> list[str]:
-    """Overlap CPU preprocess (build_page_inputs) with GPU generate.
+    """Parallel CPU preprocess + shared bucketed generate.
 
-    A thread pool builds PageInputs for the next chunk while the GPU runs the
-    current chunk's generate. Output order matches input order. Delegates the
-    actual generate to :func:`infer_batch` on one chunk at a time, so the GPU
-    is single-stream (no cross-batch races) while preprocess runs concurrently.
-    """
+    Builds all PageInputs in a thread pool (build_page_inputs is CPU-only PIL +
+    tokenize work, no GPU/forward — safe to parallelize), then runs the same
+    bucketed generate as infer_batch. Same output contract. ``build_page_inputs``
+    helpers are pure (image transform + tokenize) and thread-safe."""
     from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415
 
-    results: list[str | None] = [None] * len(image_paths)
-    chunks = [(i, image_paths[i:i + batch_size]) for i in range(0, len(image_paths), batch_size)]
+    prompt = kwargs.get("prompt", DEFAULT_PROMPT)
+    base_size = kwargs.get("base_size", 1024)
+    image_size = kwargs.get("image_size", 640)
 
-    def preprocess(chunk_paths: list[str]) -> list:
-        return [build_page_inputs(model, tokenizer, p, **{k: v for k, v in kwargs.items()
-                if k in {"prompt", "base_size", "image_size"}}) for p in chunk_paths]
+    def build_one(i_path: tuple[int, str]) -> tuple[int, PageInputs]:
+        i, p = i_path
+        return i, build_page_inputs(model, tokenizer, p, prompt=prompt,
+                                    base_size=base_size, image_size=image_size)
 
     with ThreadPoolExecutor(max_workers=n_workers) as pool:
-        # Prefetch one chunk ahead.
-        prefetched = {chunks[0][0]: pool.submit(preprocess, chunks[0][1])} if chunks else {}
-        for idx, (start, chunk_paths) in enumerate(chunks):
-            pages = prefetched[start].result()
-            # Kick off the next chunk's preprocess while we generate.
-            if idx + 1 < len(chunks):
-                nxt_start, nxt_paths = chunks[idx + 1]
-                prefetched[nxt_start] = pool.submit(preprocess, nxt_paths)
-            pad = getattr(tokenizer, "pad_token_id", None) or 0
-            batch = BatchedInputBuilder.batch(pages, pad_token_id=pad)
-            prompt_len = batch.input_ids.shape[1]
-            out = _generate_batch(model, tokenizer, batch,
-                                  no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 35),
-                                  ngram_window=kwargs.get("ngram_window", 128),
-                                  max_length=kwargs.get("max_length", 32768))
-            for i, p in enumerate(chunk_paths):
-                text = tokenizer.decode(out[i][prompt_len:], skip_special_tokens=False)
-                if text.endswith(EOS_STOP):
-                    text = text[: -len(EOS_STOP)]
-                results[start + i] = text.strip()
+        indexed_pages = list(pool.map(build_one, list(enumerate(image_paths))))
+    pad_token_id = getattr(tokenizer, "pad_token_id", None) or 0
+    results = _generate_bucketed(
+        model, tokenizer, indexed_pages, batch_size=batch_size, pad_token_id=pad_token_id,
+        no_repeat_ngram_size=kwargs.get("no_repeat_ngram_size", 35),
+        ngram_window=kwargs.get("ngram_window", 128),
+        max_length=kwargs.get("max_length", 32768))
     return [r or "" for r in results]
 ```
 
