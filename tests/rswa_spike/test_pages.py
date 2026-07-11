@@ -1,14 +1,26 @@
 import sys
 from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "rswa_spike"))
 
-from pages import EOS_PAGES, control_pages, resolve_image  # noqa: E402
+from pages import (  # noqa: E402
+    EOS_PAGES,
+    VLLM_SAMPLE_DIR,
+    control_pages,
+    resolve_image,
+)
 
 
 def test_eos_pages_count():
     assert len(EOS_PAGES) == 15
 
 
+@pytest.mark.skipif(
+    not VLLM_SAMPLE_DIR.exists(),
+    reason="needs local /root/ocr-eval/predictions/vllm-sample-150 (not present on CI)",
+)
 def test_control_pages_exclude_eos():
     ctrl = control_pages(5)
     assert len(ctrl) == 5

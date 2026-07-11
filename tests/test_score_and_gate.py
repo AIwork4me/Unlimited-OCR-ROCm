@@ -1,12 +1,12 @@
 """Tests for the cross-backend score+gate orchestrator."""
+
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
 import yaml
-
-import importlib.util
 
 
 def _load_orchestrator():
@@ -41,12 +41,14 @@ def _write_fake_results(result_dir: Path, save_name: str, overall: float) -> Non
         json.dumps({"notebook_metric_summary": {"overall_notebook": overall}})
     )
     (result_dir / f"{save_name}_metric_result.json").write_text(
-        json.dumps({
-            "text_block": {"all": {"Edit_dist": {"ALL_page_avg": 0.094}}},
-            "display_formula": {"page": {"CDM": {"ALL": 0.957}}},
-            "table": {"page": {"TEDS": {"ALL": 0.896}, "TEDS_structure_only": {"ALL": 0.928}}},
-            "reading_order": {"all": {"Edit_dist": {"ALL_page_avg": 0.145}}},
-        })
+        json.dumps(
+            {
+                "text_block": {"all": {"Edit_dist": {"ALL_page_avg": 0.094}}},
+                "display_formula": {"page": {"CDM": {"ALL": 0.957}}},
+                "table": {"page": {"TEDS": {"ALL": 0.896}, "TEDS_structure_only": {"ALL": 0.928}}},
+                "reading_order": {"all": {"Edit_dist": {"ALL_page_avg": 0.145}}},
+            }
+        )
     )
 
 
@@ -59,15 +61,28 @@ def test_cross_backend_pass_when_vllm_within_tolerance(tmp_path, monkeypatch) ->
     ref_path = tmp_path / "ref.yaml"
     ref_path.write_text(yaml.safe_dump(PYTORCH_REF))
 
-    monkeypatch.setattr(mod.em, "capture_git", lambda repo=".": {"commit": "abc123", "short": "abc123", "dirty": False, "branch": "feat/vllm-fused-moe", "tag": None})
+    monkeypatch.setattr(
+        mod.em,
+        "capture_git",
+        lambda repo=".": {
+            "commit": "abc123",
+            "short": "abc123",
+            "dirty": False,
+            "branch": "feat/vllm-fused-moe",
+            "tag": None,
+        },
+    )
     monkeypatch.setattr(mod.em, "capture_env", lambda: {"python": "3.12", "gpus": []})
 
     manifest = mod.build_scored_manifest(
-        result_dir=str(result_dir), save_name=save_name,
+        result_dir=str(result_dir),
+        save_name=save_name,
         reference_manifest=str(ref_path),
         model={"id": "baidu/Unlimited-OCR", "weights_revision": "84757cb0"},
-        dataset={"version": "v1.6"}, timing={"backend": "vllm"},
-        predictions_ref="local:///preds", repo=".",
+        dataset={"version": "v1.6"},
+        timing={"backend": "vllm"},
+        predictions_ref="local:///preds",
+        repo=".",
     )
     assert manifest["backend"] == "vllm"
     assert manifest["cross_backend"] is True
@@ -84,14 +99,28 @@ def test_cross_backend_block_when_overall_regression_too_large(tmp_path, monkeyp
     ref_path = tmp_path / "ref.yaml"
     ref_path.write_text(yaml.safe_dump(PYTORCH_REF))
 
-    monkeypatch.setattr(mod.em, "capture_git", lambda repo=".": {"commit": "abc123", "short": "abc123", "dirty": False, "branch": "feat/vllm-fused-moe", "tag": None})
+    monkeypatch.setattr(
+        mod.em,
+        "capture_git",
+        lambda repo=".": {
+            "commit": "abc123",
+            "short": "abc123",
+            "dirty": False,
+            "branch": "feat/vllm-fused-moe",
+            "tag": None,
+        },
+    )
     monkeypatch.setattr(mod.em, "capture_env", lambda: {"python": "3.12", "gpus": []})
 
     manifest = mod.build_scored_manifest(
-        result_dir=str(result_dir), save_name=save_name,
+        result_dir=str(result_dir),
+        save_name=save_name,
         reference_manifest=str(ref_path),
-        model={"id": "baidu/Unlimited-OCR"}, dataset={"version": "v1.6"},
-        timing={"backend": "vllm"}, predictions_ref="local:///preds", repo=".",
+        model={"id": "baidu/Unlimited-OCR"},
+        dataset={"version": "v1.6"},
+        timing={"backend": "vllm"},
+        predictions_ref="local:///preds",
+        repo=".",
     )
     assert manifest["gate"]["verdict"] == "BLOCK"
     assert manifest["cross_backend"] is True

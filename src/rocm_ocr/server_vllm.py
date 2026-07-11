@@ -7,7 +7,6 @@ Designed for the OmniDocBench eval pipeline (4-GPU parallel mode).
 from __future__ import annotations
 
 import subprocess
-import sys
 import time
 from pathlib import Path
 
@@ -37,13 +36,19 @@ def start_vllm_server(
 
     cmd = [
         python,
-        "-m", "vllm.entrypoints.openai.api_server",
-        "--model", "baidu/Unlimited-OCR",
+        "-m",
+        "vllm.entrypoints.openai.api_server",
+        "--model",
+        "baidu/Unlimited-OCR",
         "--trust-remote-code",
-        "--gpu-memory-utilization", str(gpu_memory_utilization),
-        "--max-model-len", str(max_model_len),
-        "--port", str(port),
-        "--host", "0.0.0.0",
+        "--gpu-memory-utilization",
+        str(gpu_memory_utilization),
+        "--max-model-len",
+        str(max_model_len),
+        "--port",
+        str(port),
+        "--host",
+        "0.0.0.0",
     ]
 
     proc = subprocess.Popen(
@@ -86,8 +91,6 @@ def stop_vllm_server(proc: subprocess.Popen) -> None:
 
 def stop_all_vllm_servers() -> None:
     """Kill any stray vLLM processes on the system."""
-    import signal
-    import os as _os
     try:
         subprocess.run(["pkill", "-f", "vllm.entrypoints"], check=False)
         time.sleep(2)

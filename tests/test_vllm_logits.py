@@ -1,5 +1,5 @@
 """Tests for vLLM n-gram logits processor."""
-import pytest
+
 import torch
 
 from rocm_ocr.vllm_logits import SlidingWindowNoRepeatNgramLogitsProcessor
@@ -35,9 +35,7 @@ class TestSlidingWindowNoRepeatNgramLogitsProcessor:
 
     def test_whitelist_token_ids_not_blocked(self):
         """Tokens in whitelist should never be blocked."""
-        processor = SlidingWindowNoRepeatNgramLogitsProcessor(
-            ngram_size=3, window_size=10, whitelist_token_ids={3}
-        )
+        processor = SlidingWindowNoRepeatNgramLogitsProcessor(ngram_size=3, window_size=10, whitelist_token_ids={3})
 
         token_ids = [1, 2, 3, 1, 2]
         logits = torch.zeros(100)

@@ -9,6 +9,7 @@ reference (``modeling_unlimitedocr.py:1069-1089``).
 Single source of truth for the postprocess step — used by
 ``scripts/run_omnidocbench_vllm.py`` and the ``eval10.py`` smoke test.
 """
+
 from __future__ import annotations
 
 import re
@@ -24,11 +25,7 @@ _DET_PATTERN = r"(<\|det\|>\s*([A-Za-z_][\w-]*)\s*(\[[^\]]+\])\s*<\|/det\|>)"
 
 def _bpe_bytes_to_unicode() -> dict[str, int]:
     """GPT-2 byte->unicode mapping (reversible). Returns {byte_char_str: byte_int}."""
-    bs = (
-        list(range(ord("!"), ord("~") + 1))
-        + list(range(ord("¡"), ord("¬") + 1))
-        + list(range(ord("®"), ord("ÿ") + 1))
-    )
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
     cs = bs[:]
     n = 0
     for b in range(256):
@@ -36,7 +33,7 @@ def _bpe_bytes_to_unicode() -> dict[str, int]:
             bs.append(b)
             cs.append(256 + n)
             n += 1
-    return dict(zip([chr(c) for c in cs], bs))
+    return dict(zip([chr(c) for c in cs], bs, strict=True))
 
 
 _BPE = _bpe_bytes_to_unicode()
@@ -89,9 +86,5 @@ def postprocess_ocr_output(outputs: str) -> str:
     for idx, span in enumerate(images):
         outputs = outputs.replace(span, f"![](images/{idx}.jpg)\n")
     for span in others:
-        outputs = (
-            outputs.replace(span, "")
-            .replace("\\coloneqq", ":=")
-            .replace("\\eqqcolon", "=:")
-        )
+        outputs = outputs.replace(span, "").replace("\\coloneqq", ":=").replace("\\eqqcolon", "=:")
     return outputs

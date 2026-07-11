@@ -1,50 +1,54 @@
 """Tests for the idempotent vLLM patch applier (against a fake site-packages tree)."""
+
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from rocm_ocr.vllm_patches import apply_edits
 
 # Minimal stubs mirroring the fresh 321fa2d6d vLLM file anchors.
 REGISTRY_STUB = (
-    '_ARCH_MODELS = {\n'
+    "_ARCH_MODELS = {\n"
     '    "DotsOCRForCausalLM": ("dots_ocr", "DotsOCRForCausalLM"),\n'
     '    "OtherForCausalLM": ("other", "OtherForCausalLM"),\n'
-    '}\n'
+    "}\n"
 )
 CONFIGS_INIT_STUB = (
-    '_CLASS_TO_MODULE: dict[str, str] = {\n'
+    "_CLASS_TO_MODULE: dict[str, str] = {\n"
     '    "DotsOCRConfig": "vllm.transformers_utils.configs.dotsocr",\n'
-    '}\n'
-    '__all__ = [\n'
+    "}\n"
+    "__all__ = [\n"
     '    "DotsOCRConfig",\n'
-    ']\n'
+    "]\n"
 )
 CONFIG_STUB = (
-    '_CONFIG_REGISTRY = LazyConfigDict({\n'
+    "_CONFIG_REGISTRY = LazyConfigDict({\n"
     '    dotsocr="DotsOCRConfig",\n'
-    '})\n'
+    "})\n"
     '_SPECULATIVE_DECODING_CONFIGS: set[str] = {"eagle"}\n'
 )
 DEEPSEEK_STUB = (
-    'MAX_CROPS = 32\n'
-    'class DeepseekOCRProcessor:\n'
-    '    def __init__(\n'
-    '        self,\n'
-    '        image_size: int = 1024,\n'
+    "MAX_CROPS = 32\n"
+    "class DeepseekOCRProcessor:\n"
+    "    def __init__(\n"
+    "        self,\n"
+    "        image_size: int = 1024,\n"
     '        strategy: Literal["v1", "v2"] = "v1",\n'
-    '        **kwargs,\n'
-    '    ):\n'
-    '        self.image_size = image_size\n'
-    '    def tokenize_with_images(self, image):\n'
-    '        x = dynamic_preprocess(\n'
-    '            image, image_size=self.image_size\n'
-    '        )\n'
+    "        **kwargs,\n"
+    "    ):\n"
+    "        self.image_size = image_size\n"
+    "    def tokenize_with_images(self, image):\n"
+    "        x = dynamic_preprocess(\n"
+    "            image, image_size=self.image_size\n"
+    "        )\n"
 )
 UNLIMITED_OCR_STUB = (
-    'class UnlimitedOCRForCausalLM(DeepseekOCRForCausalLM):\n'
+    "class UnlimitedOCRForCausalLM(DeepseekOCRForCausalLM):\n"
     '    def __init__(self, *, vllm_config, prefix: str = ""):\n'
-    '        super().__init__(vllm_config=vllm_config, prefix=prefix)\n'
+    "        super().__init__(vllm_config=vllm_config, prefix=prefix)\n"
 )
 
 
@@ -99,10 +103,11 @@ def test_apply_edits_repositions_wrongly_placed_arch_fix(tmp_path: Path) -> None
     site, patches = _make_fake_tree(tmp_path)
     uo_path = site / "model_executor" / "models" / "unlimited_ocr.py"
     uo_path.write_text(
-        'class UnlimitedOCRForCausalLM(DeepseekOCRForCausalLM):\n'
+        "class UnlimitedOCRForCausalLM(DeepseekOCRForCausalLM):\n"
         '    def __init__(self, *, vllm_config, prefix: str = ""):\n'
-        '        super().__init__(vllm_config=vllm_config, prefix=prefix)\n'
-        '        vllm_config.model_config.hf_config.text_config.architectures = ["DeepseekV2ForCausalLM"]  # noqa: E501\n'
+        "        super().__init__(vllm_config=vllm_config, prefix=prefix)\n"
+        "        vllm_config.model_config.hf_config.text_config.architectures"
+        ' = ["DeepseekV2ForCausalLM"]  # noqa: E501\n'
     )
     applied = apply_edits(site, patches)
     assert "arch_fix" in applied  # re-applied because placement was wrong
@@ -132,5 +137,6 @@ def test_apply_edits_raises_on_missing_anchor(tmp_path: Path) -> None:
     # Corrupt the registry anchor so the DotsOCR line is gone.
     (site / "model_executor" / "models" / "registry.py").write_text("_ARCH_MODELS = {}\n")
     import pytest
+
     with pytest.raises(RuntimeError, match="registry"):
         apply_edits(site, patches)

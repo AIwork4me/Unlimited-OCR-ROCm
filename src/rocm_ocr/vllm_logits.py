@@ -7,7 +7,10 @@ decoding between the PyTorch-direct and vLLM backends.
 
 from __future__ import annotations
 
-import torch
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
 
 
 class SlidingWindowNoRepeatNgramLogitsProcessor:

@@ -11,6 +11,7 @@ vLLM-version drift). Verified against vLLM commit 321fa2d6d (rocm721, 0.20.2rc1)
 
 CLI: ``python -m rocm_ocr.vllm_patches <vllm_site_dir> <repo_patches_dir>``
 """
+
 from __future__ import annotations
 
 import shutil
@@ -29,8 +30,8 @@ CONFIGS_ALL_FIND = '    "DotsOCRConfig",'
 CONFIGS_ALL_DONE = '"UnlimitedOCRConfig",'
 
 CONFIG_REGISTRY_BLOCK = (
-    '# unlimited-ocr model_type has a hyphen so it cannot be a kwarg above;\n'
-    '# register it post-construction (LazyConfigDict subclasses dict).\n'
+    "# unlimited-ocr model_type has a hyphen so it cannot be a kwarg above;\n"
+    "# register it post-construction (LazyConfigDict subclasses dict).\n"
     '_CONFIG_REGISTRY["unlimited-ocr"] = "UnlimitedOCRConfig"\n\n'
 )
 CONFIG_REGISTRY_FIND = "_SPECULATIVE_DECODING_CONFIGS"

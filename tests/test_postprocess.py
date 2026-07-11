@@ -1,4 +1,5 @@
 """Tests for the shared vLLM output post-processor (decode_bpe + transforms)."""
+
 from __future__ import annotations
 
 from rocm_ocr.postprocess import decode_bpe, postprocess_ocr_output

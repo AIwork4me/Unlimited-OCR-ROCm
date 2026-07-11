@@ -1,10 +1,11 @@
 """Tests for the reconciled vLLM OmniDocBench runner payload + postprocess wiring."""
-from __future__ import annotations
 
-from rocm_ocr.decoding_contract import CONTRACT
+from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+
+from rocm_ocr.decoding_contract import CONTRACT
 
 
 def _load_runner_module():
