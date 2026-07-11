@@ -116,9 +116,17 @@ def _generate_bucketed(
             out = _generate_batch(model, tokenizer, batch, no_repeat_ngram_size=no_repeat_ngram_size,
                                   ngram_window=ngram_window, max_length=max_length)
             for j, (orig_idx, _page) in enumerate(chunk):
-                text = tokenizer.decode(out[j][prompt_len:], skip_special_tokens=False)
-                if text.endswith(EOS_STOP):
-                    text = text[: -len(EOS_STOP)]
+                gen_ids = out[j][prompt_len:]
+                # Truncate at first EOS (model.infer stops there via streamer;
+                # batched generate pads shorter sequences with EOS). Decode with
+                # skip_special_tokens=False so detection tags (<|det|>) survive
+                # for postprocess_ocr_output to strip as full spans (label+box),
+                # matching model.infer's re_match cleanup.
+                eos_id = tokenizer.eos_token_id
+                eos_pos = (gen_ids == eos_id).nonzero(as_tuple=True)[0]
+                if len(eos_pos):
+                    gen_ids = gen_ids[: eos_pos[0]]
+                text = tokenizer.decode(gen_ids, skip_special_tokens=False)
                 results[orig_idx] = text.strip()
     return results
 
