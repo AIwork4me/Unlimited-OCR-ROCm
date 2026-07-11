@@ -64,8 +64,16 @@ def _topk(cap, tok):
 
 
 def run_one(m, tok, cap, img, sw):
-    """Run infer() with config.sliding_window=sw; return len/head/first/topk."""
-    m.config.sliding_window = sw            # infer() reads this into config._ring_window
+    """Run infer() with the ring-window=sw; return len/head/first/topk.
+
+    NB: infer() reads `_orig_sw = getattr(config,'sliding_window_size',None) or
+    getattr(config,'sliding_window',None)` into config._ring_window, so
+    sliding_window_size takes PRECEDENCE. We must set BOTH (or the size field
+    alone) — setting only config.sliding_window is a no-op when size is present
+    (the shipped config has both =128), which silently makes the ablation inert.
+    """
+    m.config.sliding_window_size = sw        # READ FIRST by infer() (takes precedence)
+    m.config.sliding_window = sw
     cap.clear()
     t0 = time.time()
     try:
@@ -73,7 +81,8 @@ def run_one(m, tok, cap, img, sw):
                 base_size=1024, image_size=640, crop_mode=True, max_length=MAXLEN,
                 no_repeat_ngram_size=35, ngram_window=128, save_results=False)
     finally:
-        m.config.sliding_window = 128        # restore default
+        m.config.sliding_window_size = 128   # restore defaults
+        m.config.sliding_window = 128
     seq, plen = cap.get("seq"), cap.get("plen")
     if seq is None or plen is None:
         return {"error": "no-capture", "elapsed": time.time() - t0}
@@ -112,6 +121,41 @@ def smoke(m, tok, cap):
     return 0 if ok else 1
 
 
+def full(m, tok, cap):
+    import json
+    from collections import Counter
+    rows = []
+    for pid in EOS_PAGES:
+        img = resolve_image(pid)
+        if img is None:
+            print(f"[SKIP] {pid}: no image"); continue
+        b = run_one(m, tok, cap, img, 128)
+        a = run_one(m, tok, cap, img, 8192)
+        v = classify(b, a)
+        rows.append({"page": pid, "baseline": b, "ablated": a, "verdict": v})
+        print(f"[eos] {pid}: base_len={b.get('len')} abl_len={a.get('len')} "
+              f"base_first={b.get('first')!r} abl_first={a.get('first')!r} -> {v}")
+
+    ctrl = [{"page": p, "ablated": run_one(m, tok, cap, resolve_image(p), 8192)}
+            for p in control_pages(3)]
+    ctrl_ok = all(c["ablated"].get("len", 0) >= 200 for c in ctrl)
+    cnt = Counter(r["verdict"] for r in rows)
+    if not ctrl_ok:
+        verdict, msg = "INVALID_EDIT", "ablated collapsed on control pages -> edit destructive"
+    elif cnt.get("CAUSAL", 0) > len(rows) / 2:
+        verdict, msg = "R_SWA_CAUSAL", "-> proceed to Phase 1"
+    elif cnt.get("NOT_CAUSAL", 0) > len(rows) / 2:
+        verdict, msg = "R_SWA_NOT_CAUSAL", "-> STOP; re-investigate numerics/kernels"
+    else:
+        verdict, msg = "R_SWA_PARTIAL", "-> Phase 1 with realistic expectations"
+
+    (OUT / "phase0_results.json").write_text(json.dumps(
+        {"verdict": verdict, "msg": msg, "counts": dict(cnt), "ctrl_ok": ctrl_ok,
+         "eos": rows, "controls": ctrl}, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nVERDICT: {verdict}  ({msg})  counts={dict(cnt)} ctrl_ok={ctrl_ok}")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     mode = ap.add_mutually_exclusive_group(required=True)
@@ -122,7 +166,7 @@ def main():
     cap, _orig = capture(m)
     if args.smoke:
         return smoke(m, tok, cap)
-    raise SystemExit("--full implemented in Task 2")  # placeholder guard; replaced next task
+    return full(m, tok, cap)
 
 
 if __name__ == "__main__":
