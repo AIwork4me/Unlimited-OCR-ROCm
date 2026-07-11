@@ -32,7 +32,7 @@ def main() -> None:
         candidate_pred_dir=args.candidate_pred_dir,
         gt_json=args.gt_json,
         omnidocbench_repo=args.omnidocbench_repo,
-        scorer_python=args.scor_python,
+        scorer_python=args.scorer_python,
         work_dir=args.work_dir,
     )
     print(json.dumps(result, indent=2))

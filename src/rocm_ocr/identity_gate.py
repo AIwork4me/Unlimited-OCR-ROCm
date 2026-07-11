@@ -3,17 +3,19 @@
 Runs a fixed, deterministic, type-balanced page-set through a reference path
 (the current per-page ``model.infer`` path) and a candidate path (the optimized
 engine), scores both with the official OmniDocBench scorer, and decides PASS/BLOCK
-on Overall Δ. Reuses :func:`rocm_ocr.gate.evaluate` for the comparison logic.
+on Overall Δ. The verdict uses two-sided ``|Δ| ≤ GATE_DELTA_LIMIT`` via
+:func:`decide`, which is distinct from :func:`rocm_ocr.gate.evaluate`'s one-sided
+release-regression semantics (``OVERALL_MAX_REGRESSION``).
 """
 
 from __future__ import annotations
 
 import random
+import zlib
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from rocm_ocr.gate import evaluate
 from rocm_ocr.logging import get_logger
 from rocm_ocr.omnidocbench import parse_run_summary, write_eval_config
 
@@ -51,7 +53,7 @@ def gate_page_set(omnidocbench_dir: str, *, size: int = 200, seed: int = 0) -> l
     for key, items in sorted(buckets.items()):
         n = max(1, round(size * len(items) / total))
         n = min(n, len(items))
-        rng.seed(seed + hash(key) % 2**31)  # stable per-bucket seed
+        rng.seed(seed + zlib.crc32(key.encode()))  # stable per-bucket seed
         selected.extend(rng.sample(items, n))
     selected = sorted(set(selected))[:size]
     return selected
@@ -96,13 +98,12 @@ def run_gate(
         save_name = f"gate_{label}_quick_match"
         summaries[label] = parse_run_summary(work_dir, save_name)
 
-    ref_metrics = {"overall": summaries["reference"].get("overall")}
-    cand_metrics = {"overall": summaries["candidate"].get("overall")}
-    evaluate(cand_metrics, ref_metrics, thresholds={"overall": GATE_DELTA_LIMIT})
-    ref_ov = ref_metrics["overall"]
-    cand_ov = cand_metrics["overall"]
+    ref_ov = summaries["reference"].get("overall")
+    cand_ov = summaries["candidate"].get("overall")
     delta = (cand_ov - ref_ov) if (ref_ov is not None and cand_ov is not None) else None
     changed = _count_changed(reference_pred_dir, candidate_pred_dir)
+    # The identity gate uses two-sided |Δ| via decide, distinct from
+    # gate.evaluate's one-sided release-regression semantics.
     verdict = decide(delta)
     logger.info("identity gate: ref=%.4f cand=%.4f Δ=%.4f changed=%d -> %s",
                 ref_ov or 0.0, cand_ov or 0.0, delta if delta is not None else 0.0, changed, verdict)
