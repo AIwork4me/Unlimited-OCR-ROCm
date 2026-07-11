@@ -5,6 +5,7 @@ Runs model.infer one page at a time over a fixed page set with per-stage CUDA-ev
 timing and writes a speed-baseline manifest. This is the 'before' number every
 later lever is compared against.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,15 +30,28 @@ def main() -> None:
     reset_vram_counter()
     t0 = time.time()
     for im in imgs:
-        model.infer(tok, prompt="<image>document parsing.", image_file=im, base_size=1024,
-                    image_size=640, no_repeat_ngram_size=35, ngram_window=128, save_results=False)
+        model.infer(
+            tok,
+            prompt="<image>document parsing.",
+            image_file=im,
+            base_size=1024,
+            image_size=640,
+            no_repeat_ngram_size=35,
+            ngram_window=128,
+            save_results=False,
+        )
     wall = time.time() - t0
     timing = measure_run([], page_count=len(imgs), wall_s=wall, total_tokens=0)
-    manifest = build_manifest(metrics={"overall": None}, model={"id": "baidu/Unlimited-OCR"},
-                              dataset={"version": "v1.6"}, predictions_ref="speed-baseline",
-                              timing=timing, backend="pytorch-direct")
+    manifest = build_manifest(
+        metrics={"overall": None},
+        model={"id": "baidu/Unlimited-OCR"},
+        dataset={"version": "v1.6"},
+        predictions_ref="speed-baseline",
+        timing=timing,
+        backend="pytorch-direct",
+    )
     write_manifest(manifest, args.manifest_out)
-    print(f"[baseline] {len(imgs)} pages in {wall:.0f}s ({len(imgs)/max(wall,1):.2f} pages/s)")
+    print(f"[baseline] {len(imgs)} pages in {wall:.0f}s ({len(imgs) / max(wall, 1):.2f} pages/s)")
 
 
 if __name__ == "__main__":

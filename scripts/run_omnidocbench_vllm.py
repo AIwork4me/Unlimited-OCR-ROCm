@@ -176,7 +176,10 @@ def main() -> None:
             with open(os.path.join(args.output_dir, "_failures.log"), "a") as f:
                 f.write(f"{base}\t{msg}\n")
     elapsed = time.time() - t0
-    print(f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried", flush=True)
+    print(
+        f"done: {done} inferences in {elapsed:.0f}s ({done / max(elapsed, 1):.2f} img/s), {retried} retried",
+        flush=True,
+    )
 
 
 if __name__ == "__main__":

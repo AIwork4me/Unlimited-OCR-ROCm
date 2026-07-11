@@ -11,11 +11,11 @@ Usage:
 This is a plain HTTP client call to an already-running server (port 30000), so
 it does NOT need `sg render -c`. Prints char counts and a short unified diff.
 """
+
 from __future__ import annotations
 
 import base64
 import difflib
-import json
 import sys
 from pathlib import Path
 
@@ -58,11 +58,7 @@ def main(page_img: str, pytorch_pred: str) -> int:
     pt = Path(pytorch_pred).read_text()
 
     print(f"sglang_chars={len(sg)}  pytorch_chars={len(pt)}")
-    diff_lines = list(
-        difflib.unified_diff(
-            pt.splitlines(), sg.splitlines(), "pytorch", "sglang", lineterm="", n=2
-        )
-    )
+    diff_lines = list(difflib.unified_diff(pt.splitlines(), sg.splitlines(), "pytorch", "sglang", lineterm="", n=2))
     print("\n".join(diff_lines[:80]))
     if len(diff_lines) > 80:
         print(f"... ({len(diff_lines) - 80} more diff lines truncated)")
