@@ -49,3 +49,38 @@ def test_infer_batch_strips_eos(monkeypatch):
     tok.decode.return_value = "hello<｜end▁of▁sentence｜>"
     out = engine.infer_batch(model, tok, ["a.png"], batch_size=1)
     assert out == ["hello"]
+
+
+def test_infer_batch_async_parallel_preprocess(monkeypatch):
+    """infer_batch_async builds pages in a thread pool then runs the shared bucketed
+    generate; every page is preprocessed and one output per page is returned."""
+    import torch
+
+    from rocm_ocr.batching import PageInputs
+
+    lengths = {f"p{i}.png": 3 + (i % 2) for i in range(6)}  # two length buckets
+    built: list[str] = []
+
+    def fake_build(model, tok, p, **kw):
+        built.append(p)
+        n = lengths[p]
+        return PageInputs(input_ids=list(range(n)), images_seq_mask=[False] * n,
+                          patches=torch.zeros(1, 3, 640, 640), image_ori=torch.zeros(1, 3, 1024, 1024),
+                          spatial_crop=torch.tensor([1, 1]))
+
+    monkeypatch.setattr(engine, "build_page_inputs", fake_build)
+
+    def fake_gen(model, tok, batch, **kw):
+        n, length = batch.input_ids.shape
+        return torch.arange(n * (length + 2)).reshape(n, length + 2)
+
+    monkeypatch.setattr(engine, "_generate_batch", fake_gen)
+    model = MagicMock()
+    model.config = MagicMock(sliding_window_size=128, sliding_window=128)
+    tok = MagicMock(pad_token_id=0, eos_token_id=1)
+    tok.decode.side_effect = lambda ids, skip_special_tokens=False: ",".join(str(int(i)) for i in ids)
+    paths = [f"p{i}.png" for i in range(6)]
+    out = engine.infer_batch_async(model, tok, paths, batch_size=8, n_workers=3)
+    assert len(out) == 6                 # one output per page
+    assert set(built) == set(paths)      # every page preprocessed (in parallel)
+    assert all(r is not None for r in out)
