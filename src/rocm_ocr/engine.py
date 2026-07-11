@@ -15,6 +15,7 @@ import torch
 
 from rocm_ocr.batching import BatchedInputBuilder, BatchedInputs, PageInputs, build_page_inputs
 from rocm_ocr.logging import get_logger
+from rocm_ocr.postprocess import postprocess_ocr_output
 
 logger = get_logger(__name__)
 
@@ -126,9 +127,7 @@ def _generate_bucketed(
                 eos_pos = (gen_ids == eos_id).nonzero(as_tuple=True)[0]
                 if len(eos_pos):
                     gen_ids = gen_ids[: eos_pos[0]]
-                text = tokenizer.decode(gen_ids, skip_special_tokens=False)
-                if text.endswith(EOS_STOP):
-                    text = text[: -len(EOS_STOP)]
+                text = postprocess_ocr_output(tokenizer.decode(gen_ids, skip_special_tokens=False))
                 results[orig_idx] = text.strip()
     return results
 

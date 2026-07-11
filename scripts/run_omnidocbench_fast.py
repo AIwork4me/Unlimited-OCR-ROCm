@@ -16,7 +16,6 @@ from rocm_ocr.benchmark import measure_run, reset_vram_counter
 from rocm_ocr.engine import infer_batch_async
 from rocm_ocr.eval_manifest import build_manifest, manifest_filename, write_manifest
 from rocm_ocr.omnidocbench import derive_prediction_filename
-from rocm_ocr.postprocess import postprocess_ocr_output
 from rocm_ocr.weights import load_model_pinned, resolve_revision
 
 
@@ -52,8 +51,7 @@ def main() -> None:
     wall = time.time() - t0
 
     for img, text in zip(imgs, texts, strict=True):
-        clean = postprocess_ocr_output(text)
-        Path(args.pred_dir, derive_prediction_filename(img)).write_text(clean, encoding="utf-8")
+        Path(args.pred_dir, derive_prediction_filename(img)).write_text(text, encoding="utf-8")
 
     timing = measure_run([], page_count=len(imgs), wall_s=wall, total_tokens=0)
     if args.manifest_out:
