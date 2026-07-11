@@ -84,3 +84,25 @@ def test_infer_batch_async_parallel_preprocess(monkeypatch):
     assert len(out) == 6                 # one output per page
     assert set(built) == set(paths)      # every page preprocessed (in parallel)
     assert all(r is not None for r in out)
+
+
+def test_compile_disabled_returns_model_unchanged():
+    """With enabled=False the model object is returned unchanged (no compile call)."""
+    from rocm_ocr import engine
+
+    m = MagicMock()
+    out = engine.compile_for_inference(m, enabled=False)
+    assert out is m
+
+
+def test_compile_enabled_attempts_compile(monkeypatch):
+    """With enabled=True, torch.compile is invoked on the forward."""
+    import torch
+
+    from rocm_ocr import engine
+
+    called = {}
+    real_model = torch.nn.Linear(2, 2)
+    monkeypatch.setattr(engine.torch, "compile", lambda fn, **kw: called.setdefault("compiled", fn) or fn)
+    engine.compile_for_inference(real_model, enabled=True, mode="default")
+    assert "compiled" in called

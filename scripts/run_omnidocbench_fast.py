@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 from rocm_ocr.benchmark import measure_run, reset_vram_counter
-from rocm_ocr.engine import infer_batch_async
+from rocm_ocr.engine import compile_for_inference, infer_batch_async
 from rocm_ocr.eval_manifest import build_manifest, manifest_filename, write_manifest
 from rocm_ocr.omnidocbench import derive_prediction_filename
 from rocm_ocr.weights import load_model_pinned, resolve_revision
@@ -29,6 +29,11 @@ def main() -> None:
     ap.add_argument("--n-workers", type=int, default=2)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--manifest-out", default=None)
+    ap.add_argument(
+        "--compile",
+        action="store_true",
+        help="opt-in: torch.compile the model's forward (identity-gated; may fail or flip tokens on gfx1100)",
+    )
     args = ap.parse_args()
 
     os.makedirs(args.pred_dir, exist_ok=True)
@@ -43,6 +48,8 @@ def main() -> None:
         imgs = imgs[: args.limit]
 
     model, tok = load_model_pinned(args.model, resolve_revision(None))
+    if args.compile:
+        model = compile_for_inference(model, enabled=True)
     print(f"[fast] {len(imgs)} images, batch={args.batch_size}", flush=True)
 
     reset_vram_counter()

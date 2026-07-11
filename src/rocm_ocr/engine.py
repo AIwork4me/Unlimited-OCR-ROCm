@@ -198,3 +198,21 @@ def infer_batch_async(
 def infer_one(model: Any, tokenizer: Any, image_path: str, **kwargs: Any) -> str:
     """Convenience: one page via infer_batch (batch_size=1)."""
     return infer_batch(model, tokenizer, [image_path], batch_size=1, **kwargs)[0]
+
+
+def compile_for_inference(model: Any, *, enabled: bool, mode: str = "default") -> Any:
+    """Optionally torch.compile the model's forward for ROCm inductor.
+
+    OPT-IN and gated by the identity gate (Task 8 step 4). ``torch.compile`` can
+    change reduction order → rare token flips; only enable if Overall Δ ≤ 0.05.
+    On gfx1100 the inductor backend may be partially supported — failures here
+    must NOT block the main (batching) win.
+    """
+    if not enabled:
+        return model
+    try:
+        model.forward = torch.compile(model.forward, mode=mode)  # type: ignore[method-assign]
+        logger.info("torch.compile enabled (mode=%s)", mode)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("torch.compile failed (%s) — running uncompiled", exc)
+    return model
