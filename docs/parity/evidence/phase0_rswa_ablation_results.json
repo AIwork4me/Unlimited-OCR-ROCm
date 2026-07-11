@@ -1,0 +1,1203 @@
+{
+  "verdict": "R_SWA_NOT_CAUSAL",
+  "msg": "-> STOP; re-investigate numerics/kernels",
+  "counts": {
+    "NOT_CAUSAL": 15
+  },
+  "ctrl_ok": true,
+  "eos": [
+    {
+      "page": "PPT_1001115_eng_page_005",
+      "baseline": {
+        "len": 768,
+        "head": "<|det|>title [162, 88, 838, 172]<|/det|>Is Good English Important?\n<|det|>title [56, 236, 331, 286]<|/det|>- For Individual\n<|det|>text [102, 301, 913, 443]<|/det|>- Reading – lifelong learning to imp",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 3.775138188166771e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 4.193792123470541e-13
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 2.8823536439570585e-13
+          },
+          {
+            "id": 110971,
+            "tok": "'any",
+            "p": 5.0087829662950195e-14
+          }
+        ],
+        "elapsed": 6.530741214752197
+      },
+      "ablated": {
+        "len": 768,
+        "head": "<|det|>title [162, 88, 838, 172]<|/det|>Is Good English Important?\n<|det|>title [56, 236, 331, 286]<|/det|>- For Individual\n<|det|>text [102, 301, 913, 443]<|/det|>- Reading – lifelong learning to imp",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 3.775138188166771e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 4.193792123470541e-13
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 2.8823536439570585e-13
+          },
+          {
+            "id": 110971,
+            "tok": "'any",
+            "p": 5.0087829662950195e-14
+          }
+        ],
+        "elapsed": 4.901014804840088
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_CalculusReview_page_033",
+      "baseline": {
+        "len": 370,
+        "head": "<|det|>title [271, 86, 728, 172]<|/det|>Integral Calculus\n<|det|>equation [220, 235, 755, 440]<|/det|>\\[\n\\int a x ^ {n} \\partial x = a \\frac {x ^ {(n + 1)}}{n + 1} + C\n\\]\n<|det|>equation [269, 498, 72",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999998807907104
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 6.825602838489431e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 1.6919005085824779e-10
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 2.4133655143754318e-12
+          },
+          {
+            "id": 32817,
+            "tok": "\\(-\\)",
+            "p": 1.2917820025465376e-12
+          }
+        ],
+        "elapsed": 3.7315902709960938
+      },
+      "ablated": {
+        "len": 370,
+        "head": "<|det|>title [271, 86, 728, 172]<|/det|>Integral Calculus\n<|det|>equation [220, 235, 755, 440]<|/det|>\\[\n\\int a x ^ {n} \\partial x = a \\frac {x ^ {(n + 1)}}{n + 1} + C\n\\]\n<|det|>equation [269, 498, 72",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999998807907104
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 6.825602838489431e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 1.6919005085824779e-10
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 2.4133655143754318e-12
+          },
+          {
+            "id": 32817,
+            "tok": "\\(-\\)",
+            "p": 1.2917820025465376e-12
+          }
+        ],
+        "elapsed": 3.7127063274383545
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_Keuk Chan Narith_page_009",
+      "baseline": {
+        "len": 413,
+        "head": "<|det|>title [120, 100, 878, 152]<|/det|>An Emergence of English language Variety in Cambodia\n<|det|>text [57, 242, 919, 760]<|/det|>- Littlewood (1994): constructivist view: Second [or foreign] langu",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.605227839540646e-09
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 1.691900647360356e-10
+          },
+          {
+            "id": 93368,
+            "tok": "».\n",
+            "p": 3.3315499664565706e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 2.2897366294682975e-11
+          }
+        ],
+        "elapsed": 2.442147731781006
+      },
+      "ablated": {
+        "len": 413,
+        "head": "<|det|>title [120, 100, 878, 152]<|/det|>An Emergence of English language Variety in Cambodia\n<|det|>text [57, 242, 919, 760]<|/det|>- Littlewood (1994): constructivist view: Second [or foreign] langu",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.605227839540646e-09
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 1.691900647360356e-10
+          },
+          {
+            "id": 93368,
+            "tok": "».\n",
+            "p": 3.3315499664565706e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 2.2897366294682975e-11
+          }
+        ],
+        "elapsed": 2.449087381362915
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_LEP power point presentation-English-FINAL-10-31-07_page_011",
+      "baseline": {
+        "len": 1210,
+        "head": "<|det|>table [20, 30, 978, 973]<|/det|><table><tr><td></td><td>Connecticut</td><td>Mississippi</td><td>Florida</td><td>Oregon</td><td>Illinois</td></tr><tr><td>Department Responsible for LEP</td><td>D",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128823,
+            "tok": "<tr>",
+            "p": 4.139937104241653e-08
+          },
+          {
+            "id": 8603,
+            "tok": "table",
+            "p": 4.508758817689529e-12
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 2.4133657312158663e-12
+          },
+          {
+            "id": 128824,
+            "tok": "</tr>",
+            "p": 1.0060394357858105e-12
+          }
+        ],
+        "elapsed": 5.795384645462036
+      },
+      "ablated": {
+        "len": 1207,
+        "head": "<|det|>table [20, 30, 978, 973]<|/det|><table><tr><td></td><td>Connecticut</td><td>Mississippi</td><td>Florida</td><td>Oregon</td><td>Illinois</td></tr><tr><td>Department Responsible for LEP</td><td>D",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128823,
+            "tok": "<tr>",
+            "p": 4.139937104241653e-08
+          },
+          {
+            "id": 8603,
+            "tok": "table",
+            "p": 4.508758817689529e-12
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 2.4133657312158663e-12
+          },
+          {
+            "id": 128824,
+            "tok": "</tr>",
+            "p": 1.0060394357858105e-12
+          }
+        ],
+        "elapsed": 5.778064966201782
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_MMAT5390Lecture1_page_023",
+      "baseline": {
+        "len": 1196,
+        "head": "<|det|>title [240, 33, 717, 95]<|/det|>What is a digital image?\n<|det|>title [25, 145, 417, 185]<|/det|>■ Mathematical definition:\n<|det|>text [71, 198, 948, 280]<|/det|>■ A 2D (grayscale) digital ima",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.2501525370467448e-09
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 2.1297833288635992e-12
+          },
+          {
+            "id": 53460,
+            "tok": "ableView",
+            "p": 1.8795284339317986e-12
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 8.878272466164572e-13
+          }
+        ],
+        "elapsed": 9.883834600448608
+      },
+      "ablated": {
+        "len": 1196,
+        "head": "<|det|>title [240, 33, 717, 95]<|/det|>What is a digital image?\n<|det|>title [25, 145, 417, 185]<|/det|>■ Mathematical definition:\n<|det|>text [71, 198, 948, 280]<|/det|>■ A 2D (grayscale) digital ima",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.2501525370467448e-09
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 2.1297833288635992e-12
+          },
+          {
+            "id": 53460,
+            "tok": "ableView",
+            "p": 1.8795284339317986e-12
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 8.878272466164572e-13
+          }
+        ],
+        "elapsed": 9.893898010253906
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_all655920_page_001",
+      "baseline": {
+        "len": 634,
+        "head": "<|det|>title [132, 88, 862, 165]<|/det|>Scientific English – final exam\n<|det|>text [54, 188, 656, 243]<|/det|>The final exam will be written, not oral.\n<|det|>text [54, 308, 913, 360]<|/det|>You will",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 7.99195987166712e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 1.0815932351138091e-11
+          },
+          {
+            "id": 123000,
+            "tok": " \\(<\\)",
+            "p": 3.978968196594046e-12
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 3.51141988749748e-12
+          }
+        ],
+        "elapsed": 4.341536045074463
+      },
+      "ablated": {
+        "len": 634,
+        "head": "<|det|>title [132, 88, 862, 165]<|/det|>Scientific English – final exam\n<|det|>text [54, 188, 656, 243]<|/det|>The final exam will be written, not oral.\n<|det|>text [54, 308, 913, 360]<|/det|>You will",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 7.99195987166712e-11
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 1.0815932351138091e-11
+          },
+          {
+            "id": 123000,
+            "tok": " \\(<\\)",
+            "p": 3.978968196594046e-12
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 3.51141988749748e-12
+          }
+        ],
+        "elapsed": 4.3165788650512695
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "PPT_sociolinguistics_page_015",
+      "baseline": {
+        "len": 802,
+        "head": "<|det|>title [394, 86, 606, 165]<|/det|>Gender\n<|det|>text [55, 239, 888, 449]<|/det|>- It has long been acknowledged that there may be differences in language usage between men and women: quite extre",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.4166093853518191e-09
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 5.211412967831563e-10
+          },
+          {
+            "id": 104458,
+            "tok": "'\".",
+            "p": 1.2256082433659277e-11
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 4.508758817689529e-12
+          }
+        ],
+        "elapsed": 4.858761787414551
+      },
+      "ablated": {
+        "len": 802,
+        "head": "<|det|>title [394, 86, 606, 165]<|/det|>Gender\n<|det|>text [55, 239, 888, 449]<|/det|>- It has long been acknowledged that there may be differences in language usage between men and women: quite extre",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.4166093853518191e-09
+          },
+          {
+            "id": 114194,
+            "tok": "）」",
+            "p": 5.211412967831563e-10
+          },
+          {
+            "id": 104458,
+            "tok": "'\".",
+            "p": 1.2256082433659277e-11
+          },
+          {
+            "id": 8969,
+            "tok": "ownload",
+            "p": 4.508758817689529e-12
+          }
+        ],
+        "elapsed": 4.8634936809539795
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "book_en_搬书匠-3299-Swift Data Structure and Algorithms-2016-英文版_page_142",
+      "baseline": {
+        "len": 1910,
+        "head": "<|det|>header [101, 67, 337, 84]<|/det|>Seeing the Forest through the Tree\n<|det|>text [99, 107, 663, 126]<|/det|>Now let's review these concepts with the following tree example:\n<|det|>image [310, 14",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9998899698257446
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 0.00010889682016568258
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 6.475236773439974e-07
+          },
+          {
+            "id": 1,
+            "tok": "<｜end▁of▁sentence｜>",
+            "p": 4.6906503570198765e-08
+          },
+          {
+            "id": 16807,
+            "tok": " \\[",
+            "p": 3.223830802312477e-08
+          }
+        ],
+        "elapsed": 13.85834264755249
+      },
+      "ablated": {
+        "len": 1910,
+        "head": "<|det|>header [101, 67, 337, 84]<|/det|>Seeing the Forest through the Tree\n<|det|>text [99, 107, 663, 126]<|/det|>Now let's review these concepts with the following tree example:\n<|det|>image [310, 14",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9998899698257446
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 0.00010889682016568258
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 6.475236773439974e-07
+          },
+          {
+            "id": 1,
+            "tok": "<｜end▁of▁sentence｜>",
+            "p": 4.6906503570198765e-08
+          },
+          {
+            "id": 16807,
+            "tok": " \\[",
+            "p": 3.223830802312477e-08
+          }
+        ],
+        "elapsed": 13.223653078079224
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "color_textbook_zhonggaokao_小学_13.人教新起点英语（4-5年级）_人教新起点五年级英语下册_课本_人教新起点英语5B电子课本_page_034",
+      "baseline": {
+        "len": 378,
+        "head": "<|det|>title [87, 47, 502, 77]<|/det|>B Choose, think and say.\n<|det|>image [101, 92, 936, 660]<|/det|>\n<|det|>image [87, 667, 133, 698]<|/det|>\n<|det|>title [137, 672, 399, 695]<|/det|>Draw and write",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.691166566317406e-08
+          },
+          {
+            "id": 76869,
+            "tok": "？」\n",
+            "p": 1.1628242119199328e-10
+          },
+          {
+            "id": 111853,
+            "tok": "Numbermatics",
+            "p": 9.056071170743252e-11
+          },
+          {
+            "id": 29269,
+            "tok": "？」",
+            "p": 4.2777895808976396e-11
+          }
+        ],
+        "elapsed": 3.0827951431274414
+      },
+      "ablated": {
+        "len": 378,
+        "head": "<|det|>title [87, 47, 502, 77]<|/det|>B Choose, think and say.\n<|det|>image [101, 92, 936, 660]<|/det|>\n<|det|>image [87, 667, 133, 698]<|/det|>\n<|det|>title [137, 672, 399, 695]<|/det|>Draw and write",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.691166566317406e-08
+          },
+          {
+            "id": 76869,
+            "tok": "？」\n",
+            "p": 1.1628242119199328e-10
+          },
+          {
+            "id": 111853,
+            "tok": "Numbermatics",
+            "p": 9.056071170743252e-11
+          },
+          {
+            "id": 29269,
+            "tok": "？」",
+            "p": 4.2777895808976396e-11
+          }
+        ],
+        "elapsed": 3.18988299369812
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "docstructbench_llm-raw-scihub-o.O-chin.201025015.pdf_1",
+      "baseline": {
+        "len": 1998,
+        "head": "<|det|>header [85, 45, 351, 61]<|/det|>www.cheminform.wiley-vch.de\n<|det|>header [735, 49, 913, 65]<|/det|>ChemInform®\n<|det|>text [85, 98, 187, 113]<|/det|>Germanium\n<|det|>text [87, 115, 144, 128]<|",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999995231628418
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.4508510654850397e-07
+          },
+          {
+            "id": 14320,
+            "tok": "   \n",
+            "p": 1.9555688623995593e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 4.363461147960379e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 3.8507432797985075e-09
+          }
+        ],
+        "elapsed": 15.680646896362305
+      },
+      "ablated": {
+        "len": 1882,
+        "head": "<|det|>header [85, 45, 351, 61]<|/det|>www.cheminform.wiley-vch.de\n<|det|>header [735, 49, 913, 65]<|/det|>ChemInform®\n<|det|>text [85, 98, 187, 113]<|/det|>Germanium\n<|det|>text [87, 115, 144, 128]<|",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999995231628418
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.4508510654850397e-07
+          },
+          {
+            "id": 14320,
+            "tok": "   \n",
+            "p": 1.9555688623995593e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 4.363461147960379e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 3.8507432797985075e-09
+          }
+        ],
+        "elapsed": 14.69336986541748
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "jiaocaineedrop_jiaocai_needrop_en_3718",
+      "baseline": {
+        "len": 1536,
+        "head": "<|det|>title [70, 46, 658, 76]<|/det|>High-Frequency-Words Memory Game\n<|det|>image [73, 89, 445, 270]<|/det|>\n<|det|>text [484, 113, 866, 198]<|/det|>FLUENCY is when a child can see a word and instan",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.139937104241653e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 1.2501525370467448e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 5.905308464448922e-10
+          },
+          {
+            "id": 97165,
+            "tok": " ![",
+            "p": 1.1628242119199328e-10
+          }
+        ],
+        "elapsed": 9.565938949584961
+      },
+      "ablated": {
+        "len": 1536,
+        "head": "<|det|>title [70, 46, 658, 76]<|/det|>High-Frequency-Words Memory Game\n<|det|>image [73, 89, 445, 270]<|/det|>\n<|det|>text [484, 113, 866, 198]<|/det|>FLUENCY is when a child can see a word and instan",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.139937104241653e-08
+          },
+          {
+            "id": 7490,
+            "tok": "\\[",
+            "p": 1.2501525370467448e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 5.905308464448922e-10
+          },
+          {
+            "id": 97165,
+            "tok": " ![",
+            "p": 1.1628242119199328e-10
+          }
+        ],
+        "elapsed": 9.719555377960205
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "magazine_TheEconomist.2023.11.25_page_069",
+      "baseline": {
+        "len": 4434,
+        "head": "<|det|>header [69, 30, 199, 52]<|/det|>Business\n<|det|>header [696, 29, 930, 42]<|/det|>The Economist November 25th 2023\n<|det|>page_number [945, 31, 963, 43]<|/det|>53\n<|det|>image [60, 85, 938, 460]",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999914169311523
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 6.962244242458837e-06
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.2098573733965168e-06
+          },
+          {
+            "id": 2143,
+            "tok": "  \n",
+            "p": 3.0589990274165757e-07
+          },
+          {
+            "id": 14320,
+            "tok": "   \n",
+            "p": 6.825545284527834e-08
+          }
+        ],
+        "elapsed": 25.258578777313232
+      },
+      "ablated": {
+        "len": 4434,
+        "head": "<|det|>header [69, 30, 199, 52]<|/det|>Business\n<|det|>header [696, 29, 930, 42]<|/det|>The Economist November 25th 2023\n<|det|>page_number [945, 31, 963, 43]<|/det|>53\n<|det|>image [60, 85, 938, 460]",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999914169311523
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 6.962244242458837e-06
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.2098573733965168e-06
+          },
+          {
+            "id": 2143,
+            "tok": "  \n",
+            "p": 3.0589990274165757e-07
+          },
+          {
+            "id": 14320,
+            "tok": "   \n",
+            "p": 6.825545284527834e-08
+          }
+        ],
+        "elapsed": 25.186962842941284
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "eastmoney_ea3eda50a04cf431d7412a567497c91e8cc52f72b4c5ccb554776c5c57b13e29.pdf_4",
+      "baseline": {
+        "len": 2424,
+        "head": "<|det|>header [82, 33, 197, 49]<|/det|>公司点评报告\n<|det|>header [808, 36, 896, 82]<|/det|>DBS\nSECURITIES\n星展证券\n<|det|>header [82, 73, 141, 89]<|/det|>寿仙谷\n<|det|>text [82, 104, 212, 117]<|/det|>现金流量表（百万元）\n<",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 7106,
+            "tok": " kil",
+            "p": 6.691587284279876e-10
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.917173364507363e-10
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 3.3315499664565706e-11
+          },
+          {
+            "id": 31696,
+            "tok": ".Windows",
+            "p": 1.0815932351138091e-11
+          }
+        ],
+        "elapsed": 17.965537548065186
+      },
+      "ablated": {
+        "len": 2414,
+        "head": "<|det|>header [82, 33, 197, 49]<|/det|>公司点评报告\n<|det|>header [808, 36, 896, 82]<|/det|>DBS\nSECURITIES\n星展证券\n<|det|>header [82, 73, 141, 89]<|/det|>寿仙谷\n<|det|>text [82, 104, 212, 117]<|/det|>现金流量表（百万元）\n<",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 7106,
+            "tok": " kil",
+            "p": 6.691587284279876e-10
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.917173364507363e-10
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 3.3315499664565706e-11
+          },
+          {
+            "id": 31696,
+            "tok": ".Windows",
+            "p": 1.0815932351138091e-11
+          }
+        ],
+        "elapsed": 17.811917304992676
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "page-29ccb4ce-9266-4938-8f2d-b2b69ceb43cd",
+      "baseline": {
+        "len": 4574,
+        "head": "<|det|>page_number [116, 65, 134, 75]<|/det|>38\n<|det|>header [432, 64, 568, 75]<|/det|>ROMAN SHVYDKOY\n<|det|>text [113, 91, 884, 123]<|/det|>Proof. Let us first verify (121). For any \\(2k + l \\leqsla",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.999998927116394
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.0677026693883818e-06
+          },
+          {
+            "id": 122695,
+            "tok": "晚辈",
+            "p": 1.9555676189497717e-08
+          },
+          {
+            "id": 124739,
+            "tok": "而坐",
+            "p": 1.522997550296168e-08
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.1861115645217524e-08
+          }
+        ],
+        "elapsed": 39.8015022277832
+      },
+      "ablated": {
+        "len": 5678,
+        "head": "<|det|>page_number [116, 65, 134, 75]<|/det|>38\n<|det|>header [432, 64, 568, 75]<|/det|>ROMAN SHVYDKOY\n<|det|>text [113, 91, 884, 123]<|/det|>Proof. Let us first verify (121). For any \\(2k + l \\leqsla",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.999998927116394
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.0677026693883818e-06
+          },
+          {
+            "id": 122695,
+            "tok": "晚辈",
+            "p": 1.9555676189497717e-08
+          },
+          {
+            "id": 124739,
+            "tok": "而坐",
+            "p": 1.522997550296168e-08
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.1861115645217524e-08
+          }
+        ],
+        "elapsed": 48.6463041305542
+      },
+      "verdict": "NOT_CAUSAL"
+    },
+    {
+      "page": "yanbaopptmerge_yanbaoPPT_620",
+      "baseline": {
+        "len": 239,
+        "head": "<|det|>image [41, 72, 211, 660]<|/det|>\n<|det|>title [222, 211, 535, 474]<|/det|>远视眼\n晶状体曲度过小或眼球\n前后径过短使物像落在\n视网膜的后方\n<|det|>image [224, 526, 310, 888]<|/det|>\n<|det|>image [523, 526, 735, 888]<|/det|>\n<|",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.1032563751456337e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 5.905308464448922e-10
+          },
+          {
+            "id": 8663,
+            "tok": "indows",
+            "p": 2.1724406995549117e-10
+          },
+          {
+            "id": 49014,
+            "tok": "rosso",
+            "p": 1.917173364507363e-10
+          }
+        ],
+        "elapsed": 3.218395709991455
+      },
+      "ablated": {
+        "len": 239,
+        "head": "<|det|>image [41, 72, 211, 660]<|/det|>\n<|det|>title [222, 211, 535, 474]<|/det|>远视眼\n晶状体曲度过小或眼球\n前后径过短使物像落在\n视网膜的后方\n<|det|>image [224, 526, 310, 888]<|/det|>\n<|det|>image [523, 526, 735, 888]<|/det|>\n<|",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.1032563751456337e-09
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 5.905308464448922e-10
+          },
+          {
+            "id": 8663,
+            "tok": "indows",
+            "p": 2.1724406995549117e-10
+          },
+          {
+            "id": 49014,
+            "tok": "rosso",
+            "p": 1.917173364507363e-10
+          }
+        ],
+        "elapsed": 3.118981122970581
+      },
+      "verdict": "NOT_CAUSAL"
+    }
+  ],
+  "controls": [
+    {
+      "page": "page-f6b6cfb8-3bb5-4393-b3fb-70efef72aca5",
+      "ablated": {
+        "len": 2680,
+        "head": "<|det|>header [102, 65, 247, 80]<|/det|>第三章 公司治理\n<|det|>title [121, 166, 850, 205]<|/det|>3.21 检讨及监察董事、监事及高级管理人员的培训及持续专业发展的情况\n<|det|>text [99, 229, 851, 276]<|/det|>本行董事会坚持敦促董事及高级管理人员参加相关业务培训，促进专业发展，促",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 4.363463368406428e-09
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 4.363463368406428e-09
+          },
+          {
+            "id": 8603,
+            "tok": "table",
+            "p": 5.905308464448922e-10
+          },
+          {
+            "id": 16771,
+            "tok": "header",
+            "p": 1.4783643059734786e-11
+          }
+        ],
+        "elapsed": 20.706457138061523
+      }
+    },
+    {
+      "page": "newspaper_b95d1d8eb0d756cc94a5d8b5db3cf69b_1",
+      "ablated": {
+        "len": 2794,
+        "head": "<|det|>header [6, 3, 172, 25]<|/det|>4 | 时事新闻\n<|det|>header [208, 5, 311, 13]<|/det|>2011年1月3日 星期一\n<|det|>header [209, 18, 312, 26]<|/det|>编辑：冯克 校对：赵军\n<|det|>header [326, 18, 426, 26]<|/det|>新闻热线：0108",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 1.0
+          },
+          {
+            "id": 11709,
+            "tok": "Source",
+            "p": 2.5946099435625314e-11
+          },
+          {
+            "id": 43407,
+            "tok": "edes",
+            "p": 2.5946099435625314e-11
+          },
+          {
+            "id": 1864,
+            "tok": "eb",
+            "p": 9.545032299274059e-12
+          },
+          {
+            "id": 1718,
+            "tok": "</",
+            "p": 3.978968196594046e-12
+          }
+        ],
+        "elapsed": 29.812278747558594
+      }
+    },
+    {
+      "page": "page-e13fef95-c179-4a0f-94f9-1cc970aab788",
+      "ablated": {
+        "len": 5410,
+        "head": "<|det|>text [114, 93, 210, 106]<|/det|>T, we obtain\n<|det|>equation [226, 120, 770, 167]<|/det|>\\[\n\\sum_ {k = 0} ^ {T} \\beta \\| \\nabla F _ {\\mu_ {k}} (\\boldsymbol {x} _ {k}) \\| ^ {2} \\leq F _ {\\mu_ {0",
+        "first": "<|det|>",
+        "first_id": 128818,
+        "topk": [
+          {
+            "id": 128818,
+            "tok": "<|det|>",
+            "p": 0.9999815225601196
+          },
+          {
+            "id": 100855,
+            "tok": "<P",
+            "p": 1.473893007641891e-05
+          },
+          {
+            "id": 128819,
+            "tok": "<|/det|>",
+            "p": 1.760313807608327e-06
+          },
+          {
+            "id": 118225,
+            "tok": "ñez",
+            "p": 2.3823268691103294e-07
+          },
+          {
+            "id": 100882,
+            "tok": "\\M",
+            "p": 1.8553578229330014e-07
+          }
+        ],
+        "elapsed": 55.92922592163086
+      }
+    }
+  ]
+}

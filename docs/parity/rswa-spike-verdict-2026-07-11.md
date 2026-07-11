@@ -13,6 +13,23 @@ Implications: building vLLM `main` for core-side R-SWA (the would-be Phase 1) wo
 
 *Residual caveat (does not undermine the STOP):* Phase 0 rules out the *simple* hypothesis (R-SWA absence → wrong attention regime → EOS). It does not rule out a *separate* vLLM-specific R-SWA bug; there is no evidence for one, and chasing it would exceed the spike's bounded scope.
 
+## Decision (locked in 2026-07-11) — 落袋为安
+
+Accept the **PyTorch path (Overall 91.97, committed manifest) as the aligned backend**. The vLLM/ROCm path is documented as a **numerics-blocked preview** — accurate on clear-content pages, but a first-token EOS on ~10% of pages that is root-caused to forward-pass numerics (bf16 + optimized kernels vs PyTorch eager), **not** R-SWA and **not** any config/contract/processor bug (all ruled out). Rationale: every fixable cause has been eliminated; what remains is inherent bf16/kernel divergence on gfx1100, which is high-effort and uncertain to fix and which Phase 0 shows R-SWA would not address. **Outstanding debt (next step):** make README/PARITY honest — the advertised 91.97 is `backend: pytorch`, not the shipped vLLM backend.
+
+## Re-verification trigger — wait for vLLM v0.25.0+ official release
+
+Phase 0 is a **PyTorch-side falsification** of the R-SWA hypothesis. The **definitive vLLM-side test** — serving unlimited-ocr on a real vLLM/ROCm build and re-scoring — was deliberately deferred: no ROCm wheel with R-SWA exists today, building `main` from source is unbounded, **and Phase 0 shows it would not fix the EOS anyway.** **When vLLM publishes an official v0.25.0+ ROCm wheel** (the first stable release with core-side R-SWA + the Triton backend — PRs [#46564](https://github.com/vllm-project/vllm/pull/46564)/[#47102](https://github.com/vllm-project/vllm/pull/47102)), re-verify:
+1. Serve `baidu/Unlimited-OCR` on the wheel with `rswa_window=128` override + Triton backend (`scripts/rswa_spike/launcher.py`).
+2. Run the 15 EOS pages (`scripts/rswa_spike/phase2_eos_test.py`; page set in `scripts/rswa_spike/pages.py`).
+3. Interpret: **EOS rate → 0%** ⇒ R-SWA / newer kernels mattered vLLM-side (re-open the question); **EOS persists** ⇒ confirms numerics as the cause (Phase 0's conclusion holds). Either outcome is informative — the spike removed the guesswork for when the wheel lands.
+
+## Evidence (committed in this repo)
+
+- `docs/parity/evidence/phase0_rswa_ablation_results.json` — authoritative Phase 0 results: verdict `R_SWA_NOT_CAUSAL`, all 15 EOS pages (baseline vs ablated length / first-token / top-5 logits) + 3 controls. The **4 length-divergent pages** (deltas −3 / −116 / −10 / +1104) are the engagement evidence that the ablation perturbed the forward pass; **min ablated length 239 chars** (real OCR) vs vLLM's 1-token EOS.
+- `scripts/rswa_spike/` — Phase 0 harness (`phase0_ablation.py`, `pages.py`), Phase 2 scripts (`launcher.py`, `phase2_eos_test.py`), build script (`build_main.sh`), unit tests.
+- Spec: `docs/superpowers/specs/2026-07-11-vllm-main-rswa-spike-design.md`. Plan: `docs/superpowers/plans/2026-07-11-vllm-main-rswa-spike.md`.
+
 ## Phase 0 — PyTorch ablation
 _Status: DONE — verdict `R_SWA_NOT_CAUSAL` (run 2026-07-11, two runs; run 2 authoritative)._
 
