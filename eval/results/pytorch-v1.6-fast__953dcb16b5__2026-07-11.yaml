@@ -1,0 +1,84 @@
+schema: unlimited-ocr-rocm/eval-manifest/v1
+backend: pytorch-batched
+timestamp: '2026-07-11T12:09:33+00:00'
+started_at: '2026-07-11T12:09:33+00:00'
+ended_at: '2026-07-11T12:09:33+00:00'
+run_by: aiwork4me
+git:
+  commit: 953dcb16b56d097cd930660f2a235b44c28118e3
+  short: 953dcb16b5
+  dirty: true
+  branch: feat/pytorch-accuracy-speed
+  tag: null
+model:
+  id: baidu/Unlimited-OCR
+  weights_revision: 84757cb0
+  dtype: bfloat16
+  image_mode: gundam
+  no_repeat_ngram_size: 35
+  ngram_window: 128
+  max_length: 32768
+dataset:
+  version: v1.6
+env:
+  python: 3.12.3
+  platform: Linux-6.8.0-79-generic-x86_64-with-glibc2.39
+  host: u-20-8d823edc
+  torch: 2.10.0+rocm7.0
+  hip: 7.0.51831
+  gpus:
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+hardware_fingerprint: AMDx4
+metrics:
+  overall: 92.33671886209747
+  text_edit_dist: 0.08785513503958509
+  formula_cdm: 0.9589528623364809
+  table_teds: 0.8990038385660278
+  table_teds_s: 0.9317896817779904
+  reading_order_edit: 0.14555705460620855
+  page_count: 1651
+timing:
+  backend: pytorch-batched
+  page_count: 1651
+  wall_s: 7840
+  pages_per_sec: 0.2106
+  tok_per_sec: null
+  note: 4-GPU balanced, chunked bucketed batching; wall = slowest shard
+predictions_ref: local:///root/eval_predictions_fast
+gate:
+  verdict: PASS
+  checks:
+  - name: overall
+    curr: 92.33671886209747
+    prev: 91.97171139881544
+    delta: 0.3650074632820264
+    passed: true
+  - name: text_edit_dist
+    curr: 0.08785513503958509
+    prev: 0.0938606221753525
+    delta: 0.006005487135767415
+    passed: true
+  - name: formula_cdm
+    curr: 0.9589528623364809
+    prev: 0.9572245449538669
+    delta: 0.0017283173826140308
+    passed: true
+  - name: table_teds
+    curr: 0.8990038385660278
+    prev: 0.8957874191859493
+    delta: 0.00321641938007855
+    passed: true
+  - name: table_teds_s
+    curr: 0.9317896817779904
+    prev: 0.9283311905634493
+    delta: 0.003458491214541115
+    passed: true
+  - name: reading_order_edit
+    curr: 0.14555705460620855
+    prev: 0.14491684234152113
+    delta: -0.000640212264687412
+    passed: true
+compared_against: pytorch-v1.6-142da29774 (Overall 91.97, torch 2.5.1+rocm6.2)
