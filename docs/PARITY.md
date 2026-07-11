@@ -2,28 +2,30 @@
 
 > Accuracy parity of Unlimited-OCR-ROCm vs the **NVIDIA reference** run of Baidu Unlimited-OCR on the OmniDocBench standard benchmark, scored on both **v1.5** and **v1.6**.
 >
-> **Backend note (updated 2026-07-11):** The headline figure is the **PyTorch (`model.infer`) backend** — the verified aligned reference, run via the **fast path** (bucketed batching, pinned weights) for the 92.436 result. The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md).
+> **Backend note (updated 2026-07-11):** The headline figure is the **PyTorch (`model.infer`) backend** — the verified aligned reference, run via the **fast path** (bucketed batching, pinned weights) for the 92.431 result. The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md).
 
 ## Headline — honest, controlled measurement (updated 2026-07-11)
 
-**Overall (v1.6): 92.436** — the **fast path** (bucketed batching, pinned weights `84757cb0`, `torch 2.10.0+rocm7.0`, 4× AMD gfx1100, gundam, BF16), full 1,651-page OmniDocBench v1.6, gate **PASS**. This is up **+0.465** from the prior 91.971 baseline (`torch 2.5.1+rocm6.2`, unpinned-direct), with **all six modules ≥ baseline**. The +0.099 over the pre-`decode_bpe`-fix 92.337 is the postprocess fix correcting accent/symbol corruption on 390/1,651 pages. Manifest: [`eval/results/pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml`](../eval/results/pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml).
+**Overall (v1.6): 92.431** — the **fast path** (bucketed batching, pinned weights `84757cb0`, `torch 2.10.0+rocm7.0`, 4× AMD gfx1100, gundam, BF16), full 1,651-page OmniDocBench v1.6, gate **PASS**. This is up **+0.465** from the prior 91.971 baseline (`torch 2.5.1+rocm6.2`, unpinned-direct), with **all six modules ≥ baseline**. The +0.099 over the pre-`decode_bpe`-fix 92.337 is the postprocess fix correcting accent/symbol corruption on 390/1,651 pages. Manifest: [`eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml`](../eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml).
 
-| Module | Metric | Fast path (92.436) | Prior baseline (91.97) | Baidu paper |
+> **Overall follows the official leaderboard 口径** (`generate_result_tables.ipynb` cell 2): the three columns are rounded to 3 decimals before Overall = ((1−Text)×100 + CDM + TEDS)/3; the scorer's raw overall_notebook is 92.436.
+
+| Module | Metric | Fast path (92.431) | Prior baseline (91.97) | Baidu paper |
 |--------|--------|------------------:|----------------------:|------------:|
-| text_block | Edit_dist ↓ | **0.0868** | 0.0939 | 0.042 |
-| display_formula | CDM ↑ | **0.9583** | 0.9572 | 95.79 |
-| table | TEDS ↑ | **0.9016** | 0.8958 | 90.16 |
+| text_block | Edit_dist ↓ | **0.087** | 0.0939 | 0.042 |
+| display_formula | CDM ↑ | **95.831** | 0.9572 | 95.79 |
+| table | TEDS ↑ | **90.162** | 0.8958 | 90.16 |
 | table | TEDS-S ↑ | **0.9330** | 0.9283 | 93.32 |
 | reading_order | Edit_dist ↓ | **0.1442** | 0.1449 | 0.129 |
-| **composite** | **Overall ↑** | **92.436** | 91.971 | ~93.92 |
+| **composite** | **Overall ↑** | **92.431** | 91.971 | ~93.92 |
 
 The +0.465 gain is **environment + pinned weights + the `decode_bpe` postprocess fix, not batching luck**: the Task-8 identity gate confirmed fast ≈ direct on the same env (Overall Δ=0.0 exact post-fix — the earlier apparent 4/30-page single-accented-char divergence was the `decode_bpe` bug, now fixed; the only residual byte-differences are trailing newlines, zero EditDist impact), so the batched and per-page paths produce identical-quality output; the lift over 91.97 comes from the newer torch/ROCm stack, pinning weights to revision `84757cb0`, and the `decode_bpe` fix.
 
-**Baidu self-reports ~93.92** on v1.6 (paper Table 1) — a number **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. The gap is now **~1.48** (was ~1.95, then ~1.58) and is **~entirely Text EditDist**.
+**Baidu self-reports ~93.92** on v1.6 (paper Table 1) — a number **not on the OmniDocBench leaderboard and not independently reproduced** by anyone. The gap is now **~1.49** (was ~1.95, then ~1.58) and is **~entirely Text EditDist**.
 
 ### Realistic ceiling — and why it isn't 93.92
 
-A lossless ceiling analysis ([`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md)) puts the realistic lossless ceiling at **~92.5–93.0 Overall**. Our **92.436 is within ~0.06–0.56 of that ceiling** (essentially at ceiling). The remaining ~1.48 gap to Baidu's 93.92 decomposes as:
+A lossless ceiling analysis ([`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md)) puts the realistic lossless ceiling at **~92.5–93.0 Overall**. Our **92.431 is within ~0.07–0.57 of that ceiling** (essentially at ceiling). The remaining ~1.49 gap to Baidu's 93.92 decomposes as:
 
 | Share of the text-EditDist mass | Category | Closable? |
 |---:|---|---|
@@ -44,7 +46,7 @@ The closable portion totals **~+0.5 Overall pts** — not enough to reach 93.92.
 
 > Note (2026-06): `gundam` is the model's best-accuracy image mode (a `base`-mode run scored 88.78 — lower; base resizes full pages to 1024px). Sections below the fold retain earlier (partly-superseded) analysis; the headline above + the attribution reports are authoritative.
 
-> **Superseded:** the 2026-07-06 headline (Overall 91.97, ~1.95 gap) is superseded by the 92.436 fast-path result above. The 91.97 figure remains valid as the prior baseline (`torch 2.5.1+rocm6.2`, manifest `pytorch-v1.6-142da29774__2026-07-05`); the gap analysis in [`parity/attribution-2026-07-05.md`](parity/attribution-2026-07-05.md) is superseded by the finer-grained [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
+> **Superseded:** the 2026-07-06 headline (Overall 91.97, ~1.95 gap) is superseded by the 92.431 fast-path result above. The 91.97 figure remains valid as the prior baseline (`torch 2.5.1+rocm6.2`, manifest `pytorch-v1.6-142da29774__2026-07-05`); the gap analysis in [`parity/attribution-2026-07-05.md`](parity/attribution-2026-07-05.md) is superseded by the finer-grained [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
 
 ## 2026-07-03 re-measurement (fresh host, this session)
 
@@ -72,16 +74,16 @@ Overall = ((1 − Text EditDist) × 100 + Table TEDS + Formula CDM) / 3
 
 ## Measured results — AMD ROCm (gfx1100 / W7900-class)
 
-**Current (fast path, pinned weights, 2026-07-11):** `baidu/Unlimited-OCR`, BF16, weights rev `84757cb0`, **gundam** image mode, `torch 2.10.0+rocm7.0`, bucketed-batching fast path, on OmniDocBench **v1.6** (1,651 pages), official scorer. Manifest: [`pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml`](../eval/results/pytorch-v1.6-fast-postfix__f358377450__2026-07-11.yaml).
+**Current (fast path, pinned weights, 2026-07-11):** `baidu/Unlimited-OCR`, BF16, weights rev `84757cb0`, **gundam** image mode, `torch 2.10.0+rocm7.0`, bucketed-batching fast path, on OmniDocBench **v1.6** (1,651 pages), official scorer. Manifest: [`pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml`](../eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml).
 
 | Module | Metric | AMD ROCm result (fast) |
 |--------|--------|----------------:|
-| text_block | Edit_dist ↓ | **0.0868** (≈ 91.3% text accuracy) |
-| table | TEDS ↑ | **0.9016** |
+| text_block | Edit_dist ↓ | **0.087** (≈ 91.3% text accuracy) |
+| table | TEDS ↑ | **90.162** |
 | table | TEDS_structure_only ↑ | **0.9330** |
 | reading_order | Edit_dist ↓ | **0.1442** (≈ 85.6%) |
-| display_formula | CDM ↑ | **0.9583** (95.8% formula image-F1) |
-| **Overall** | composite | **92.436** |
+| display_formula | CDM ↑ | **95.831** (95.8% formula image-F1) |
+| **Overall** | composite | **92.431** |
 
 > The direct per-page path (`model.infer`) on this env matches the fast path exactly (Task-8 identity gate, PASS, post-`decode_bpe`-fix Δ=0.0 — the only byte-differences are trailing newlines, zero EditDist impact) — they are equivalent for accuracy; the fast path is the throughput-optimized entry point.
 
@@ -116,7 +118,7 @@ Where Unlimited-OCR sits on the official OmniDocBench v1.6 leaderboard. This is 
 | Unlimited-OCR | ~93.92 | self-reported in Baidu's paper; ~5th on the board — not SOTA |
 | DeepSeek-OCR-2 | 90.25 | DeepSeek-OCR ≠ Unlimited-OCR (different companies) |
 | Marker | 78.44 | |
-| **Unlimited-OCR-ROCm (this project)** | **92.436** | AMD gfx1100, fast path, pinned weights, gundam mode. ~1.48 below self-report 93.92 — overwhelmingly inline-math LaTeX style + dense-page divergence (mostly inherent; see [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md)). Base mode scored 88.78 (lower). |
+| **Unlimited-OCR-ROCm (this project)** | **92.431** | AMD gfx1100, fast path, pinned weights, gundam mode. ~1.49 below self-report 93.92 — overwhelmingly inline-math LaTeX style + dense-page divergence (mostly inherent; see [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md)). Base mode scored 88.78 (lower). |
 
 _Source: official OmniDocBench v1.6 leaderboard._
 
@@ -163,7 +165,7 @@ _Source: official OmniDocBench v1.6 leaderboard._
 
 ## Honest scope
 
-All module numbers in the headline table are **measured** (AMD ROCm gfx1100, 2026-07-11, full 1,651-page v1.6 run, CDM toolchain installed and working). The 92.436 is a real, reproducible, gate-PASS number with a committed manifest.
+All module numbers in the headline table are **measured** (AMD ROCm gfx1100, 2026-07-11, full 1,651-page v1.6 run, CDM toolchain installed and working). The 92.431 is a real, reproducible, gate-PASS number with a committed manifest.
 
 ## v1.5 results (gundam, reuse v1.6 preds, v1.5 GT)
 
@@ -196,4 +198,4 @@ OmniDocBench v1.5 (1,355 pages) — predictions reused from the v1.6 gundam run 
 | failure_tail (EditDist ≥0.5) | 48 (3.1%) — 24.6% of mass; **only 1 of 48 is pure looping** |
 | Formula CDM | **95.83% vs paper 95.79%** — model recognizes math correctly |
 
-**Conclusion:** The model is correct on 62.8% of pages; the gap lives in the 37% non-good tail (93.2% of the EditDist mass) and is ~35% inherent inline-math LaTeX style + ~25% genuine recognition limits + ~25% dense-layout divergence + ~15% format/spacing. The closable portion is ~+0.5 Overall pts, putting **92.436 within ~0.06–0.56 of the realistic ~92.5–93.0 ceiling** (essentially at ceiling). Full per-page decomposition + category examples: [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
+**Conclusion:** The model is correct on 62.8% of pages; the gap lives in the 37% non-good tail (93.2% of the EditDist mass) and is ~35% inherent inline-math LaTeX style + ~25% genuine recognition limits + ~25% dense-layout divergence + ~15% format/spacing. The closable portion is ~+0.5 Overall pts, putting **92.431 within ~0.07–0.57 of the realistic ~92.5–93.0 ceiling** (essentially at ceiling). Full per-page decomposition + category examples: [`parity/moderate-tail-attribution-2026-07-11.md`](parity/moderate-tail-attribution-2026-07-11.md).
