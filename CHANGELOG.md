@@ -12,7 +12,7 @@
   `scripts/run_identity_gate.py`) for frozen-accuracy enforcement of the speed core.
 
 ### Changed
-- OmniDocBench v1.6 Overall **92.436** (fast path, pinned weights `84757cb0`,
+- OmniDocBench v1.6 Overall **92.431** (fast path, pinned weights `84757cb0`,
   `torch 2.10.0+rocm7.0`, gundam, BF16, 4× gfx1100; +0.465 vs the 91.97 baseline,
   gate PASS). Post-`decode_bpe`-fix final number (the fix recovered +0.099 Overall
   by correcting accent/symbol corruption on 390/1,651 pages).
