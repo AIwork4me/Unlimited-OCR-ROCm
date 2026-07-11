@@ -87,6 +87,16 @@ def run_gate(
     """
     from rocm_ocr.omnidocbench import run_scorer  # noqa: PLC0415
 
+    # The official OmniDocBench scorer hardcodes its result dir as ``./result``
+    # relative to the repo CWD (see OmniDocBench src/core/pipeline_eval.py:
+    # ``os.makedirs("./result")`` + ``./result/{save_name}_*.json``) and derives
+    # ``save_name`` from the prediction-dir basename via ``build_save_name``
+    # (``os.path.basename(pred_dir) + "_" + match_method``). It exposes NO config
+    # option to redirect that dir, so results always land under
+    # ``<omnidocbench_repo>/result/``. We must read them from there — passing
+    # ``work_dir`` finds nothing and silently produces a false PASS (delta=None).
+    scorer_result_dir = str(Path(omnidocbench_repo) / "result")
+
     summaries: dict[str, dict] = {}
     for label, pred_dir in [("reference", reference_pred_dir), ("candidate", candidate_pred_dir)]:
         cfg = write_eval_config(
@@ -95,8 +105,9 @@ def run_gate(
             out_path=str(Path(work_dir) / f"gate_{label}.yaml"),
         )
         run_scorer(omnidocbench_repo=omnidocbench_repo, config_path=cfg, python=scorer_python)
-        save_name = f"gate_{label}_quick_match"
-        summaries[label] = parse_run_summary(work_dir, save_name)
+        # save_name must match OmniDocBench's build_save_name: pred-dir basename + _quick_match.
+        save_name = f"{Path(pred_dir).name}_quick_match"
+        summaries[label] = parse_run_summary(scorer_result_dir, save_name)
 
     ref_ov = summaries["reference"].get("overall")
     cand_ov = summaries["candidate"].get("overall")
@@ -105,7 +116,18 @@ def run_gate(
     # The identity gate uses two-sided |Δ| via decide, distinct from
     # gate.evaluate's one-sided release-regression semantics.
     verdict = decide(delta)
-    logger.info("identity gate: ref=%.4f cand=%.4f Δ=%.4f changed=%d -> %s",
-                ref_ov or 0.0, cand_ov or 0.0, delta if delta is not None else 0.0, changed, verdict)
-    return {"overall_delta": delta, "changed_pages": changed, "verdict": verdict,
-            "reference_overall": ref_ov, "candidate_overall": cand_ov}
+    logger.info(
+        "identity gate: ref=%.4f cand=%.4f Δ=%.4f changed=%d -> %s",
+        ref_ov or 0.0,
+        cand_ov or 0.0,
+        delta if delta is not None else 0.0,
+        changed,
+        verdict,
+    )
+    return {
+        "overall_delta": delta,
+        "changed_pages": changed,
+        "verdict": verdict,
+        "reference_overall": ref_ov,
+        "candidate_overall": cand_ov,
+    }
