@@ -13,6 +13,7 @@ Env (override per GPU):
 Guarded with `if __name__ == "__main__"` for multiprocessing spawn safety.
 Run as a BACKGROUND task: /root/vllm-venv/bin/python scripts/vllm_server.py
 """
+
 import os
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -26,26 +27,36 @@ REPO_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
     import uvloop
-    from vllm.utils.argparse_utils import FlexibleArgumentParser
-    from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
     from vllm.entrypoints.openai.api_server import run_server
+    from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
+    from vllm.utils.argparse_utils import FlexibleArgumentParser
 
     parser = make_arg_parser(FlexibleArgumentParser())
-    args = parser.parse_args([
-        MODEL,
-        "--trust-remote-code",
-        "--served-model-name", "baidu/Unlimited-OCR",
-        "--logits-processors", "vllm.model_executor.models.unlimited_ocr:NGramPerReqLogitsProcessor",
-        "--no-enable-prefix-caching",
-        "--mm-processor-cache-gb", "0",
-        "--gpu-memory-utilization", GPU_MEM,
-        "--max-model-len", "32768",
-        "--port", str(PORT),
-        "--host", "0.0.0.0",
-        "--enforce-eager",
-        "--chat-template", os.path.join(REPO_DIR, "configs", "chat_template.jinja"),
-        "--trust-request-chat-template",
-    ])
+    args = parser.parse_args(
+        [
+            MODEL,
+            "--trust-remote-code",
+            "--served-model-name",
+            "baidu/Unlimited-OCR",
+            "--logits-processors",
+            "vllm.model_executor.models.unlimited_ocr:NGramPerReqLogitsProcessor",
+            "--no-enable-prefix-caching",
+            "--mm-processor-cache-gb",
+            "0",
+            "--gpu-memory-utilization",
+            GPU_MEM,
+            "--max-model-len",
+            "32768",
+            "--port",
+            str(PORT),
+            "--host",
+            "0.0.0.0",
+            "--enforce-eager",
+            "--chat-template",
+            os.path.join(REPO_DIR, "configs", "chat_template.jinja"),
+            "--trust-request-chat-template",
+        ]
+    )
     if getattr(args, "model_tag", None) is not None:
         args.model = args.model_tag
     validate_parsed_serve_args(args)

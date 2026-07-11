@@ -12,6 +12,7 @@ Usage:
       --dir-a /tmp/vllm_smoke --dir-b eval_predictions_v16 \
       [--stems-json /workspace/OmniDocBench_data/OmniDocBench_30.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -125,7 +126,7 @@ def main() -> None:
     worst = sorted(res["per_page"], key=lambda p: p["edit"], reverse=True)[:10]
     print("top-10 divergent pages:", json.dumps(worst, indent=2))
     eos = empty_page_analysis(args.dir_a, args.dir_b, stems)
-    print("eos analysis:", json.dumps({k: v for k, v in eos.items()}, indent=2))
+    print("eos analysis:", json.dumps(dict(eos.items()), indent=2))
 
 
 if __name__ == "__main__":

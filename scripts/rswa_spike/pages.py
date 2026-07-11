@@ -1,5 +1,7 @@
 """Page-id sets + image resolver for the R-SWA spike (Phase 0 / Phase 2)."""
+
 from __future__ import annotations
+
 from pathlib import Path
 
 IMG_DIR = Path("/workspace/OmniDocBench_data/images")

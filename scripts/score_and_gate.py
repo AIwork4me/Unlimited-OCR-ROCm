@@ -10,6 +10,7 @@ the PyTorch manifest as ``prev`` and records ``compared_against`` +
 ``cross_backend: true`` via build_manifest's ``extra`` (the existing Jul5-vs-Jul3
 ``compared_against`` pattern, now cross-backend).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-from rocm_ocr import eval_manifest as em
+from rocm_ocr import eval_manifest as em  # noqa: F401  exposed for tests/test_score_and_gate.py
 from rocm_ocr.eval_manifest import build_manifest, write_manifest
 from rocm_ocr.gate import evaluate
 from rocm_ocr.omnidocbench import parse_run_summary, run_scorer, write_eval_config
@@ -33,9 +34,16 @@ def _gate_to_dict(result) -> dict:
             for c in result.checks
         ],
         "speed": (
-            {"name": result.speed.name, "curr": result.speed.curr, "prev": result.speed.prev,
-             "delta": result.speed.delta, "passed": result.speed.passed, "note": result.speed.note}
-            if result.speed is not None else None
+            {
+                "name": result.speed.name,
+                "curr": result.speed.curr,
+                "prev": result.speed.prev,
+                "delta": result.speed.delta,
+                "passed": result.speed.passed,
+                "note": result.speed.note,
+            }
+            if result.speed is not None
+            else None
         ),
         "override": result.override,
         "authoritative": True,
@@ -57,9 +65,13 @@ def build_scored_manifest(
     """Parse scorer results, gate vs the reference manifest, return a vLLM manifest."""
     metrics = parse_run_summary(result_dir, save_name)
     vllm_manifest = build_manifest(
-        metrics=metrics, model=model, dataset=dataset,
-        predictions_ref=predictions_ref, timing=timing,
-        repo=repo, backend=backend,
+        metrics=metrics,
+        model=model,
+        dataset=dataset,
+        predictions_ref=predictions_ref,
+        timing=timing,
+        repo=repo,
+        backend=backend,
     )
     with open(reference_manifest, encoding="utf-8") as f:
         ref = yaml.safe_load(f)
@@ -88,13 +100,21 @@ def main() -> None:
     args = ap.parse_args()
 
     save_name = f"{os.path.basename(os.path.normpath(args.pred_dir))}_quick_match"
-    model = {"id": args.model_id, "weights_revision": args.weights_revision, "dtype": "bfloat16",
-             "image_mode": "gundam", "no_repeat_ngram_size": 35, "ngram_window": 128, "max_length": 32768}
+    model = {
+        "id": args.model_id,
+        "weights_revision": args.weights_revision,
+        "dtype": "bfloat16",
+        "image_mode": "gundam",
+        "no_repeat_ngram_size": 35,
+        "ngram_window": 128,
+        "max_length": 32768,
+    }
     dataset = {"version": args.version}
 
     if not args.skip_scorer:
         cfg = write_eval_config(
-            gt_json=args.gt_json, pred_dir=args.pred_dir,
+            gt_json=args.gt_json,
+            pred_dir=args.pred_dir,
             out_path=str(Path(args.omnidocbench_repo) / "configs" / "end2end.yaml"),
             include_cdm=True,
         )
@@ -104,16 +124,28 @@ def main() -> None:
             print(proc.stderr[-2000:])
 
     manifest = build_scored_manifest(
-        result_dir=args.result_dir, save_name=save_name,
+        result_dir=args.result_dir,
+        save_name=save_name,
         reference_manifest=args.reference_manifest,
-        model=model, dataset=dataset, timing={"backend": args.backend},
-        predictions_ref=f"local://{os.path.abspath(args.pred_dir)}", repo=args.repo, backend=args.backend,
+        model=model,
+        dataset=dataset,
+        timing={"backend": args.backend},
+        predictions_ref=f"local://{os.path.abspath(args.pred_dir)}",
+        repo=args.repo,
+        backend=args.backend,
     )
     out = args.out_manifest
     write_manifest(manifest, out)
-    print(json.dumps({"verdict": manifest["gate"]["verdict"],
-                      "overall": manifest["metrics"].get("overall"),
-                      "compared_against": manifest["compared_against"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "verdict": manifest["gate"]["verdict"],
+                "overall": manifest["metrics"].get("overall"),
+                "compared_against": manifest["compared_against"],
+            },
+            indent=2,
+        )
+    )
     print(f"manifest written: {out}")
 
 

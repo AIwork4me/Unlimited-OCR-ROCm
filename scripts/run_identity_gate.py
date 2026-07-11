@@ -10,6 +10,7 @@ Usage:
       --scorer-python /root/ocr-eval/OmniDocBench/.venv/bin/python \
       --work-dir /tmp/gate_run
 """
+
 from __future__ import annotations
 
 import argparse

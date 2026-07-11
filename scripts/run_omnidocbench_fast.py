@@ -12,6 +12,7 @@ skipped, so an interrupted run can be resumed by re-invoking with the same args.
 This bounds peak CPU memory to a single chunk (not the whole page list) and
 limits the blast radius of a crash to the in-flight chunk.
 """
+
 from __future__ import annotations
 
 import argparse

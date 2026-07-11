@@ -98,6 +98,7 @@ def main() -> None:
     # this entirely for control/baseline runs. See spec: 2026-07-06-targeted-looping-fix.
     if not args.no_retry:
         from rocm_ocr.repetition_fix import apply_repetition_fix, is_looping_output
+
         repetition_config = apply_repetition_fix(
             model,
             repetition_penalty=1.0,  # no-op for default path
@@ -172,6 +173,7 @@ def main() -> None:
                 Path(out_md).write_text(text, encoding="utf-8")
             else:
                 import shutil
+
                 src = os.path.join(tmp, "result.md")
                 if os.path.exists(src):
                     shutil.move(src, out_md)
