@@ -17,7 +17,26 @@
     "model": {"type": "object"},
     "dataset": {"type": "object"},
     "env": {"type": "object"},
-    "timing": {"type": "object"},
+    "timing": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "backend": {"type": "string"},
+        "page_count": {"type": "number"},
+        "wall_s": {"type": "number"},
+        "pages_per_sec": {"type": "number"},
+        "tok_per_sec": {"type": ["number", "null"]},
+        "mean_total_ms": {"type": "number"},
+        "mean_load_ms": {"type": "number"},
+        "mean_preprocess_ms": {"type": "number"},
+        "mean_vision_prefill_ms": {"type": "number"},
+        "mean_decode_ms": {"type": "number"},
+        "mean_postprocess_ms": {"type": "number"},
+        "peak_vram_mb": {"type": "number"},
+        "gpu_util_pct": {"type": "number"},
+        "speedup_vs_baseline": {"type": "number"}
+      }
+    },
     "predictions_ref": {"type": "string"},
     "compared_against": {"type": ["string", "null"]},
     "metrics": {

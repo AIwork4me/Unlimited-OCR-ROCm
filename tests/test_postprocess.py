@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rocm_ocr.postprocess import decode_bpe, postprocess_ocr_output
+from rocm_ocr.postprocess import decode_bpe, postprocess_ocr_output, postprocess_tags
 
 
 def test_decode_bpe_ascii_passthrough() -> None:
@@ -59,3 +59,24 @@ def test_postprocess_coloneqq_replacement() -> None:
     raw = "a<|det|>table [1,2,3]<|/det|>b\\coloneqq c"
     out = postprocess_ocr_output(raw)
     assert out == "ab:= c"
+
+
+def test_postprocess_tags_preserves_accented_chars() -> None:
+    # postprocess_tags must NOT run decode_bpe: it would corrupt the Latin-1
+    # supplement (café → caf�, Österreich → �sterreich). This is the PyTorch
+    # path where HF tokenizer.decode already gave correct UTF-8.
+    assert postprocess_tags("café résumé naïve") == "café résumé naïve"
+    assert postprocess_tags("Österreich") == "Österreich"
+    assert postprocess_tags("42 ÷ 7 = 6 · 3° = ±µ") == "42 ÷ 7 = 6 · 3° = ±µ"
+
+
+def test_postprocess_tags_strips_eos_and_det_tags() -> None:
+    # postprocess_tags still strips the EOS stop + detection tags — same tag
+    # transforms as postprocess_ocr_output, just without the decode_bpe step.
+    text = "café<｜end▁of▁sentence｜>"
+    assert postprocess_tags(text) == "café"
+    text2 = "see<|ref|>image<|/ref|><|det|>image [[0,0,100,100]]<|/det|> café"
+    out = postprocess_tags(text2)
+    assert "![](images/0.jpg)" in out
+    assert "<|det|>" not in out
+    assert "café" in out  # accented char survives
