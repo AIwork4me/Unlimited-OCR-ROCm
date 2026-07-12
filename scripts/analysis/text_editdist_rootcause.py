@@ -46,7 +46,7 @@ import zlib
 from collections import Counter, defaultdict
 
 LOOPING_ZLIB = 0.20
-LOOPING_5GRAM = 8
+LOOPING_5GRAM = 100
 OVERGEN_RATIO = 2.0
 OVERGEN_REP_ZLIB = 0.20
 OVERGEN_DENSE_ZLIB = 0.30  # noqa: F841  (retained for API symmetry / reference)

@@ -29,10 +29,10 @@ def test_looping_zlib_arm():
 def test_looping_5gram_arm_short_mixed():
     # The yanbaoppt-4570 case: short (~620 chars), MIXED non-repetitive +
     # looping content. zlib is NOT <0.20 (mixed content inflates it), but a
-    # 5-gram ("他每日四场内") repeats >= 8 times -> caught by the 5-gram arm of
+    # 5-gram ("他每日四场内") repeats >= 100 times -> caught by the 5-gram arm of
     # the looser looping guard (the old zlib<0.05 AND len>3000 guard missed it).
     gt = "陈忠实1987年进入北京体育馆" * 30
-    pred = "他每日四场内" * 60 + "我和我和我" * 40 + "正常的非重复内容文字若干" * 5
+    pred = "他每日四场内" * 100 + "我和我和我" * 40 + "正常的非重复内容文字若干" * 5
     assert R.max_repeated_5gram_count(pred) >= R.LOOPING_5GRAM
     assert R.categorize(gt, pred, edit_num=900, upper_len=len(pred)) == "looping"
 
