@@ -16,6 +16,7 @@ limits the blast radius of a crash to the in-flight chunk.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import time
 from pathlib import Path
@@ -26,6 +27,8 @@ from rocm_ocr.engine import infer_batch_async
 from rocm_ocr.eval_manifest import build_manifest, manifest_filename, write_manifest
 from rocm_ocr.omnidocbench import derive_prediction_filename
 from rocm_ocr.weights import load_model_pinned, resolve_revision
+
+logger = logging.getLogger(__name__)
 
 
 def select_todo_images(all_images: list[str], pred_dir: str) -> list[str]:

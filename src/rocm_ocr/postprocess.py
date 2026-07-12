@@ -22,6 +22,14 @@ EOS_STOP = "<｜end▁of▁sentence｜>"
 _REF_PATTERN = r"(<\|ref\|>(.*?)<\|/ref\|><\|det\|>(.*?)<\|/det\|>)"
 _DET_PATTERN = r"(<\|det\|>\s*([A-Za-z_][\w-]*)\s*(\[[^\]]+\])\s*<\|/det\|>)"
 
+# The model's non-text-region marker. The raw generation emits ``[Non-Text]``
+# (sometimes ``[Non- Text]``); the official scorer's ``clean_string`` strips
+# brackets/hyphen/space (``re.sub(r'[^\w一-鿿]', '', ...)``) so the
+# marker survives normalization as the literal ``NonText``, polluting EditDist
+# on pages with figures/whitespace regions. Match the raw bracketed form
+# (optional internal space) and the bare post-normalization token.
+_NONTEXT_RE = re.compile(r"\[\s*Non[\s-]*Text\s*\]|NonText")
+
 
 def _bpe_bytes_to_unicode() -> dict[str, int]:
     """GPT-2 byte->unicode mapping (reversible). Returns {byte_char_str: byte_int}."""
@@ -76,6 +84,23 @@ def _re_match(text: str) -> tuple[list[str], list[str]]:
     return images, others
 
 
+def strip_nontext(text: str) -> str:
+    """Remove the model's ``[Non-Text]`` non-text-region markers.
+
+    Unlimited-OCR emits ``[Non-Text]`` (occasionally ``[Non- Text]``) for image
+    / figure / whitespace regions that contain no text. These are layout
+    annotations, not content, but the official scorer's ``clean_string``
+    normalization strips only brackets/hyphen/space — collapsing the marker to
+    the literal ``NonText`` and counting every occurrence as edit-distance
+    pollution against the (correct) text-only GT.
+
+    This helper removes both the raw bracketed form and the bare ``NonText``
+    token (so it is also safe to run on already-normalized text). Text without
+    the marker is returned unchanged.
+    """
+    return _NONTEXT_RE.sub("", text)
+
+
 def postprocess_tags(text: str) -> str:
     """Apply ``model.infer``'s output transforms to *already-UTF-8* text.
 
@@ -97,6 +122,9 @@ def postprocess_tags(text: str) -> str:
         text = text.replace(span, f"![](images/{idx}.jpg)\n")
     for span in others:
         text = text.replace(span, "").replace("\\coloneqq", ":=").replace("\\eqqcolon", "=:")
+    # Strip the model's [Non-Text] non-text-region markers (not real content;
+    # they pollute EditDist after the scorer's clean_string normalization).
+    text = strip_nontext(text)
     return text
 
 

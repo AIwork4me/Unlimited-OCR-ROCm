@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rocm_ocr.postprocess import decode_bpe, postprocess_ocr_output, postprocess_tags
+from rocm_ocr.postprocess import decode_bpe, postprocess_ocr_output, postprocess_tags, strip_nontext
 
 
 def test_decode_bpe_ascii_passthrough() -> None:
@@ -80,3 +80,38 @@ def test_postprocess_tags_strips_eos_and_det_tags() -> None:
     assert "![](images/0.jpg)" in out
     assert "<|det|>" not in out
     assert "café" in out  # accented char survives
+
+
+def test_strip_nontext_bare_token() -> None:
+    # The task's canonical case: bare NonText tokens (post-normalization form)
+    # are removed; surrounding text is concatenated.
+    assert strip_nontext("fooNonTextNonTextbar") == "foobar"
+
+
+def test_strip_nontext_raw_bracketed_marker() -> None:
+    # The raw model generation emits [Non-Text] for non-text regions.
+    assert strip_nontext("hello [Non-Text] world") == "hello  world"
+    assert strip_nontext("[Non-Text][Non-Text]") == ""
+
+
+def test_strip_nontext_internal_space_variant() -> None:
+    # The model occasionally emits [Non- Text] with an internal space.
+    assert strip_nontext("a[Non- Text]b") == "ab"
+
+
+def test_strip_nontext_preserves_normal_text() -> None:
+    # Text without the marker is unchanged — including text that merely
+    # contains "Text" or "Non" as substrings of real words.
+    assert strip_nontext("This is a Nonlinear Textbook") == "This is a Nonlinear Textbook"
+    assert strip_nontext("Plain content with no markers.") == "Plain content with no markers."
+    assert strip_nontext("") == ""
+
+
+def test_postprocess_tags_strips_nontext() -> None:
+    # postprocess_tags applies strip_nontext as a final cleanup, so [Non-Text]
+    # markers in model output are removed on the engine path.
+    out = postprocess_tags("real text\n[Non-Text]\nmore text")
+    assert "Non-Text" not in out
+    assert "NonText" not in out
+    assert "real text" in out
+    assert "more text" in out
