@@ -1,0 +1,90 @@
+schema: unlimited-ocr-rocm/eval-manifest/v1
+backend: pytorch-batched
+timestamp: '2026-07-12T05:19:41+00:00'
+started_at: '2026-07-12T05:19:41+00:00'
+ended_at: '2026-07-12T05:19:41+00:00'
+run_by: aiwork4me
+git:
+  commit: 44648663469e305f641fb7a59a5c0101c6be518f
+  short: '4464866346'
+  dirty: true
+  branch: feat/text-editdist-rootcause
+  tag: null
+model:
+  id: baidu/Unlimited-OCR
+  weights_revision: 84757cb0
+  dtype: bfloat16
+  image_mode: gundam
+  no_repeat_ngram_size: 35
+  ngram_window: 128
+  max_length: 32768
+dataset:
+  version: v1.6
+env:
+  python: 3.12.3
+  platform: Linux-6.8.0-79-generic-x86_64-with-glibc2.39
+  host: u-20-8d823edc
+  torch: 2.9.1+gitff65f5b
+  hip: 7.2.53211-e1a6bc5663
+  gpus:
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+  - AMD Radeon Graphics
+hardware_fingerprint: AMDx4
+metrics:
+  overall: 92.45063739038687
+  text_edit_dist: 0.0870013285994796
+  formula_cdm: 0.9583064662061438
+  table_teds: 0.9022139841049417
+  table_teds_s: 0.9338387237042436
+  reading_order_edit: 0.1435344245500917
+timing:
+  backend: pytorch-batched
+  page_count: 1651
+  wall_s: 0
+  pages_per_sec: 0
+  tok_per_sec: null
+  note: NonText-only re-score (looping retry reverted, strip_nontext applied). Re-score
+    of existing predictions (workers=4); wall not re-measured (0 = not applicable).
+predictions_ref: local:///root/eval_predictions_fast
+gate:
+  verdict: PASS
+  checks:
+  - name: overall
+    curr: 92.45063739038687
+    prev: 92.43632982104525
+    delta: 0.014307569341625026
+    passed: true
+  - name: text_edit_dist
+    curr: 0.0870013285994796
+    prev: 0.08683691050279922
+    delta: -0.00016441809668037155
+    passed: true
+  - name: formula_cdm
+    curr: 0.9583064662061438
+    prev: 0.9583064662061438
+    delta: 0.0
+    passed: true
+  - name: table_teds
+    curr: 0.9022139841049417
+    prev: 0.9016203389280126
+    delta: 0.0005936451769290585
+    passed: true
+  - name: table_teds_s
+    curr: 0.9338387237042436
+    prev: 0.9330455880857805
+    delta: 0.0007931356184630589
+    passed: true
+  - name: reading_order_edit
+    curr: 0.1435344245500917
+    prev: 0.1442138430342486
+    delta: 0.000679418484156924
+    passed: true
+  speed: null
+  override: null
+  authoritative: true
+compared_against: f35837745032f92e47608d7db88ac07a4f26e20d
+note: 'NonText-only re-score: looping retry reverted (ngram=5 regressed +0.0017),
+  strip_nontext applied to all predictions. 3 retried pages regenerated with default
+  contract (ngram=35, window=128) to restore original looping output. See docs/parity/text-editdist-rootcause-2026-07-12.md.'
