@@ -16,6 +16,7 @@ limits the blast radius of a crash to the in-flight chunk.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import time
 from pathlib import Path
@@ -25,7 +26,20 @@ from rocm_ocr.benchmark import measure_run, reset_vram_counter
 from rocm_ocr.engine import infer_batch_async
 from rocm_ocr.eval_manifest import build_manifest, manifest_filename, write_manifest
 from rocm_ocr.omnidocbench import derive_prediction_filename
+from rocm_ocr.repetition_fix import apply_repetition_fix, is_looping_output
 from rocm_ocr.weights import load_model_pinned, resolve_revision
+
+logger = logging.getLogger(__name__)
+
+# The trusted, validated two-pass retry params (issue #55 comment,
+# 2026-07-06 report). ngram=5 + window=256 + repetition_penalty=1.05 catches
+# the ~3-5 looping pages; 98.6% of pages are byte-identical under these settings.
+RETRY_NO_REPEAT_NGRAM_SIZE = 5
+RETRY_NGRAM_WINDOW = 256
+RETRY_REPETITION_PENALTY = 1.05
+RETRY_BASE_SIZE = 1024
+RETRY_IMAGE_SIZE = 640
+RETRY_MAX_LENGTH = 32768
 
 
 def select_todo_images(all_images: list[str], pred_dir: str) -> list[str]:
@@ -47,6 +61,97 @@ def chunked(items: list[Any], size: int) -> list[list[Any]]:
     if size < 1:
         raise ValueError(f"chunk size must be >= 1, got {size}")
     return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def apply_looping_retry(
+    model: Any,
+    tok: Any,
+    image_to_text: dict[str, str],
+    *,
+    image_dir: str,
+    tmp_dir: str,
+) -> dict[str, dict]:
+    """Re-run pages whose prediction is runaway looping via the two-pass retry.
+
+    For each ``(image_path, current_text)`` in *image_to_text* whose *current_text*
+    is flagged by :func:`rocm_ocr.repetition_fix.is_looping_output`, re-runs
+    ``model.infer`` single-page with the validated issue-#55 params
+    (``no_repeat_ngram_size=5, ngram_window=256``) wrapped in
+    :func:`rocm_ocr.repetition_fix.apply_repetition_fix` (which injects
+    ``repetition_penalty=1.05``). The recovered text is read from
+    ``<tmp_dir>/result.md`` (the path ``model.infer`` writes when
+    ``save_results=True``). Pages that are NOT looping pass through unchanged.
+
+    Args:
+        model: the Unlimited-OCR model (already loaded + on GPU).
+        tok: the model's tokenizer.
+        image_to_text: ``{image_path: current_prediction_text}`` for every page
+            to check. Only looping pages are re-run.
+        image_dir: the OmniDocBench ``images/`` directory (used to resolve an
+            image filename when *image_to_text* keys are bare stems).
+        tmp_dir: scratch directory for ``model.infer``'s ``save_results`` output.
+
+    Returns:
+        ``{image_path: {"before": n, "after": n, "recovered": bool}}`` for each
+        looping page that was retried. Good pages are absent from the result.
+    """
+    config = apply_repetition_fix(model, repetition_penalty=1.0)
+    os.makedirs(tmp_dir, exist_ok=True)
+    report: dict[str, dict] = {}
+    for image_path, text in image_to_text.items():
+        if not is_looping_output(text):
+            continue
+        img = _resolve_image_path(image_path, image_dir)
+        before = len(text)
+        logger.info("[retry] looping page %s (%d chars) -> retrying", img, before)
+        # Clean the retry scratch so result.md is unambiguously this page's.
+        result_md = Path(tmp_dir, "result.md")
+        if result_md.exists():
+            result_md.unlink()
+        with config(penalty=RETRY_REPETITION_PENALTY):
+            model.infer(
+                tok,
+                prompt="<image>document parsing.",
+                image_file=img,
+                output_path=tmp_dir,
+                base_size=RETRY_BASE_SIZE,
+                image_size=RETRY_IMAGE_SIZE,
+                crop_mode=True,
+                max_length=RETRY_MAX_LENGTH,
+                no_repeat_ngram_size=RETRY_NO_REPEAT_NGRAM_SIZE,
+                ngram_window=RETRY_NGRAM_WINDOW,
+                save_results=True,
+            )
+        if not result_md.is_file():
+            logger.warning("[retry] %s: model.infer wrote no result.md; keeping original", img)
+            report[image_path] = {"before": before, "after": before, "recovered": False}
+            continue
+        recovered = result_md.read_text(encoding="utf-8")
+        image_to_text[image_path] = recovered
+        report[image_path] = {"before": before, "after": len(recovered), "recovered": True}
+        logger.info("[retry] %s: %d -> %d chars", img, before, len(recovered))
+    return report
+
+
+def _resolve_image_path(image_path: str, image_dir: str) -> str:
+    """Return *image_path* if it exists, else look it up under *image_dir*.
+
+    ``apply_looping_retry`` accepts either full image paths (preferred) or bare
+    stems (when called from a re-processing context that only has the prediction
+    filename). For a bare stem, the matching OmniDocBench image (any supported
+    extension) under *image_dir* is returned.
+    """
+    if os.path.isabs(image_path) and os.path.isfile(image_path):
+        return image_path
+    if os.path.isfile(image_path):
+        return image_path
+    # Bare stem: search image_dir for <stem>.<ext>.
+    stem = Path(image_path).stem
+    for candidate in Path(image_dir).iterdir():
+        if candidate.is_file() and candidate.stem == stem:
+            return str(candidate)
+    # Last resort: return as-is and let model.infer raise a clear error.
+    return image_path
 
 
 def main() -> None:
@@ -131,6 +236,31 @@ def main() -> None:
             flush=True,
         )
     wall = time.time() - t0
+
+    # Two-pass looping retry: re-read the just-written predictions, find pages
+    # whose output is runaway repetition, and re-run them single-page with the
+    # validated issue-#55 params (ngram=5, window=256, repetition_penalty=1.05).
+    image_to_text: dict[str, str] = {}
+    for img in todo:
+        md = Path(args.pred_dir, derive_prediction_filename(img))
+        if md.is_file():
+            image_to_text[img] = md.read_text(encoding="utf-8")
+    retry_report = apply_looping_retry(
+        model,
+        tok,
+        image_to_text,
+        image_dir=str(Path(args.omnidocbench_dir) / "images"),
+        tmp_dir=str(Path(args.pred_dir) / "_retry_tmp"),
+    )
+    for img, text in image_to_text.items():
+        if img in retry_report:
+            Path(args.pred_dir, derive_prediction_filename(img)).write_text(text, encoding="utf-8")
+    if retry_report:
+        retried = sum(1 for r in retry_report.values() if r["recovered"])
+        print(
+            f"[fast] looping retry: {len(retry_report)} pages flagged, {retried} recovered a non-looping output",
+            flush=True,
+        )
 
     timing = measure_run([], page_count=len(todo), wall_s=wall, total_tokens=0)
     if args.manifest_out:
