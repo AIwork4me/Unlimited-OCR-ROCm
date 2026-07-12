@@ -9,6 +9,33 @@ each category's contribution to the 0.087 mean is reported.
 
 Classification is evidence-based (zlib ratio, length ratio, LaTeX residual) --
 NOT the old heuristic.
+
+Category order (most specific / severe first); the first match wins:
+
+    good                  edit_ratio < GOOD_EDIT (0.05)
+    looping               pred_len > MIN_LEN_FOR_LONG (200) AND
+                          (zlib_ratio(norm_pred) < LOOPING_ZLIB (0.20) OR
+                           max_repeated_5gram_count(norm_pred) >= LOOPING_5GRAM (8))
+                          -- short/mixed degeneration caught by the 5-gram arm;
+                          the zlib arm catches dense long loops. The category
+                          NAME is unchanged from Task 2 but the guard is looser
+                          (was: zlib<0.05 AND len>3000).
+    nontext_pollution     norm_pred.count("NonText") >= NONTEXT_MIN (3)
+                          -- model emits literal "NonText" markers for non-text
+                          regions; strips/investigation can address it.
+    over_gen_repetitive   pred_len > OVERGEN_RATIO (2.0) * gt_len AND
+                          zlib_ratio < OVERGEN_REP_ZLIB (0.20)
+    over_gen_dense        pred_len > OVERGEN_RATIO (2.0) * gt_len AND
+                          zlib_ratio >= OVERGEN_REP_ZLIB (inherent dense text)
+    mild_over_generation  gt_len > MIN_GT_FOR_MILD (200) AND
+                          1.5 <= pred_len/gt_len <= 2.0 AND
+                          zlib_ratio < MILD_OV_ZLIB (0.30)
+                          -- between over_gen_repetitive (>2x) and genuine
+                          content divergence.
+    truncation            pred_len < TRUNC_RATIO (0.4) * gt_len AND
+                          gt_len > MIN_GT_FOR_TRUNC (300)
+    math_residual         LaTeX-token asymmetry >= 3
+    content_divergence    genuine catch-all (inherent model/knowledge divergence)
 """
 
 from __future__ import annotations
@@ -16,16 +43,22 @@ from __future__ import annotations
 import json
 import re
 import zlib
-from collections import defaultdict
+from collections import Counter, defaultdict
 
-LOOPING_ZLIB = 0.05
+LOOPING_ZLIB = 0.20
+LOOPING_5GRAM = 8
 OVERGEN_RATIO = 2.0
 OVERGEN_REP_ZLIB = 0.20
-OVERGEN_DENSE_ZLIB = 0.30
+OVERGEN_DENSE_ZLIB = 0.30  # noqa: F841  (retained for API symmetry / reference)
 TRUNC_RATIO = 0.4
 GOOD_EDIT = 0.05
-MIN_LEN_FOR_LONG = 3000
+NONTEXT_MIN = 3
+MILD_OV_LO = 1.5
+MILD_OV_HI = 2.0
+MILD_OV_ZLIB = 0.30
+MIN_LEN_FOR_LONG = 200
 MIN_GT_FOR_TRUNC = 300
+MIN_GT_FOR_MILD = 200
 
 _LATEX_TOKEN = re.compile(r"\\[a-zA-Z]+|[\\^_]")
 
@@ -40,20 +73,39 @@ def _latex_residual_asymmetry(gt: str, pred: str) -> int:
     return abs(len(_LATEX_TOKEN.findall(gt)) - len(_LATEX_TOKEN.findall(pred)))
 
 
+def max_repeated_5gram_count(text: str) -> int:
+    """Highest occurrence count of any 5-character n-gram in *text*.
+
+    A high value signals degenerate repetition (a short token looped many
+    times). Returns 0 for text shorter than 5 chars.
+    """
+    if not text or len(text) < 5:
+        return 0
+    counts = Counter(text[i : i + 5] for i in range(len(text) - 4))
+    return max(counts.values()) if counts else 0
+
+
 def categorize(norm_gt: str, norm_pred: str, edit_num: int, upper_len: int) -> str:
     gt_len, pred_len = len(norm_gt or ""), len(norm_pred or "")
     edit_ratio = edit_num / upper_len if upper_len else 0.0
     if edit_ratio < GOOD_EDIT:
         return "good"
     zpred = _zlib_ratio(norm_pred or "")
-    if zpred < LOOPING_ZLIB and pred_len > MIN_LEN_FOR_LONG:
+    # looping: zlib arm (dense long loop) OR 5-gram arm (short/mixed loop).
+    if pred_len > MIN_LEN_FOR_LONG and (
+        zpred < LOOPING_ZLIB or max_repeated_5gram_count(norm_pred or "") >= LOOPING_5GRAM
+    ):
         return "looping"
+    if (norm_pred or "").count("NonText") >= NONTEXT_MIN:
+        return "nontext_pollution"
     if gt_len > 0 and pred_len > OVERGEN_RATIO * gt_len:
         return "over_gen_repetitive" if zpred < OVERGEN_REP_ZLIB else "over_gen_dense"
     if pred_len < TRUNC_RATIO * gt_len and gt_len > MIN_GT_FOR_TRUNC:
         return "truncation"
     if _latex_residual_asymmetry(norm_gt or "", norm_pred or "") >= 3:
         return "math_residual"
+    if gt_len > MIN_GT_FOR_MILD and MILD_OV_LO <= pred_len / gt_len <= MILD_OV_HI and zpred < MILD_OV_ZLIB:
+        return "mild_over_generation"
     return "content_divergence"
 
 
