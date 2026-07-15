@@ -12,11 +12,11 @@
 | transformers | 4.57.1 |
 | Model | baidu/Unlimited-OCR (BF16, weights rev `84757cb0`) |
 | Backend | **PyTorch-direct (transformers)** — the only working backend on this host |
-| OmniDocBench v1.6 Overall | **92.431** (fast path, pinned weights, gundam, BF16) |
+| OmniDocBench v1.6 Overall | **92.451** (fast path, pinned weights, gundam, BF16) |
 
-> **Two backends, honestly:** The **PyTorch-direct backend** is the path measured here (Overall 92.431, gate PASS). The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`docs/parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md). **SGLang** (the paper's likely backend) is blocked on gfx1100 — inference page-faults on the fused-MoE triton kernel on RDNA3 (no gfx11-viable MoE backend). Neither serving path is shipped here.
+> **Two backends, honestly:** The **PyTorch-direct backend** is the path measured here (Overall 92.451, gate PASS). The **vLLM/ROCm serving backend** is a separate, **numerics-blocked preview** (~10% first-token EOS; root-caused to forward-pass numerics, **not** R-SWA — ruled out by direct ablation; re-verification deferred to the official vLLM v0.25.0+ ROCm wheel). See [`docs/parity/rswa-spike-verdict-2026-07-11.md`](parity/rswa-spike-verdict-2026-07-11.md). **SGLang** (the paper's likely backend) is blocked on gfx1100 — inference page-faults on the fused-MoE triton kernel on RDNA3 (no gfx11-viable MoE backend). Neither serving path is shipped here.
 >
-> **Overall follows the official leaderboard 口径** (`generate_result_tables.ipynb` cell 2): the three columns are rounded to 3 decimals before Overall = ((1−Text)×100 + CDM + TEDS)/3; the scorer's raw overall_notebook is 92.436.
+> **Overall follows the official leaderboard 口径** (`generate_result_tables.ipynb` cell 2): the three columns are rounded to 3 decimals before Overall = ((1−Text)×100 + CDM + TEDS)/3; the scorer's raw overall_notebook is 92.4506.
 
 ---
 
@@ -55,7 +55,7 @@ bucketed batching (batch_size=8) · chunked (chunk_size=64) · 4-GPU balanced sh
 wall_s = 7840 (slowest of 4 shards) · pages_per_sec = 0.2106 · Overall = 92.431 (gate PASS)
 ```
 
-Manifest: [`eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml`](../eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml). The 0.21 pp/s is **aggregate across 4 GPUs** (1,651 pages / 7,840 s). Per-GPU it is ~0.053 pp/s. The full-run **direct** baseline was **not** re-measured on this env (not worth ~2× GPU-hours to re-establish a Δ when the controlled 30-page gate already gives the apples-to-apples 1.88×), so the full-run number stands alone as throughput, not as a speedup ratio.
+Manifest: [`eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml`](../eval/results/pytorch-v1.6-leaderboard__6f6c94b74d__2026-07-11.yaml). The 0.21 pp/s is **aggregate across 4 GPUs** (1,651 pages / 7,840 s). Per-GPU it is ~0.053 pp/s. The full-run **direct** baseline was **not** re-measured on this env (not worth ~2× GPU-hours to re-establish a Δ when the controlled 30-page gate already gives the apples-to-apples 1.88×), so the full-run number stands alone as throughput, not as a speedup ratio. (_Accuracy note:_ this timed run scored 92.431 (v1.3.0 leaderboard); accuracy has since ticked to **92.451** via the NonText-marker strip — PR #62, [`eval/results/pytorch-v1.6-textfix__4464866346__2026-07-12.yaml`](../eval/results/pytorch-v1.6-textfix__4464866346__2026-07-12.yaml). That re-score is postprocess-only and did **not** re-measure speed, so the throughput figures above stand unchanged.)
 
 ### Why it's decode-bound (the per-stage reality)
 
