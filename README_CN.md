@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  OmniDocBench v1.6 Overall 92.431（PyTorch 快速路径） · gate 通过 · 1.88× 无损加速 · 16 GB 显存 · R-SWA 恒定内存
+  OmniDocBench v1.6 Overall 92.451（PyTorch 快速路径） · gate 通过 · 1.88× 无损加速 · 16 GB 显存 · R-SWA 恒定内存
 </p>
 
 <div align="center">
@@ -41,7 +41,7 @@
 
 | OmniDocBench v1.6 | Gate | 速度 | 最低显存 |
 |---|---|---|---|
-| **92.431 Overall** ✓ _（PyTorch 快速路径）_ | **PASS** | **1.88× 无损** · ~0.21 pp/s（4-GPU） | **16 GB** |
+| **92.451 Overall** ✓ _（PyTorch 快速路径）_ | **PASS** | **1.88× 无损** · ~0.21 pp/s（4-GPU） | **16 GB** |
 
 </div>
 
@@ -55,15 +55,15 @@
 
 | Model | Overall ↑ | TextEdit ↓ | FormulaCDM ↑ | TableTEDS ↑ | TableTEDS_s ↑ | Read-orderEdit ↓ |
 |---|---:|---:|---:|---:|---:|---:|
-| **PyTorch 快速路径**（本项目，AMD ROCm gfx1100） | **92.431** | 0.087 | 95.831 | 90.162 | 93.30 | 0.1442 |
+| **PyTorch 快速路径**（本项目，AMD ROCm gfx1100） | **92.451** | 0.087 | 95.831 | 90.221 | 93.38 | 0.1435 |
 | _前基线_（PyTorch，torch 2.5.1+rocm6.2） | _91.97_ | _0.0939_ | _95.72_ | _89.58_ | _92.83_ | _0.1449_ |
 | Baidu 原始论文\* | 93.92 | 0.042 | 95.79 | 90.16 | 93.32 | 0.129 |
 
-> **按官方榜单口径统数和计算**，参考 [`generate_result_tables.ipynb`](https://github.com/opendatalab/OmniDocBench/blob/main/tools/generate_result_tables.ipynb)（cell 2：三列——Text EditDist、Formula CDM×100、Table TEDS×100——先 round(3)，再算 `Overall = ((1−Text)×100 + CDM + TEDS)/3`；CDM/TEDS 取自 `display_formula.page.CDM.ALL` / `table.page.TEDS.ALL` × 100，非样本级 `.all.*.all`。scorer 的原始 overall_notebook 为 92.436。）
+> **按官方榜单口径统数和计算**，参考 [`generate_result_tables.ipynb`](https://github.com/opendatalab/OmniDocBench/blob/main/tools/generate_result_tables.ipynb)（cell 2：三列——Text EditDist、Formula CDM×100、Table TEDS×100——先 round(3)，再算 `Overall = ((1−Text)×100 + CDM + TEDS)/3`；CDM/TEDS 取自 `display_formula.page.CDM.ALL` / `table.page.TEDS.ALL` × 100，非样本级 `.all.*.all`。scorer 的原始 overall_notebook 为 92.4506。）
 
-*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **92.431**（PyTorch 快速路径，固定权重 `84757cb0`，torch 2.10+rocm7.0）是受控、可复现的实测（已提交 manifest，gate 通过），较前 91.97 基线提升 **+0.465**，所有模块均 ≥ 基线。该增益来自环境+权重 + decode_bpe 后处理修复，而非 batching 运气 —— Task-8 identity gate 在同一环境下确认 fast ≈ direct（修复后 Δ=0.0 精确一致）。*
+*\*百度原始论文自报分数，来源 [arxiv:2606.23050](https://arxiv.org/abs/2606.23050) —— **不在 OmniDocBench 排行榜上、未被任何人独立复现**。我们的 **92.451**（PyTorch 快速路径，固定权重 `84757cb0`，torch 2.10+rocm7.0）是受控、可复现的实测（已提交 manifest，gate 通过），较前 91.97 基线提升 **+0.481**，所有模块均 ≥ 基线。该增益来自环境+权重 + decode_bpe 后处理修复，而非 batching 运气 —— Task-8 identity gate 在同一环境下确认 fast ≈ direct（修复后 Δ=0.0 精确一致）。*
 
-**诚实的精度定位。** 与百度 93.92 的 ~1.49pt 差距**几乎全部来自 Text EditDist**，无损逐页分解（[`docs/parity/moderate-tail-attribution-2026-07-11.md`](docs/parity/moderate-tail-attribution-2026-07-11.md)）表明现实无损上限约为 **~92.5–93.0** —— 我们的 92.431 距其仅 ~0.07–0.57（基本已达上限）。差距构成约 35% 行内数学 LaTeX 风格（模型输出语义正确的 `\(...\)`、`\sin`，而 GT 用 `$...$`、`\operatorname{s i n}`；CDM 0.958 证实数学正确 —— 字符级 EditDist 惩罚的是分隔符/间距差异）+ ~25% 真实识别上限 + ~25% 密集版面分歧（书籍索引/报纸）+ ~15% 格式/间距。无损可弥合部分仅 ~+0.5 pts。37% 的页面占据 93.2% 的 EditDist 总量；62.8% 的页面为"良好"（EditDist <0.05）。完整诊断：[docs/PARITY.md](docs/PARITY.md)。
+**诚实的精度定位。** 与百度 93.92 的 ~1.47pt 差距**几乎全部来自 Text EditDist**。基于证据的归因（[`docs/parity/text-editdist-rootcause-2026-07-12.md`](docs/parity/text-editdist-rootcause-2026-07-12.md) —— 对全部 1,557 页、11,219 个文本块的官方 scorer dump）将其定位为**约 80% 固有**：约 65% 真实识别发散（模型相对该 GT 的字符级上限）、约 14% 数学风格残差（模型输出语义正确的 \(...\)、\sin，而 GT 用 $...$、\operatorname{s i n}；CDM 0.958 证实数学正确 —— 字符级 EditDist 惩罚的是分隔符/间距差异）、约 8% 密集过生成。仅约 6% 可修（截断 / 循环 / `[Non-Text]` 标记）；`[Non-Text]` 剥离已应用（PR #62，+0.0196 Overall），逐页循环重试发生回退、已撤销。块级：77.9% 的块 edit_ratio <0.05；66.1% 精确匹配 —— 发散散布在大量近似正确的块上，并非集中于垃圾块。唯一开放变量是 checkpoint 版本（我们固定 `84757cb0`；是否与百度 93.92 的运行一致尚未确认 —— 见 [`docs/upstream/issue-66-text-gap-engagement-2026-07-15.md`](docs/upstream/issue-66-text-gap-engagement-2026-07-15.md)）。完整诊断：[docs/PARITY.md](docs/PARITY.md)。
 
 **速度。** 快速路径（分桶 batching）在受控 30 页 gate 上比直接逐页路径快 **1.88× 无损**（同环境、同 scorer，修复后 Overall Δ=0.0 精确一致），全量 1,651 页运行在 4× gfx1100 上达到 **~0.21 pages/s 聚合**（墙钟 ~7,840 s）。[基准测试 →](docs/BENCHMARK.md)*
 
@@ -77,10 +77,10 @@
 
 | 后端 | 状态 | OmniDocBench |
 |---|---|---|
-| **PyTorch 快速路径**（分桶 batching，`model.infer`） | ✅ 已验证的对齐参考（即上面的 92.431）+ 1.88× 无损加速 | **Overall 92.431**，gate 通过 —— 1,651 页，已提交 manifest |
+| **PyTorch 快速路径**（分桶 batching，`model.infer`） | ✅ 已验证的对齐参考（即上面的 92.451）+ 1.88× 无损加速 | **Overall 92.451**，gate 通过 —— 1,651 页，已提交 manifest |
 | **vLLM / ROCm** 服务 | ⏳ 受数值发散阻塞的预览 | 约 10% 页面灾难性退化（首 token 即 EOS） |
 
-**PyTorch 快速路径**（分桶 batching）是已验证的对齐参考：Task-8 identity gate 确认它与直接逐页路径**精确一致**（修复 `decode_bpe` 后 Δ=0.0；之前看似的"30 页中 4 页差一个重音字符"实为 `decode_bpe` 后处理 bug，现已修复 —— 残留字节差异仅为末尾换行，EditDist 影响为零），因此既准确（92.431）**又**快 1.88×。**vLLM/ROCm 服务后端**在约 10% 的页面上出现首-token EOS 回归（150 页代表性样本、同一 scorer：vLLM Overall **22.3** vs PyTorch 后端 **66.4**）。原因是**前向数值发散** —— bf16 + 优化 MoE/注意力 kernel（TRITON/ROCM_ATTN）相对 PyTorch eager —— 发生在边界页上。**不是** R-SWA（已用直接消融排除：在 PyTorch 中强制全因果注意力**不能**复现该 EOS），也**不是**任何 config / 解码契约 / processor bug（均已排除）。本 README 宣传的 92.431 是 **PyTorch** 快速路径；vLLM/ROCm 服务路径目前没有通过的分数。
+**PyTorch 快速路径**（分桶 batching）是已验证的对齐参考：Task-8 identity gate 确认它与直接逐页路径**精确一致**（修复 `decode_bpe` 后 Δ=0.0；之前看似的"30 页中 4 页差一个重音字符"实为 `decode_bpe` 后处理 bug，现已修复 —— 残留字节差异仅为末尾换行，EditDist 影响为零），因此既准确（92.451）**又**快 1.88×。**vLLM/ROCm 服务后端**在约 10% 的页面上出现首-token EOS 回归（150 页代表性样本、同一 scorer：vLLM Overall **22.3** vs PyTorch 后端 **66.4**）。原因是**前向数值发散** —— bf16 + 优化 MoE/注意力 kernel（TRITON/ROCM_ATTN）相对 PyTorch eager —— 发生在边界页上。**不是** R-SWA（已用直接消融排除：在 PyTorch 中强制全因果注意力**不能**复现该 EOS），也**不是**任何 config / 解码契约 / processor bug（均已排除）。本 README 宣传的 92.451 是 **PyTorch** 快速路径；vLLM/ROCm 服务路径目前没有通过的分数。
 
 **⏳ vLLM + ROCm 后端 → 等官方发布 v0.25.0+。** 定论性复验（在真实 vLLM/ROCm 构建上 serve unlimited-ocr 并重新评分）推迟到 vLLM 发布官方 **v0.25.0+ ROCm wheel**（第一个含核心侧 R-SWA + Triton 后端的稳定版）。服务脚本已就绪：[`scripts/rswa_spike/`](scripts/rswa_spike/)。完整调查 + 复验触发条件：[`docs/parity/rswa-spike-verdict-2026-07-11.md`](docs/parity/rswa-spike-verdict-2026-07-11.md)。
 
