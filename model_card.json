@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "model_id": "unlimited-ocr",
+  "model_version": "0.1.0",
+  "platforms": ["linux-rocm"],
+  "badge": {"linux-rocm": "community", "windows-hip": "community-wanted"},
+  "eval_date": "2026-07-11",
+  "omnidocbench_version": "v1.6",
+  "overall": null,
+  "submetrics": {},
+  "hardware": {
+    "gpu": "AMD gfx1100 (Radeon PRO W7900) x4",
+    "vram": "48 GB per GPU",
+    "rocm_driver": "ROCm 7.2",
+    "inference_backend": "SGLang + vLLM"
+  },
+  "note": "Platform-standard score/publish not yet executed. Existing eval results at eval/results/ need migration to platform artifacts via omnidocbench-rocm score + publish.",
+  "artifacts": {
+    "eval_results": "eval/results/"
+  }
+}
