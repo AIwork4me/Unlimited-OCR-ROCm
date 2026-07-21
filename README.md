@@ -94,7 +94,7 @@ The **PyTorch fast path** (bucketed batching) is the verified aligned reference:
 
 ---
 
-## Quick Start
+## Install (Quick Start)
 
 ### Local (3 commands)
 
@@ -123,6 +123,14 @@ unlimited-ocr --pdf ./my_document.pdf --output-dir ./outputs
 **Recommended:** try the HuggingFace or ModelScope demo to see the output quality, then register at [AMD Radeon Cloud](https://radeon.anruicloud.com/) for dedicated hardware — the same GPU we benchmark on.
 
 ---
+
+## Demo
+
+The `smoke` backend needs no GPU — verify the contract end-to-end:
+
+```bash
+python adapter/run_adapter.py --img-dir examples --out-dir /tmp/out --platform linux-rocm --backend smoke
+```
 
 ## Performance Tuning
 
@@ -166,7 +174,7 @@ VRAM grows only +0.2 GB from 1 to 50 pages. A **16 GB** consumer Radeon handles 
 
 ---
 
-## Evaluation Infrastructure
+## Evaluation Infrastructure (Reproducibility)
 
 **Unlimited-OCR-ROCm is the only Unlimited-OCR distribution with a complete, automated evaluation pipeline.** The original Baidu repository has none of this.
 
@@ -236,7 +244,7 @@ Unlimited-OCR-ROCm/
 
 ---
 
-## Troubleshooting
+## Troubleshooting & Known Gaps
 
 <details>
 <summary><b>SGLang: "No HIP GPUs available"</b></summary>

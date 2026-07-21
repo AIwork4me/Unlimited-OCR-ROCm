@@ -54,6 +54,7 @@ dev = [
     "jsonschema>=4.18",
     "pre-commit>=3.0",
 ]
+platform = ["omnidocbench-rocm>=0.2.0"]
 sglang = [
     "sglang[all]>=0.4.0",
     "kernels>=0.11.0",
